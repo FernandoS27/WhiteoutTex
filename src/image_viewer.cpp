@@ -14,7 +14,7 @@
 
 namespace tex = whiteout::textures;
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 // ============================================================================
 // Lifetime
@@ -322,4 +322,4 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
     }
 }
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

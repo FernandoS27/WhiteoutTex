@@ -17,7 +17,7 @@
 
 #include <SDL3/SDL.h>
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 /// Application configuration constants.
 constexpr int WINDOW_WIDTH = 1280;
@@ -96,4 +96,4 @@ inline int run() {
     return app.run();
 }
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

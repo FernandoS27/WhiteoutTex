@@ -28,7 +28,7 @@ constexpr const char* DDS_FORMAT_NAMES[] = {
 
 } // anonymous namespace
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 // ============================================================================
 // Filter ordering
@@ -378,4 +378,4 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
     return status;
 }
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

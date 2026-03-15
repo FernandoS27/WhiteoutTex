@@ -20,7 +20,7 @@ void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, i
     if (!filelist || !filelist[0]) {
         return;
     }
-    auto* state = static_cast<whiteout_tex::FileDialogState*>(userdata);
+    auto* state = static_cast<whiteout::gui::FileDialogState*>(userdata);
     std::lock_guard lock(state->mtx);
     state->pending_path = filelist[0];
     state->pending_filter = filter;
@@ -46,7 +46,7 @@ using TC = tex::TextureConverter;
 
 } // anonymous namespace
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 // ============================================================================
 // Initialization & Shutdown
@@ -513,4 +513,4 @@ int App::run() {
     return 0;
 }
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

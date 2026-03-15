@@ -15,7 +15,7 @@
 #include <SDL3/SDL.h>
 #include <imgui.h>
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 /// File extension filters for the Save dialog.
 constexpr SDL_DialogFileFilter SAVE_FILTERS[] = {
@@ -95,4 +95,4 @@ private:
     std::array<int, SAVE_FILTER_COUNT> filter_map_;
 };
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

@@ -7,7 +7,7 @@
 #include <fstream>
 #include <string>
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 MainWindowIniRect load_main_window_ini_rect(const std::string& ini_path) {
     MainWindowIniRect rect;
@@ -183,4 +183,4 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
 }
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

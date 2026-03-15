@@ -12,7 +12,7 @@
 #include <SDL3/SDL.h>
 #include <imgui.h>
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 /// Manages texture preview display including channel filtering, mip
 /// selection, zoom/pan, and GPU texture upload.
@@ -86,4 +86,4 @@ private:
     ImVec2 pan_offset_{0.0f, 0.0f};
 };
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui

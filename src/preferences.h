@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace whiteout_tex {
+namespace whiteout::gui {
 
 /// Saved host (SDL) window size persisted in the INI file.
 struct SavedHostWindowSize {
@@ -51,4 +51,4 @@ SavePrefs load_save_prefs(const std::string& ini_path);
 /// Append the [WhiteoutTex][SavePrefs] section.
 void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs);
 
-} // namespace whiteout_tex
+} // namespace whiteout::gui
