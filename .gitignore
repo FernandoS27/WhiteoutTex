@@ -1,0 +1,23 @@
+# Build directories
+build/
+scripts/
+Models/
+
+# IDE
+.vscode/
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+# Python
+__pycache__/
+.venv/
+venv/
+
+# Dependencies
+vcpkg_installed/
+
+# OS
+.DS_Store
+Thumbs.db

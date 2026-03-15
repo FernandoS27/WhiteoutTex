@@ -1,0 +1,9 @@
+[submodule "externals/WhiteoutLib"]
+	path = externals/WhiteoutLib
+	url = https://github.com/FernandoS27/WhiteoutLib.git
+[submodule "externals/SDL"]
+	path = externals/SDL
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "externals/DearImgui"]
+	path = externals/DearImgui
+	url = https://github.com/ocornut/imgui.git
