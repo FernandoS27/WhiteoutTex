@@ -163,6 +163,10 @@ void App::processOpenResult() {
         bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
         viewer_.setTexture(*loaded_texture_, is_orm);
         loaded_path_ = path;
+        if (loaded_texture_->format() == tex::PixelFormat::BC3 &&
+            loaded_texture_->kind() == tex::TextureKind::Normal) {
+            show_bc3n_dialog_ = true;
+        }
         loaded_file_format_ = TC::classifyPath(path);
         status_message_.clear();
     } else {
@@ -340,6 +344,32 @@ void App::drawResultDialog() {
     }
 }
 
+void App::drawBC3NDialog() {
+    if (show_bc3n_dialog_) {
+        ImGui::OpenPopup("BC3N Normal Map");
+        show_bc3n_dialog_ = false;
+    }
+    if (ImGui::BeginPopupModal("BC3N Normal Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("This DDS uses BC3 compression and is identified as a Normal map.");
+        ImGui::TextUnformatted("Treat it as BC3N (X stored in alpha, Y stored in green)?");
+        ImGui::Spacing();
+        if (ImGui::Button("Yes", ImVec2(120, 0))) {
+            if (loaded_texture_) {
+                if (auto expanded = loaded_texture_->copyFromNormalToRGBA()) {
+                    *loaded_texture_ = std::move(*expanded);
+                    viewer_.setTexture(*loaded_texture_, false);
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("No", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void App::drawAboutDialog() {
     if (show_about_) {
         ImGui::OpenPopup("About WhiteoutTex");
@@ -497,6 +527,7 @@ int App::run() {
 
         drawAboutDialog();
         drawResultDialog();
+        drawBC3NDialog();
 
         // Render
         ImGuiIO& io = ImGui::GetIO();

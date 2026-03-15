@@ -247,6 +247,16 @@ TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFor
         return TextureKind::Specular;
     if (stem.find("_emis") != std::string::npos || stem.find("emissive") != std::string::npos)
         return TextureKind::Emissive;
+    if (stem.find("_alpha") != std::string::npos || stem.find("_mask") != std::string::npos ||
+        stem.find("_opacity") != std::string::npos)
+        return TextureKind::AlphaMask;
+    if (stem.find("lightmap") != std::string::npos)
+        return TextureKind::Lightmap;
+    if (stem.find("_envpbr") != std::string::npos || stem.find("_ibl") != std::string::npos)
+        return TextureKind::EnvironmentPBR;
+    if (stem.find("_envlegacy") != std::string::npos || stem.find("_envmap") != std::string::npos ||
+        stem.find("_env") != std::string::npos || stem.find("_reflection") != std::string::npos)
+        return TextureKind::EnvironmentLegacy;
     if (stem.find("_albedo") != std::string::npos || stem.find("_tint") != std::string::npos ||
         stem.find("_basecolor") != std::string::npos)
         return TextureKind::Albedo;
@@ -362,6 +372,14 @@ const char* TextureConverter::textureKindName(TextureKind kind) {
         return "Gloss";
     case TextureKind::Emissive:
         return "Emissive";
+    case TextureKind::AlphaMask:
+        return "AlphaMask";
+    case TextureKind::Lightmap:
+        return "Lightmap";
+    case TextureKind::EnvironmentPBR:
+        return "EnvironmentPBR";
+    case TextureKind::EnvironmentLegacy:
+        return "EnvironmentLegacy";
     }
     return "Unknown";
 }

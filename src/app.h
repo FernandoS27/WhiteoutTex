@@ -59,6 +59,7 @@ private:
     void drawMipList(float width, float height);
     void drawAboutDialog();
     void drawResultDialog();
+    void drawBC3NDialog();
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -88,6 +89,7 @@ private:
     bool show_about_ = false;
     bool show_result_popup_ = false;
     std::string result_popup_message_;
+    bool show_bc3n_dialog_ = false;
 };
 
 /// Convenience wrapper matching the old API.
