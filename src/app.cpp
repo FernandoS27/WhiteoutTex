@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "save_helpers.h"
+#include "thread_pool_manager.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -164,7 +165,8 @@ void App::applyLoadedTexture(const std::string& path, tex::Texture texture) {
     const auto preserved_kind = loaded_texture_->kind();
     const bool preserved_srgb = loaded_texture_->isSrgb();
     if (tex::isBcn(loaded_fmt)) {
-        *loaded_texture_ = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt));
+        auto pool = threadPoolManager().borrow();
+        *loaded_texture_ = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool.get());
         loaded_texture_->setKind(preserved_kind);
         loaded_texture_->setSrgb(preserved_srgb);
     }
@@ -312,22 +314,28 @@ void App::drawDetailsPanel(float width, float height) {
             auto work = *loaded_texture_;
             const auto preserved_kind = work.kind();
             const tex::PixelFormat original_fmt = work.format();
+            auto pool = threadPoolManager().borrow();
             if (tex::isBcn(original_fmt)) {
-                work = work.copyAsFormat(tex::workingFormatFor(original_fmt));
+                work = work.copyAsFormat(tex::workingFormatFor(original_fmt), pool.get());
                 work.setKind(preserved_kind);
             }
-            work.generateMipmaps();
-            if (tex::isBcn(original_fmt)) {
-                work = work.copyAsFormat(original_fmt);
-            }
-            work.setKind(preserved_kind);
-            *loaded_texture_ = std::move(work);
+            if (auto err = work.generateMipmaps(pool.get())) {
+                result_popup_message_ = "Mipmap generation failed: " + *err;
+                result_popup_success_ = false;
+                show_result_popup_ = true;
+            } else {
+                if (tex::isBcn(original_fmt)) {
+                    work = work.copyAsFormat(original_fmt, pool.get());
+                }
+                work.setKind(preserved_kind);
+                *loaded_texture_ = std::move(work);
 
-            bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
-            viewer_.setTexture(*loaded_texture_, is_orm);
-            result_popup_message_ = "Mipmaps regenerated successfully.";
-            result_popup_success_ = true;
-            show_result_popup_ = true;
+                bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
+                viewer_.setTexture(*loaded_texture_, is_orm);
+                result_popup_message_ = "Mipmaps regenerated successfully.";
+                result_popup_success_ = true;
+                show_result_popup_ = true;
+            }
         }
 
         if (t.mipCount() > 0 && ImGui::TreeNode("Mip Level Details")) {

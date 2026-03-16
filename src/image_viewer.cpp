@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "image_viewer.h"
+#include "thread_pool_manager.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -12,6 +13,7 @@
 #include <imgui.h>
 
 namespace tex = whiteout::textures;
+namespace interfaces = whiteout::interfaces;
 
 namespace whiteout::gui {
 
@@ -41,7 +43,8 @@ ImageViewer::~ImageViewer() {
 // ============================================================================
 
 void ImageViewer::setTexture(const tex::Texture& texture, bool is_orm) {
-    display_texture_ = makeDisplayTexture(texture);
+    auto pool = threadPoolManager().borrow();
+    display_texture_ = makeDisplayTexture(texture, pool.get());
     selected_mip_ = 0;
     if (is_orm) {
         channel_r_ = true;
@@ -67,7 +70,8 @@ void ImageViewer::refreshDisplay(const tex::Texture& texture, bool is_orm) {
     } else {
         channel_r_ = channel_g_ = channel_b_ = channel_a_ = true;
     }
-    display_texture_ = makeDisplayTexture(texture);
+    auto pool = threadPoolManager().borrow();
+    display_texture_ = makeDisplayTexture(texture, pool.get());
     if (display_texture_ && display_texture_->mipCount() > 0) {
         if (selected_mip_ >= static_cast<int>(display_texture_->mipCount())) {
             selected_mip_ = static_cast<int>(display_texture_->mipCount()) - 1;
@@ -299,13 +303,14 @@ SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u
     return texture;
 }
 
-tex::Texture ImageViewer::makeDisplayTexture(const tex::Texture& texture) {
+tex::Texture ImageViewer::makeDisplayTexture(const tex::Texture& texture,
+                                              interfaces::WorkerPool* pool) {
     if (texture.kind() == tex::TextureKind::Normal) {
-        if (auto expanded = texture.copyFromNormalToRGBA()) {
+        if (auto expanded = texture.copyFromNormalToRGBA(pool)) {
             return std::move(*expanded);
         }
     }
-    auto result = texture.copyAsFormat(tex::PixelFormat::RGBA8);
+    auto result = texture.copyAsFormat(tex::PixelFormat::RGBA8, pool);
     const auto src_fmt = texture.format();
     if (src_fmt == tex::PixelFormat::R8 || src_fmt == tex::PixelFormat::R16 ||
         src_fmt == tex::PixelFormat::R32F || src_fmt == tex::PixelFormat::BC4) {

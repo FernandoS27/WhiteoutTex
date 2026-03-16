@@ -18,7 +18,9 @@ add_executable(WhiteoutTex
     src/image_viewer.cpp
     src/preferences.cpp
     src/save_dialog.cpp
+    src/save_helpers.cpp
     src/texture_converter.cpp
+    src/thread_pool_manager.cpp
 )
 
 if(WIN32)

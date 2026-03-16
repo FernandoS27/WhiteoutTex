@@ -5,6 +5,7 @@
 #include "common_types.h"
 #include "save_dialog.h"
 #include "save_helpers.h"
+#include "thread_pool_manager.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -449,7 +450,8 @@ void BatchConvert::workerFunc() {
         if (tex::isBcn(loaded_fmt)) {
             const auto preserved_kind = loaded->kind();
             const bool preserved_srgb = loaded->isSrgb();
-            *loaded = loaded->copyAsFormat(tex::workingFormatFor(loaded_fmt));
+            auto pool = threadPoolManager().borrow();
+            *loaded = loaded->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool.get());
             loaded->setKind(preserved_kind);
             loaded->setSrgb(preserved_srgb);
         }
@@ -481,18 +483,21 @@ void BatchConvert::workerFunc() {
 
 bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::string& out_path,
                             tex::TextureKind kind) {
+    auto pool = threadPoolManager().borrow();
+
     if (generate_mipmaps_) {
         if (tex::isBcn(tex_copy.format())) {
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
+            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool.get());
         }
-        tex_copy.generateMipmaps();
+        if (auto err = tex_copy.generateMipmaps(pool.get()))
+            return false;
     }
 
     switch (output_format_) {
     case 0: { // BLP
         auto blp = buildBlpSaveOptions(blp_version_, blp_encoding_,
                                        blp_dither_, blp_dither_strength_, jpeg_quality_);
-        coerceBlpFormat(tex_copy, blp_encoding_, blp.encoding);
+        coerceBlpFormat(tex_copy, blp_encoding_, blp.encoding, pool.get());
         return converter.save(tex_copy, out_path, blp);
     }
 
@@ -516,7 +521,7 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
             invert_y = dds_invert_y_general_;
         }
 
-        coerceDdsFormat(tex_copy, dds_fmt, invert_y);
+        coerceDdsFormat(tex_copy, dds_fmt, invert_y, pool.get());
         return converter.save(tex_copy, out_path);
     }
 

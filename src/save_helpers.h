@@ -11,9 +11,9 @@
 #include "save_dialog.h"
 #include "texture_converter.h"
 
-#include <filesystem>
 #include <optional>
 
+#include <whiteout/interfaces.h>
 #include <whiteout/textures/blp/types.h>
 #include <whiteout/textures/texture.h>
 
@@ -122,39 +122,14 @@ inline constexpr whiteout::textures::PixelFormat DDS_PIXEL_FORMATS[] = {
 
 /// Populate a BlpSaveOptions struct from GUI combo-box indices
 /// and coerce the texture to the required pixel format.
-inline whiteout::textures::blp::SaveOptions buildBlpSaveOptions(
+whiteout::textures::blp::SaveOptions buildBlpSaveOptions(
     int blp_version, int blp_encoding,
-    bool dither, float dither_strength, int jpeg_quality) noexcept {
-    namespace blp = whiteout::textures::blp;
-    blp::SaveOptions opts;
-    opts.version  = blp_version == 0 ? blp::BlpVersion::BLP1 : blp::BlpVersion::BLP2;
-    opts.encoding = toBlpEncoding(blp_encoding);
-    opts.dither   = dither;
-    opts.ditherStrength = dither_strength;
-    opts.jpegQuality    = jpeg_quality;
-
-    // Force BLP1 for encodings that require it.
-    if (opts.encoding == blp::BlpEncoding::JPEG ||
-        opts.encoding == blp::BlpEncoding::Palettized)
-        opts.version = blp::BlpVersion::BLP1;
-
-    return opts;
-}
+    bool dither, float dither_strength, int jpeg_quality) noexcept;
 
 /// Coerce @p tex to the pixel format required by the chosen BLP encoding.
-inline void coerceBlpFormat(whiteout::textures::Texture& tex, int blp_encoding,
-                            whiteout::textures::blp::BlpEncoding enc) {
-    namespace blp = whiteout::textures::blp;
-    if (enc == blp::BlpEncoding::JPEG || enc == blp::BlpEncoding::Palettized ||
-        enc == blp::BlpEncoding::BGRA || enc == blp::BlpEncoding::Infer) {
-        if (tex.format() != whiteout::textures::PixelFormat::RGBA8)
-            tex = tex.copyAsFormat(whiteout::textures::PixelFormat::RGBA8);
-    } else { // DXT subtype: pick BC pixel format by index (4→BC1, 5→BC2, 6→BC3)
-        const auto dxt_fmt = blpDxtPixelFormat(blp_encoding);
-        if (tex.format() != dxt_fmt)
-            tex = tex.copyAsFormat(dxt_fmt);
-    }
-}
+void coerceBlpFormat(whiteout::textures::Texture& tex, int blp_encoding,
+                     whiteout::textures::blp::BlpEncoding enc,
+                     whiteout::interfaces::WorkerPool* pool = nullptr);
 
 // ============================================================================
 // DDS save preparation
@@ -162,25 +137,8 @@ inline void coerceBlpFormat(whiteout::textures::Texture& tex, int blp_encoding,
 
 /// Apply DDS target-format conversion, including BC3N channel swapping and
 /// optional Y-channel inversion. Call after mipmap generation.
-inline void coerceDdsFormat(whiteout::textures::Texture& tex, int dds_format, bool invert_y) {
-    namespace texn = whiteout::textures;
-    const bool is_bc3n = (dds_format == DDS_FORMAT_BC3N);
-    const auto target  = is_bc3n ? texn::PixelFormat::BC3 : DDS_PIXEL_FORMATS[dds_format];
-
-    if (is_bc3n) {
-        if (tex.format() != texn::PixelFormat::RGBA8)
-            tex = tex.copyAsFormat(texn::PixelFormat::RGBA8);
-        if (invert_y)
-            tex.invertChannel(texn::Channel::G);
-        tex.swapChannels(texn::Channel::R, texn::Channel::A);
-    } else if (invert_y) {
-        if (texn::isBcn(tex.format()))
-            tex = tex.copyAsFormat(texn::PixelFormat::RGBA8);
-        tex.invertChannel(texn::Channel::G);
-    }
-    if (tex.format() != target)
-        tex = tex.copyAsFormat(target);
-}
+void coerceDdsFormat(whiteout::textures::Texture& tex, int dds_format, bool invert_y,
+                     whiteout::interfaces::WorkerPool* pool = nullptr);
 
 // ============================================================================
 // DDS format validation (raw array overload)
@@ -200,22 +158,7 @@ inline void validateDdsFormatRaw(int& fmt, const int* allowed, int count) noexce
 /// Try to auto-resolve and load a Diablo IV TEX file by guessing the payload
 /// and paylow paths from the meta path.  Returns std::nullopt if no payload
 /// file could be found or the load failed.
-inline std::optional<whiteout::textures::Texture> loadD4TexWithFallback(
-    whiteout::textures::TextureConverter& converter, const std::string& meta_path) {
-    namespace fs = std::filesystem;
-    const std::string payload = replaceMetaSegment(meta_path, "payload");
-    const std::string paylow  = replaceMetaSegment(meta_path, "paylow");
-
-    const bool payload_exists = !payload.empty() && fs::exists(payload);
-    const bool paylow_exists  = !paylow.empty() && fs::exists(paylow);
-
-    if (payload_exists && paylow_exists)
-        return converter.loadTexD4(meta_path, payload, paylow);
-    if (payload_exists)
-        return converter.loadTexD4(meta_path, payload);
-    if (paylow_exists)
-        return converter.loadTexD4(meta_path, paylow);
-    return std::nullopt;
-}
+std::optional<whiteout::textures::Texture> loadD4TexWithFallback(
+    whiteout::textures::TextureConverter& converter, const std::string& meta_path);
 
 } // namespace whiteout::gui

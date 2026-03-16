@@ -3,6 +3,7 @@
 
 #include "save_dialog.h"
 #include "save_helpers.h"
+#include "thread_pool_manager.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -233,10 +234,13 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
     auto tex_copy = source;
     tex_copy.setKind(static_cast<tex::TextureKind>(opts_.texture_kind));
 
+    auto pool = threadPoolManager().borrow();
+
     if (opts_.generate_mipmaps) {
         if (tex::isBcn(tex_copy.format()))
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
-        tex_copy.generateMipmaps();
+            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool.get());
+        if (auto err = tex_copy.generateMipmaps(pool.get()))
+            return "Mipmap generation failed: " + *err;
     }
 
     bool ok = false;
@@ -245,12 +249,12 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
         auto blp = buildBlpSaveOptions(opts_.blp_version, opts_.blp_encoding,
                                        opts_.blp_dither, opts_.blp_dither_strength,
                                        opts_.jpeg_quality);
-        coerceBlpFormat(tex_copy, opts_.blp_encoding, blp.encoding);
+        coerceBlpFormat(tex_copy, opts_.blp_encoding, blp.encoding, pool.get());
         ok = converter.save(tex_copy, opts_.save_path, blp);
         break;
     }
     case TFF::DDS: {
-        coerceDdsFormat(tex_copy, opts_.dds_format, opts_.dds_invert_y);
+        coerceDdsFormat(tex_copy, opts_.dds_format, opts_.dds_invert_y, pool.get());
         ok = converter.save(tex_copy, opts_.save_path);
         break;
     }

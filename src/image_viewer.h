@@ -8,6 +8,7 @@
 
 #include "common_types.h"
 
+#include <whiteout/interfaces.h>
 #include <whiteout/textures/texture.h>
 
 #include <SDL3/SDL.h>
@@ -61,7 +62,8 @@ private:
 
     /// Build an RGBA8 display copy (handles normal-map expansion).
     static whiteout::textures::Texture makeDisplayTexture(
-        const whiteout::textures::Texture& texture);
+        const whiteout::textures::Texture& texture,
+        whiteout::interfaces::WorkerPool* pool = nullptr);
 
     /// Rebuild the SDL preview texture from the current display_texture_
     /// at the selected mip with the active channel filter.
