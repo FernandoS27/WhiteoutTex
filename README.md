@@ -18,6 +18,9 @@
   &nbsp;
   <img src="resources/media/media_3.png" alt="Screenshot 4" width="45%" />
 </p>
+<p align="center">
+  <img src="resources/media/media_4.png" alt="Screenshot 5" width="45%" />
+</p>
 
 ---
 
@@ -65,6 +68,14 @@ WhiteoutTex can **open** and **save** textures across a wide range of game and s
 - **DDS per-kind targeting** — optionally override the DDS pixel format per texture kind (Normal, single-channel, general) so each texture lands in the best compression format automatically.
 - **Multi-threaded** — files are processed in parallel workers to make full use of available CPU cores.
 
+### CASC Browser
+
+- **Browse Blizzard CASC archives** — point the browser at any game's CASC storage directory to enumerate and preview texture assets directly from the archive.
+- **Automatic product detection** — displays the game product name and build number after opening.
+- **Diablo IV support** — reads the CoreTOC, resolves combined meta files, and reconstructs the full TEX triplet (meta + payload + paylow) for D4 textures.
+- **Filterable file tree** — type in the search box to narrow the tree to matching file names in real time.
+- **Double-click to open** — extract and load any supported texture into the image viewer with a double-click.
+
 ### Save Options
 
 - **Format-specific settings** surfaced in a save-options dialog:
@@ -83,7 +94,7 @@ WhiteoutTex can **open** and **save** textures across a wide range of game and s
 WhiteoutTex is built with **CMake** and requires a **C++23** compiler.
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build
 cmake --build build --config Release
 ```
 

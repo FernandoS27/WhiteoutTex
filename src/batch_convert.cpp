@@ -446,16 +446,6 @@ void BatchConvert::workerFunc() {
         auto kind = TC::guessTextureKind(file, loaded->format());
         loaded->setKind(kind);
 
-        const auto loaded_fmt = loaded->format();
-        if (tex::isBcn(loaded_fmt)) {
-            const auto preserved_kind = loaded->kind();
-            const bool preserved_srgb = loaded->isSrgb();
-            auto pool = threadPoolManager().borrow();
-            *loaded = loaded->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool.get());
-            loaded->setKind(preserved_kind);
-            loaded->setSrgb(preserved_srgb);
-        }
-
         std::error_code ec;
         fs::path out_base;
         if (keep_layout_) {
@@ -483,13 +473,13 @@ void BatchConvert::workerFunc() {
 
 bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::string& out_path,
                             tex::TextureKind kind) {
-    auto pool = threadPoolManager().borrow();
+    auto* pool = threadPoolManager().get();
 
     if (generate_mipmaps_) {
         if (tex::isBcn(tex_copy.format())) {
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool.get());
+            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
         }
-        if (auto err = tex_copy.generateMipmaps(pool.get()))
+        if (auto err = tex_copy.generateMipmaps(pool))
             return false;
     }
 
@@ -497,7 +487,7 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
     case 0: { // BLP
         auto blp = buildBlpSaveOptions(blp_version_, blp_encoding_,
                                        blp_dither_, blp_dither_strength_, jpeg_quality_);
-        coerceBlpFormat(tex_copy, blp_encoding_, blp.encoding, pool.get());
+        coerceBlpFormat(tex_copy, blp_encoding_, blp.encoding, pool);
         return converter.save(tex_copy, out_path, blp);
     }
 
@@ -521,14 +511,18 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
             invert_y = dds_invert_y_general_;
         }
 
-        coerceDdsFormat(tex_copy, dds_fmt, invert_y, pool.get());
+        coerceDdsFormat(tex_copy, dds_fmt, invert_y, pool);
         return converter.save(tex_copy, out_path);
     }
 
     case 3: // JPEG
+        if (tex::isBcn(tex_copy.format()))
+            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
         return converter.save(tex_copy, out_path, jpeg_quality_);
 
     default: // BMP (1), PNG (4), TGA (5)
+        if (tex::isBcn(tex_copy.format()))
+            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
         return converter.save(tex_copy, out_path);
     }
 }

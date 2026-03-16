@@ -3,6 +3,7 @@
 
 #include "texture_converter.h"
 #include "common_types.h"
+#include "thread_pool_manager.h"
 
 #include <whiteout/textures/blp/blp.h>
 #include <whiteout/textures/bmp/bmp.h>
@@ -106,6 +107,18 @@ public:
     bool saveFile(const std::string& path, Args&&... args) {
         WriterT writer;
         writer.write(path, std::forward<Args>(args)...);
+        if (writer.hasIssues()) {
+            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
+            return false;
+        }
+        return true;
+    }
+
+    /// BLP writer accepts an optional WorkerPool for parallel quantization.
+    bool saveBlp(const Texture& tex, const std::string& path, const blp::SaveOptions& opts) {
+        blp::Writer writer(blp::Writer::WriteMode::Lenient,
+                           gui::threadPoolManager().get());
+        writer.write(path, tex, opts);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
             return false;
@@ -404,7 +417,7 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
     pImpl->clearIssues();
     auto fmt = classifyPath(path);
     switch (fmt) {
-    case TextureFileFormat::BLP:  return pImpl->saveFile<blp::Writer>(path, tex, blpOpts);
+    case TextureFileFormat::BLP:  return pImpl->saveBlp(tex, path, blpOpts);
     case TextureFileFormat::BMP:  return pImpl->saveFile<bmp::Writer>(path, tex);
     case TextureFileFormat::DDS:  return pImpl->saveFile<dds::Writer>(path, tex);
     case TextureFileFormat::JPEG: return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);

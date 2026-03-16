@@ -43,8 +43,8 @@ ImageViewer::~ImageViewer() {
 // ============================================================================
 
 void ImageViewer::setTexture(const tex::Texture& texture, bool is_orm) {
-    auto pool = threadPoolManager().borrow();
-    display_texture_ = makeDisplayTexture(texture, pool.get());
+    auto* pool = threadPoolManager().get();
+    display_texture_ = makeDisplayTexture(texture, pool);
     selected_mip_ = 0;
     if (is_orm) {
         channel_r_ = true;
@@ -70,8 +70,8 @@ void ImageViewer::refreshDisplay(const tex::Texture& texture, bool is_orm) {
     } else {
         channel_r_ = channel_g_ = channel_b_ = channel_a_ = true;
     }
-    auto pool = threadPoolManager().borrow();
-    display_texture_ = makeDisplayTexture(texture, pool.get());
+    auto* pool = threadPoolManager().get();
+    display_texture_ = makeDisplayTexture(texture, pool);
     if (display_texture_ && display_texture_->mipCount() > 0) {
         if (selected_mip_ >= static_cast<int>(display_texture_->mipCount())) {
             selected_mip_ = static_cast<int>(display_texture_->mipCount()) - 1;

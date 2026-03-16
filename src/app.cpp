@@ -165,8 +165,8 @@ void App::applyLoadedTexture(const std::string& path, tex::Texture texture) {
     const auto preserved_kind = loaded_texture_->kind();
     const bool preserved_srgb = loaded_texture_->isSrgb();
     if (tex::isBcn(loaded_fmt)) {
-        auto pool = threadPoolManager().borrow();
-        *loaded_texture_ = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool.get());
+        auto* pool = threadPoolManager().get();
+        *loaded_texture_ = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool);
         loaded_texture_->setKind(preserved_kind);
         loaded_texture_->setSrgb(preserved_srgb);
     }
@@ -314,18 +314,18 @@ void App::drawDetailsPanel(float width, float height) {
             auto work = *loaded_texture_;
             const auto preserved_kind = work.kind();
             const tex::PixelFormat original_fmt = work.format();
-            auto pool = threadPoolManager().borrow();
+            auto* pool = threadPoolManager().get();
             if (tex::isBcn(original_fmt)) {
-                work = work.copyAsFormat(tex::workingFormatFor(original_fmt), pool.get());
+                work = work.copyAsFormat(tex::workingFormatFor(original_fmt), pool);
                 work.setKind(preserved_kind);
             }
-            if (auto err = work.generateMipmaps(pool.get())) {
+            if (auto err = work.generateMipmaps(pool)) {
                 result_popup_message_ = "Mipmap generation failed: " + *err;
                 result_popup_success_ = false;
                 show_result_popup_ = true;
             } else {
                 if (tex::isBcn(original_fmt)) {
-                    work = work.copyAsFormat(original_fmt, pool.get());
+                    work = work.copyAsFormat(original_fmt, pool);
                 }
                 work.setKind(preserved_kind);
                 *loaded_texture_ = std::move(work);
