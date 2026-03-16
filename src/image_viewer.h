@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include <optional>
 #include <vector>
+
+#include "common_types.h"
 
 #include <whiteout/textures/texture.h>
 
@@ -50,12 +51,12 @@ public:
 
 private:
     /// Apply per-channel filter to RGBA8 pixel data.
-    static std::vector<uint8_t> applyChannelFilter(const uint8_t* data, int width, int height,
-                                                   bool show_r, bool show_g, bool show_b,
-                                                   bool show_a);
+    static std::vector<u8> applyChannelFilter(const u8* data, int width, int height,
+                                              bool show_r, bool show_g, bool show_b,
+                                              bool show_a);
 
     /// Upload RGBA8 pixel data into an SDL_Texture.
-    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const uint8_t* data,
+    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
                                                int width, int height);
 
     /// Build an RGBA8 display copy (handles normal-map expansion).

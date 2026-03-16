@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "texture_converter.h"
+#include "common_types.h"
 
 #include <whiteout/textures/blp/blp.h>
 #include <whiteout/textures/bmp/bmp.h>
@@ -13,6 +14,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <span>
 #include <string>
 
 namespace whiteout::textures {
@@ -21,14 +23,8 @@ namespace whiteout::textures {
 // Helpers (file-local)
 // ============================================================================
 
-static std::string to_lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return s;
-}
-
 static std::string get_extension_lower(const std::string& path) {
-    return to_lower(std::filesystem::path(path).extension().string());
+    return gui::to_lower(std::filesystem::path(path).extension().string());
 }
 
 // ============================================================================
@@ -43,34 +39,28 @@ public:
         issues.clear();
     }
 
-    // -- Load dispatchers ---------------------------------------------------
+    // -- Generic load helpers -----------------------------------------------
 
-    std::optional<Texture> loadBlp(const std::string& path) {
-        blp::Parser parser;
+    /// Load from a file path.  On failure, collects parser issues or pushes
+    /// a generic error message.
+    template <typename ParserT>
+    std::optional<Texture> loadFile(const std::string& path, const char* fmtName) {
+        ParserT parser;
         auto result = parser.parse(path);
         if (!result) {
             if (parser.hasIssues())
                 issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
             else
-                issues.push_back("Unknown BLP parse error");
+                issues.push_back(std::string("Unknown ") + fmtName + " parse error");
         }
         return result;
     }
 
-    std::optional<Texture> loadBmp(const std::string& path) {
-        bmp::Parser parser;
-        auto result = parser.parse(path);
-        if (!result) {
-            if (parser.hasIssues())
-                issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
-            else
-                issues.push_back("Unknown BMP parse error");
-        }
-        return result;
-    }
-
-    std::optional<Texture> loadDds(const std::string& path) {
-        dds::Parser parser;
+    /// Load from a file path, treating any parser issue as a fatal error
+    /// (used by DDS and TEX where warnings invalidate the result).
+    template <typename ParserT>
+    std::optional<Texture> loadFileStrict(const std::string& path) {
+        ParserT parser;
         auto result = parser.parse(path);
         if (parser.hasIssues()) {
             issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
@@ -79,20 +69,12 @@ public:
         return result;
     }
 
-    std::optional<Texture> loadTex(const std::string& path) {
+    /// Load a Diablo IV TEX.  Forwards all arguments to tex::Parser::parse().
+    /// Issues are always fatal; a generic message is added on silent failure.
+    template <typename... Args>
+    std::optional<Texture> loadTexD4(Args&&... args) {
         tex::Parser parser;
-        auto result = parser.parse(path);
-        if (parser.hasIssues()) {
-            issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
-            return std::nullopt;
-        }
-        return result;
-    }
-
-    std::optional<Texture> loadTexD4(const std::string& metaPath,
-                                     const std::string& payloadPath) {
-        tex::Parser parser;
-        auto result = parser.parse(metaPath, payloadPath);
+        auto result = parser.parse(std::forward<Args>(args)...);
         if (parser.hasIssues()) {
             issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
             return std::nullopt;
@@ -102,61 +84,28 @@ public:
         return result;
     }
 
-    std::optional<Texture> loadTexD4(const std::string& metaPath,
-                                     const std::string& payloadPath,
-                                     const std::string& paylowPath) {
-        tex::Parser parser;
-        auto result = parser.parse(metaPath, payloadPath, paylowPath);
-        if (parser.hasIssues()) {
-            issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
-            return std::nullopt;
-        }
-        if (!result)
-            issues.push_back("Unknown D4 TEX parse error");
-        return result;
-    }
-
-    std::optional<Texture> loadTga(const std::string& path) {
-        tga::Parser parser;
-        auto result = parser.parse(path);
+    /// Load from an in-memory buffer.
+    template <typename ParserT>
+    std::optional<Texture> loadFromBuffer(std::span<const u8> data, const char* fmtName) {
+        ParserT parser;
+        auto result = parser.parse(data);
         if (!result) {
             if (parser.hasIssues())
                 issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
             else
-                issues.push_back("Unknown TGA parse error");
+                issues.push_back(std::string("Unknown ") + fmtName + " parse error");
         }
         return result;
     }
 
-    std::optional<Texture> loadJpeg(const std::string& path) {
-        jpeg::Parser parser;
-        auto result = parser.parse(path);
-        if (!result) {
-            if (parser.hasIssues())
-                issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
-            else
-                issues.push_back("Unknown JPEG parse error");
-        }
-        return result;
-    }
+    // -- Generic save helper ------------------------------------------------
 
-    std::optional<Texture> loadPng(const std::string& path) {
-        png::Parser parser;
-        auto result = parser.parse(path);
-        if (!result) {
-            if (parser.hasIssues())
-                issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
-            else
-                issues.push_back("Unknown PNG parse error");
-        }
-        return result;
-    }
-
-    // -- Save dispatchers ---------------------------------------------------
-
-    bool saveBlp(const Texture& tex, const std::string& path, const blp::SaveOptions& opts) {
-        blp::Writer writer;
-        writer.write(path, tex, opts);
+    /// Save via a default-constructed writer.  Forwards all arguments to
+    /// writer.write().
+    template <typename WriterT, typename... Args>
+    bool saveFile(const std::string& path, Args&&... args) {
+        WriterT writer;
+        writer.write(path, std::forward<Args>(args)...);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
             return false;
@@ -164,58 +113,9 @@ public:
         return true;
     }
 
-    bool saveBmp(const Texture& tex, const std::string& path) {
-        bmp::Writer writer;
-        writer.write(path, tex);
-        if (writer.hasIssues()) {
-            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
-            return false;
-        }
-        return true;
-    }
-
-    bool saveDds(const Texture& tex, const std::string& path) {
-        dds::Writer writer;
-        writer.write(path, tex);
-        if (writer.hasIssues()) {
-            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
-            return false;
-        }
-        return true;
-    }
-
-    bool saveTex(const Texture& tex, const std::string& path) {
-        tex::Writer writer;
-        writer.write(path, tex);
-        if (writer.hasIssues()) {
-            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
-            return false;
-        }
-        return true;
-    }
-
-    bool saveTga(const Texture& tex, const std::string& path) {
-        tga::Writer writer;
-        writer.write(path, tex);
-        if (writer.hasIssues()) {
-            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
-            return false;
-        }
-        return true;
-    }
-
+    /// JPEG writer requires quality in its constructor.
     bool saveJpeg(const Texture& tex, const std::string& path, i32 quality) {
         jpeg::Writer writer(quality);
-        writer.write(path, tex);
-        if (writer.hasIssues()) {
-            issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
-            return false;
-        }
-        return true;
-    }
-
-    bool savePng(const Texture& tex, const std::string& path) {
-        png::Writer writer;
         writer.write(path, tex);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
@@ -261,7 +161,7 @@ bool TextureConverter::isD4Tex(const std::string& path) {
 }
 
 TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFormat fmt) {
-    auto stem = to_lower(std::filesystem::path(path).stem().string());
+    auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
 
     if (stem.find("_diff") != std::string::npos || stem.find("diffuse") != std::string::npos)
         return TextureKind::Diffuse;
@@ -427,20 +327,13 @@ std::optional<Texture> TextureConverter::load(const std::string& path) {
 std::optional<Texture> TextureConverter::load(const std::string& path, TextureFileFormat fmt) {
     pImpl->clearIssues();
     switch (fmt) {
-    case TextureFileFormat::BLP:
-        return pImpl->loadBlp(path);
-    case TextureFileFormat::BMP:
-        return pImpl->loadBmp(path);
-    case TextureFileFormat::DDS:
-        return pImpl->loadDds(path);
-    case TextureFileFormat::JPEG:
-        return pImpl->loadJpeg(path);
-    case TextureFileFormat::PNG:
-        return pImpl->loadPng(path);
-    case TextureFileFormat::TEX:
-        return pImpl->loadTex(path);
-    case TextureFileFormat::TGA:
-        return pImpl->loadTga(path);
+    case TextureFileFormat::BLP:  return pImpl->loadFile<blp::Parser>(path, "BLP");
+    case TextureFileFormat::BMP:  return pImpl->loadFile<bmp::Parser>(path, "BMP");
+    case TextureFileFormat::DDS:  return pImpl->loadFileStrict<dds::Parser>(path);
+    case TextureFileFormat::JPEG: return pImpl->loadFile<jpeg::Parser>(path, "JPEG");
+    case TextureFileFormat::PNG:  return pImpl->loadFile<png::Parser>(path, "PNG");
+    case TextureFileFormat::TEX:  return pImpl->loadFileStrict<tex::Parser>(path);
+    case TextureFileFormat::TGA:  return pImpl->loadFile<tga::Parser>(path, "TGA");
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -457,9 +350,45 @@ std::optional<Texture> TextureConverter::loadTexD4(const std::string& metaPath,
                                                     const std::string& payloadPath,
                                                     const std::string& paylowPath) {
     pImpl->clearIssues();
-    if (paylowPath.empty())
-        return pImpl->loadTexD4(metaPath, payloadPath);
     return pImpl->loadTexD4(metaPath, payloadPath, paylowPath);
+}
+
+std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureFileFormat fmt) {
+    pImpl->clearIssues();
+    switch (fmt) {
+    case TextureFileFormat::BLP:
+        return pImpl->loadFromBuffer<blp::Parser>(data, "BLP");
+    case TextureFileFormat::BMP:
+        return pImpl->loadFromBuffer<bmp::Parser>(data, "BMP");
+    case TextureFileFormat::DDS:
+        return pImpl->loadFromBuffer<dds::Parser>(data, "DDS");
+    case TextureFileFormat::JPEG:
+        return pImpl->loadFromBuffer<jpeg::Parser>(data, "JPEG");
+    case TextureFileFormat::PNG:
+        return pImpl->loadFromBuffer<png::Parser>(data, "PNG");
+    case TextureFileFormat::TEX:
+        return pImpl->loadFromBuffer<tex::Parser>(data, "TEX");
+    case TextureFileFormat::TGA:
+        return pImpl->loadFromBuffer<tga::Parser>(data, "TGA");
+    default:
+        pImpl->issues.push_back("Unsupported input format");
+        return std::nullopt;
+    }
+}
+
+std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,
+                                                    std::span<const u8> payload) {
+    pImpl->clearIssues();
+    return pImpl->loadTexD4(meta, payload);
+}
+
+std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,
+                                                    std::span<const u8> payload,
+                                                    std::span<const u8> paylow) {
+    pImpl->clearIssues();
+    if (paylow.empty())
+        return pImpl->loadTexD4(meta, payload);
+    return pImpl->loadTexD4(meta, payload, paylow, nullptr);
 }
 
 // ============================================================================
@@ -475,20 +404,13 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
     pImpl->clearIssues();
     auto fmt = classifyPath(path);
     switch (fmt) {
-    case TextureFileFormat::BLP:
-        return pImpl->saveBlp(tex, path, blpOpts);
-    case TextureFileFormat::BMP:
-        return pImpl->saveBmp(tex, path);
-    case TextureFileFormat::DDS:
-        return pImpl->saveDds(tex, path);
-    case TextureFileFormat::JPEG:
-        return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);
-    case TextureFileFormat::PNG:
-        return pImpl->savePng(tex, path);
-    case TextureFileFormat::TEX:
-        return pImpl->saveTex(tex, path);
-    case TextureFileFormat::TGA:
-        return pImpl->saveTga(tex, path);
+    case TextureFileFormat::BLP:  return pImpl->saveFile<blp::Writer>(path, tex, blpOpts);
+    case TextureFileFormat::BMP:  return pImpl->saveFile<bmp::Writer>(path, tex);
+    case TextureFileFormat::DDS:  return pImpl->saveFile<dds::Writer>(path, tex);
+    case TextureFileFormat::JPEG: return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);
+    case TextureFileFormat::PNG:  return pImpl->saveFile<png::Writer>(path, tex);
+    case TextureFileFormat::TEX:  return pImpl->saveFile<tex::Writer>(path, tex);
+    case TextureFileFormat::TGA:  return pImpl->saveFile<tga::Writer>(path, tex);
     default:
         pImpl->issues.push_back("Unsupported output format");
         return false;

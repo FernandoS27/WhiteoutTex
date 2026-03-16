@@ -3,10 +3,9 @@
 
 #pragma once
 
+#include "common_types.h"
 #include "texture_converter.h"
 
-#include <atomic>
-#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -31,12 +30,6 @@ public:
     std::string draw(SDL_Window* window);
 
 private:
-    struct FolderState {
-        std::mutex mtx;
-        std::string pending_path;
-        std::atomic<bool> has_pending{false};
-    };
-
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
                                               int filter);
 
@@ -46,12 +39,14 @@ private:
     bool saveOne(whiteout::textures::TextureConverter& converter,
                  whiteout::textures::Texture tex_copy, const std::string& out_path,
                  whiteout::textures::TextureKind kind);
+    void drawBlpOptions();
+    void drawDdsOptions();
     void drawProgressDialog(std::string& status);
 
     bool show_dialog_ = false;
 
     // Input
-    char input_dir_buf_[4096] = {};
+    char input_dir_buf_[PATH_BUFFER_SIZE] = {};
     bool filter_blp_ = true;
     bool filter_bmp_ = true;
     bool filter_dds_ = true;
@@ -61,7 +56,7 @@ private:
     bool filter_tga_ = true;
 
     // Output
-    char output_dir_buf_[4096] = {};
+    char output_dir_buf_[PATH_BUFFER_SIZE] = {};
     int output_format_ = 2; // DDS
 
     // BLP options

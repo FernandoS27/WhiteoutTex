@@ -4,6 +4,7 @@
 #pragma once
 
 #include "batch_convert.h"
+#include "casc_browser.h"
 #include "image_viewer.h"
 #include "preferences.h"
 #include "save_dialog.h"
@@ -23,6 +24,8 @@ namespace whiteout::gui {
 /// Application configuration constants.
 constexpr int WINDOW_WIDTH = 1280;
 constexpr int WINDOW_HEIGHT = 800;
+constexpr int MIN_WINDOW_WIDTH = 320;
+constexpr int MIN_WINDOW_HEIGHT = 240;
 constexpr const char* WINDOW_TITLE = "WhiteoutTex";
 
 /// File dialog state shared between the OS callback and the main loop.
@@ -87,6 +90,7 @@ private:
     ImageViewer viewer_;
     SaveDialog save_dialog_;
     BatchConvert batch_convert_;
+    CascBrowser casc_browser_;
     whiteout::textures::TextureConverter converter_;
 
     // File dialog state
@@ -96,14 +100,15 @@ private:
     // UI flags
     bool show_about_ = false;
     bool show_result_popup_ = false;
+    bool result_popup_success_ = false;
     std::string result_popup_message_;
     bool show_bc3n_dialog_ = false;
 
     // Diablo IV TEX payload dialog
     bool show_d4_payload_dialog_ = false;
     std::string pending_d4_meta_path_;
-    char d4_payload_path_buf_[4096] = {};
-    char d4_paylow_path_buf_[4096] = {};
+    char d4_payload_path_buf_[PATH_BUFFER_SIZE] = {};
+    char d4_paylow_path_buf_[PATH_BUFFER_SIZE] = {};
 };
 
 /// Convenience wrapper matching the old API.

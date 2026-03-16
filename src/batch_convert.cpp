@@ -2,6 +2,9 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "batch_convert.h"
+#include "common_types.h"
+#include "save_dialog.h"
+#include "save_helpers.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -17,6 +20,8 @@
 namespace tex = whiteout::textures;
 using TFF = tex::TextureFileFormat;
 using TC = tex::TextureConverter;
+using whiteout::gui::BLP_ENCODING_NAMES;
+using whiteout::gui::DDS_FORMAT_NAMES;
 
 namespace {
 
@@ -26,37 +31,13 @@ constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG
 constexpr int OUTPUT_FORMAT_COUNT = static_cast<int>(std::size(OUTPUT_FORMAT_NAMES));
 constexpr const char* OUTPUT_EXTENSIONS[] = {".blp", ".bmp", ".dds", ".jpg", ".png", ".tga"};
 
-// ── BLP encoding names (identical to save_dialog.cpp) ──────────────────
+// ── BLP / DDS name arrays live in save_dialog.h
 
-constexpr const char* BLP_ENCODING_NAMES[] = {
-    "Infer (Auto)", "True Color (BGRA)", "Paletted (256 colors)", "JPEG",
-    "BC1 (DXT1)",   "BC2 (DXT3)",        "BC3 (DXT5)"};
-
-// ── DDS format names (identical to save_dialog.cpp) ────────────────────
-
-constexpr const char* DDS_FORMAT_NAMES[] = {
-    "True Color (RGBA8)", "BC1", "BC2", "BC3", "BC4", "BC5", "BC6H", "BC7", "BC3N"};
-
-// DDS format presets by texture-kind group (mirrors save dialog).
+// DDS format presets by texture-kind group
 constexpr int DDS_ALL[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 constexpr int DDS_ALL_COUNT = static_cast<int>(std::size(DDS_ALL));
 
-constexpr int DDS_NORMAL[] = {0, 5, 8};
-constexpr int DDS_NORMAL_COUNT = static_cast<int>(std::size(DDS_NORMAL));
-
-constexpr int DDS_CHANNEL[] = {0, 4};
-constexpr int DDS_CHANNEL_COUNT = static_cast<int>(std::size(DDS_CHANNEL));
-
-constexpr int DDS_OTHER[] = {0, 1, 2, 3, 6, 7};
-constexpr int DDS_OTHER_COUNT = static_cast<int>(std::size(DDS_OTHER));
-
 // ── Helpers ────────────────────────────────────────────────────────────
-
-static std::string to_lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return s;
-}
 
 static bool matchesFilter(const std::string& ext, bool blp, bool bmp, bool dds, bool jpeg,
                            bool png, bool tex_f, bool tga) {
@@ -70,14 +51,8 @@ static bool matchesFilter(const std::string& ext, bool blp, bool bmp, bool dds, 
     return false;
 }
 
-static void validateDdsFormat(int& fmt, const int* allowed, int count) {
-    for (int i = 0; i < count; ++i)
-        if (allowed[i] == fmt) return;
-    fmt = allowed[0];
-}
-
 static void drawDdsFormatCombo(const char* label, int& fmt, const int* allowed, int count) {
-    validateDdsFormat(fmt, allowed, count);
+    whiteout::gui::validateDdsFormatRaw(fmt, allowed, count);
     if (ImGui::BeginCombo(label, DDS_FORMAT_NAMES[fmt])) {
         for (int i = 0; i < count; ++i) {
             bool selected = (fmt == allowed[i]);
@@ -123,16 +98,12 @@ void BatchConvert::open() {
 void BatchConvert::processFolderResults() {
     if (input_folder_state_.has_pending.load()) {
         std::lock_guard lock(input_folder_state_.mtx);
-        std::strncpy(input_dir_buf_, input_folder_state_.pending_path.c_str(),
-                     sizeof(input_dir_buf_) - 1);
-        input_dir_buf_[sizeof(input_dir_buf_) - 1] = '\0';
+        copyToBuffer(input_dir_buf_, input_folder_state_.pending_path);
         input_folder_state_.has_pending.store(false);
     }
     if (output_folder_state_.has_pending.load()) {
         std::lock_guard lock(output_folder_state_.mtx);
-        std::strncpy(output_dir_buf_, output_folder_state_.pending_path.c_str(),
-                     sizeof(output_dir_buf_) - 1);
-        output_dir_buf_[sizeof(output_dir_buf_) - 1] = '\0';
+        copyToBuffer(output_dir_buf_, output_folder_state_.pending_path);
         output_folder_state_.has_pending.store(false);
     }
 }
@@ -149,10 +120,7 @@ std::string BatchConvert::draw(SDL_Window* window) {
     if (show_dialog_) {
         ImGui::OpenPopup("Batch Convert");
     }
-    {
-        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    }
+    centerNextWindow();
     if (!ImGui::BeginPopupModal("Batch Convert", &show_dialog_,
                                  ImGuiWindowFlags_AlwaysAutoResize)) {
         drawProgressDialog(status);
@@ -208,83 +176,13 @@ std::string BatchConvert::draw(SDL_Window* window) {
     // ── Format-specific options ────────────────────────────────────────
 
     switch (output_format_) {
-    case 0: { // BLP
-        ImGui::SeparatorText("BLP Options");
-        ImGui::Combo("BLP Version", &blp_version_,
-                     "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
-        {
-            static constexpr int BLP1_ENC[] = {2, 3};
-            static constexpr int BLP2_ENC[] = {0, 1, 2, 3, 4, 5, 6};
-            const bool is_blp1 = (blp_version_ == 0);
-            const int* enc_allowed = is_blp1 ? BLP1_ENC : BLP2_ENC;
-            const int enc_count = is_blp1 ? 2 : 7;
-
-            bool enc_valid = false;
-            for (int i = 0; i < enc_count; ++i)
-                if (enc_allowed[i] == blp_encoding_) {
-                    enc_valid = true;
-                    break;
-                }
-            if (!enc_valid)
-                blp_encoding_ = enc_allowed[0];
-
-            if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[blp_encoding_])) {
-                for (int i = 0; i < enc_count; ++i) {
-                    bool selected = (blp_encoding_ == enc_allowed[i]);
-                    if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
-                        blp_encoding_ = enc_allowed[i];
-                    if (selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-        }
-        if (blp_encoding_ == 2) {
-            ImGui::Checkbox("Dither", &blp_dither_);
-            if (blp_dither_) {
-                ImGui::SliderFloat("Dither Strength", &blp_dither_strength_, 0.0f, 1.0f);
-            }
-        }
-        if (blp_encoding_ == 3) {
-            ImGui::SliderInt("JPEG Quality", &jpeg_quality_, 1, 100);
-        }
+    case 0: // BLP
+        drawBlpOptions();
         break;
-    }
 
-    case 2: { // DDS
-        ImGui::SeparatorText("DDS Options");
-        ImGui::RadioButton("General", &dds_mode_, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("Per Kind Group", &dds_mode_, 1);
-        ImGui::Spacing();
-
-        if (dds_mode_ == 0) {
-            drawDdsFormatCombo("Pixel Format", dds_format_general_, DDS_ALL, DDS_ALL_COUNT);
-            ImGui::Checkbox("Invert Y Channel", &dds_invert_y_general_);
-        } else {
-            ImGui::TextDisabled("Normal Maps:");
-            ImGui::Indent();
-            drawDdsFormatCombo("Pixel Format##normal", dds_format_normal_, DDS_NORMAL,
-                               DDS_NORMAL_COUNT);
-            ImGui::Checkbox("Invert Y Channel##normal", &dds_invert_y_normal_);
-            ImGui::Unindent();
-
-            ImGui::Spacing();
-            ImGui::TextDisabled("Channel Maps (Roughness, Metalness, AO, Gloss):");
-            ImGui::Indent();
-            drawDdsFormatCombo("Pixel Format##channel", dds_format_channel_, DDS_CHANNEL,
-                               DDS_CHANNEL_COUNT);
-            ImGui::Unindent();
-
-            ImGui::Spacing();
-            ImGui::TextDisabled("Other:");
-            ImGui::Indent();
-            drawDdsFormatCombo("Pixel Format##other", dds_format_other_, DDS_OTHER,
-                               DDS_OTHER_COUNT);
-            ImGui::Unindent();
-        }
+    case 2: // DDS
+        drawDdsOptions();
         break;
-    }
 
     case 3: // JPEG
         ImGui::SeparatorText("JPEG Options");
@@ -308,14 +206,10 @@ std::string BatchConvert::draw(SDL_Window* window) {
         ImGui::BeginDisabled();
     if (ImGui::Button("Convert", ImVec2(120, 0))) {
         std::string err = beginBatch();
-        if (err.empty()) {
-            show_dialog_ = false;
-            ImGui::CloseCurrentPopup();
-        } else {
+        if (!err.empty())
             status = std::move(err);
-            show_dialog_ = false;
-            ImGui::CloseCurrentPopup();
-        }
+        show_dialog_ = false;
+        ImGui::CloseCurrentPopup();
     }
     if (!can_convert)
         ImGui::EndDisabled();
@@ -333,6 +227,75 @@ std::string BatchConvert::draw(SDL_Window* window) {
 }
 
 // ============================================================================
+// Format-specific option panels
+// ============================================================================
+
+void BatchConvert::drawBlpOptions() {
+    ImGui::SeparatorText("BLP Options");
+    ImGui::Combo("BLP Version", &blp_version_,
+                 "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
+    {
+        const int* enc_allowed;
+        int enc_count;
+        blpAllowedEncodings(blp_version_, enc_allowed, enc_count);
+        validateBlpEncoding(blp_version_, blp_encoding_);
+
+        if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[blp_encoding_])) {
+            for (int i = 0; i < enc_count; ++i) {
+                bool selected = (blp_encoding_ == enc_allowed[i]);
+                if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
+                    blp_encoding_ = enc_allowed[i];
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
+    if (blp_encoding_ == 2) {
+        ImGui::Checkbox("Dither", &blp_dither_);
+        if (blp_dither_)
+            ImGui::SliderFloat("Dither Strength", &blp_dither_strength_, 0.0f, 1.0f);
+    }
+    if (blp_encoding_ == 3) {
+        ImGui::SliderInt("JPEG Quality", &jpeg_quality_, 1, 100);
+    }
+}
+
+void BatchConvert::drawDdsOptions() {
+    ImGui::SeparatorText("DDS Options");
+    ImGui::RadioButton("General", &dds_mode_, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Per Kind Group", &dds_mode_, 1);
+    ImGui::Spacing();
+
+    if (dds_mode_ == 0) {
+        drawDdsFormatCombo("Pixel Format", dds_format_general_, DDS_ALL, DDS_ALL_COUNT);
+        ImGui::Checkbox("Invert Y Channel", &dds_invert_y_general_);
+    } else {
+        ImGui::TextDisabled("Normal Maps:");
+        ImGui::Indent();
+        drawDdsFormatCombo("Pixel Format##normal", dds_format_normal_,
+                           DDS_PRESET_NORMAL, DDS_PRESET_NORMAL_COUNT);
+        ImGui::Checkbox("Invert Y Channel##normal", &dds_invert_y_normal_);
+        ImGui::Unindent();
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Channel Maps (Roughness, Metalness, AO, Gloss):");
+        ImGui::Indent();
+        drawDdsFormatCombo("Pixel Format##channel", dds_format_channel_,
+                           DDS_PRESET_CHANNEL, DDS_PRESET_CHANNEL_COUNT);
+        ImGui::Unindent();
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Other:");
+        ImGui::Indent();
+        drawDdsFormatCombo("Pixel Format##other", dds_format_other_,
+                           DDS_PRESET_OTHER, DDS_PRESET_OTHER_COUNT);
+        ImGui::Unindent();
+    }
+}
+
+// ============================================================================
 // Progress dialog
 // ============================================================================
 
@@ -340,11 +303,8 @@ void BatchConvert::drawProgressDialog(std::string& status) {
     if (converting_) {
         ImGui::OpenPopup("##BatchProgress");
     }
-    {
-        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(500, 0));
-    }
+    centerNextWindow();
+    ImGui::SetNextWindowSize(ImVec2(500, 0));
     if (ImGui::BeginPopupModal("##BatchProgress", nullptr,
                                 ImGuiWindowFlags_AlwaysAutoResize |
                                     ImGuiWindowFlags_NoTitleBar |
@@ -452,6 +412,14 @@ void BatchConvert::workerFunc() {
     TC converter;
     const int total = static_cast<int>(pending_files_.size());
 
+    // Signal progress and detect completion atomically via the return value
+    // of fetch_add, avoiding the race in a separate load-after-loop check.
+    const auto signalProgress = [&] {
+        if (batch_processed_.fetch_add(1, std::memory_order_acq_rel) + 1 >= total) {
+            batch_done_.store(true, std::memory_order_release);
+        }
+    };
+
     while (true) {
         const int idx = work_index_.fetch_add(1, std::memory_order_relaxed);
         if (idx >= total)
@@ -463,54 +431,28 @@ void BatchConvert::workerFunc() {
         std::optional<tex::Texture> loaded;
 
         if (file_fmt == TFF::TEX && TC::isD4Tex(file)) {
-            std::string payload = file;
-            auto pos = payload.find("meta");
-            if (pos != std::string::npos) {
-                payload.replace(pos, 4, "payload");
-                std::string paylow = file;
-                auto paylow_pos = paylow.find("meta");
-                if (paylow_pos != std::string::npos)
-                    paylow.replace(paylow_pos, 4, "paylow");
-                else
-                    paylow.clear();
-
-                const bool payload_exists = fs::exists(payload);
-                const bool paylow_exists = !paylow.empty() && fs::exists(paylow);
-
-                if (payload_exists && paylow_exists)
-                    loaded = converter.loadTexD4(file, payload, paylow);
-                else if (payload_exists)
-                    loaded = converter.loadTexD4(file, payload);
-                else if (paylow_exists)
-                    loaded = converter.loadTexD4(file, paylow);
-            }
+            loaded = loadD4TexWithFallback(converter, file);
         } else {
             loaded = converter.load(file);
         }
 
         if (!loaded) {
             batch_fail_.fetch_add(1, std::memory_order_relaxed);
-            batch_processed_.fetch_add(1, std::memory_order_relaxed);
+            signalProgress();
             continue;
         }
 
         auto kind = TC::guessTextureKind(file, loaded->format());
         loaded->setKind(kind);
 
-        auto loaded_fmt = loaded->format();
-        tex::PixelFormat working;
-        if (loaded_fmt == tex::PixelFormat::BC4)
-            working = tex::PixelFormat::R32F;
-        else if (loaded_fmt == tex::PixelFormat::BC5)
-            working = tex::PixelFormat::RG32F;
-        else
-            working = tex::PixelFormat::RGBA32F;
-
-        auto preserved_kind = loaded->kind();
-        bool preserved_srgb = loaded->isSrgb();
-        *loaded = loaded->copyAsFormat(working);
-        loaded->setKind(preserved_kind);
-        loaded->setSrgb(preserved_srgb);
+        const auto loaded_fmt = loaded->format();
+        if (tex::isBcn(loaded_fmt)) {
+            const auto preserved_kind = loaded->kind();
+            const bool preserved_srgb = loaded->isSrgb();
+            *loaded = loaded->copyAsFormat(tex::workingFormatFor(loaded_fmt));
+            loaded->setKind(preserved_kind);
+            loaded->setSrgb(preserved_srgb);
+        }
 
         std::error_code ec;
         fs::path out_base;
@@ -529,13 +471,7 @@ void BatchConvert::workerFunc() {
         } else {
             batch_fail_.fetch_add(1, std::memory_order_relaxed);
         }
-        batch_processed_.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    // Last thread to finish signals done
-    int processed = batch_processed_.load(std::memory_order_relaxed);
-    if (processed >= total) {
-        batch_done_.store(true, std::memory_order_release);
+        signalProgress();
     }
 }
 
@@ -546,9 +482,7 @@ void BatchConvert::workerFunc() {
 bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::string& out_path,
                             tex::TextureKind kind) {
     if (generate_mipmaps_) {
-        bool is_bcn = tex_copy.format() >= tex::PixelFormat::BC1 &&
-                      tex_copy.format() <= tex::PixelFormat::BC7;
-        if (is_bcn) {
+        if (tex::isBcn(tex_copy.format())) {
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
         }
         tex_copy.generateMipmaps();
@@ -556,59 +490,9 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
 
     switch (output_format_) {
     case 0: { // BLP
-        tex::blp::SaveOptions blp;
-        blp.version =
-            blp_version_ == 0 ? tex::blp::BlpVersion::BLP1 : tex::blp::BlpVersion::BLP2;
-        switch (blp_encoding_) {
-        case 0:
-            blp.encoding = tex::blp::BlpEncoding::Infer;
-            break;
-        case 1:
-            blp.encoding = tex::blp::BlpEncoding::BGRA;
-            break;
-        case 2:
-            blp.encoding = tex::blp::BlpEncoding::Palettized;
-            break;
-        case 3:
-            blp.encoding = tex::blp::BlpEncoding::JPEG;
-            break;
-        case 4:
-            blp.encoding = tex::blp::BlpEncoding::DXT;
-            break;
-        case 5:
-            blp.encoding = tex::blp::BlpEncoding::DXT;
-            break;
-        case 6:
-            blp.encoding = tex::blp::BlpEncoding::DXT;
-            break;
-        default:
-            break;
-        }
-        blp.dither = blp_dither_;
-        blp.ditherStrength = blp_dither_strength_;
-        blp.jpegQuality = jpeg_quality_;
-
-        if (blp.encoding == tex::blp::BlpEncoding::JPEG ||
-            blp.encoding == tex::blp::BlpEncoding::Palettized) {
-            blp.version = tex::blp::BlpVersion::BLP1;
-        }
-
-        if (blp.encoding == tex::blp::BlpEncoding::JPEG ||
-            blp.encoding == tex::blp::BlpEncoding::Palettized ||
-            blp.encoding == tex::blp::BlpEncoding::BGRA ||
-            blp.encoding == tex::blp::BlpEncoding::Infer) {
-            if (tex_copy.format() != tex::PixelFormat::RGBA8)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
-        } else if (blp_encoding_ == 4) {
-            if (tex_copy.format() != tex::PixelFormat::BC1)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::BC1);
-        } else if (blp_encoding_ == 5) {
-            if (tex_copy.format() != tex::PixelFormat::BC2)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::BC2);
-        } else if (blp_encoding_ == 6) {
-            if (tex_copy.format() != tex::PixelFormat::BC3)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::BC3);
-        }
+        auto blp = buildBlpSaveOptions(blp_version_, blp_encoding_,
+                                       blp_dither_, blp_dither_strength_, jpeg_quality_);
+        coerceBlpFormat(tex_copy, blp_encoding_, blp.encoding);
         return converter.save(tex_copy, out_path, blp);
     }
 
@@ -617,11 +501,10 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
         bool invert_y;
 
         if (dds_mode_ == 1) {
-            int k = static_cast<int>(kind);
-            if (k == 2) { // Normal
+            if (kind == tex::TextureKind::Normal) {
                 dds_fmt = dds_format_normal_;
                 invert_y = dds_invert_y_normal_;
-            } else if (k == 6 || k == 7 || k == 8 || k == 9) { // Channel
+            } else if (isChannelMapKind(kind)) {
                 dds_fmt = dds_format_channel_;
                 invert_y = false;
             } else {
@@ -633,29 +516,7 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
             invert_y = dds_invert_y_general_;
         }
 
-        constexpr tex::PixelFormat DDS_PIXEL_FORMATS[] = {
-            tex::PixelFormat::RGBA8, tex::PixelFormat::BC1, tex::PixelFormat::BC2,
-            tex::PixelFormat::BC3,   tex::PixelFormat::BC4, tex::PixelFormat::BC5,
-            tex::PixelFormat::BC6H,  tex::PixelFormat::BC7,
-        };
-        const bool is_bc3n = (dds_fmt == 8);
-        auto target = is_bc3n ? tex::PixelFormat::BC3 : DDS_PIXEL_FORMATS[dds_fmt];
-
-        if (is_bc3n) {
-            if (tex_copy.format() != tex::PixelFormat::RGBA8)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
-            if (invert_y)
-                tex_copy.invertChannel(tex::Channel::G);
-            tex_copy.swapChannels(tex::Channel::R, tex::Channel::A);
-        } else if (invert_y) {
-            bool is_bcn = tex_copy.format() >= tex::PixelFormat::BC1 &&
-                          tex_copy.format() <= tex::PixelFormat::BC7;
-            if (is_bcn)
-                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
-            tex_copy.invertChannel(tex::Channel::G);
-        }
-        if (tex_copy.format() != target)
-            tex_copy = tex_copy.copyAsFormat(target);
+        coerceDdsFormat(tex_copy, dds_fmt, invert_y);
         return converter.save(tex_copy, out_path);
     }
 

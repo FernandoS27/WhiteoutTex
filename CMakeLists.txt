@@ -14,6 +14,7 @@ add_executable(WhiteoutTex
     src/main.cpp
     src/app.cpp
     src/batch_convert.cpp
+    src/casc_browser.cpp
     src/image_viewer.cpp
     src/preferences.cpp
     src/save_dialog.cpp
@@ -26,7 +27,7 @@ if(WIN32)
 endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
-target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_lib)
+target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc)
 
 if(WIN32)
     add_custom_command(TARGET WhiteoutTex POST_BUILD

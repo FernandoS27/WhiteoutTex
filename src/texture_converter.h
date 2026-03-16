@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -45,8 +46,21 @@ enum class TextureFileFormat : u32 {
 };
 
 // ============================================================================
-// TextureConverter
+// BCn helpers
 // ============================================================================
+
+/// Returns true if @p fmt is a BCn block-compressed format (BC1–BC7).
+inline bool isBcn(PixelFormat fmt) noexcept {
+    return fmt >= PixelFormat::BC1 && fmt <= PixelFormat::BC7;
+}
+
+/// Returns the float working format appropriate for a BCn source texture.
+/// BC4 → R32F (single-channel), BC5 → RG32F (two-channel), all others → RGBA32F.
+inline PixelFormat workingFormatFor(PixelFormat fmt) noexcept {
+    if (fmt == PixelFormat::BC4) return PixelFormat::R32F;
+    if (fmt == PixelFormat::BC5) return PixelFormat::RG32F;
+    return PixelFormat::RGBA32F;
+}
 
 /**
  * @brief Unified texture I/O facade
@@ -102,6 +116,9 @@ public:
     /// Load a texture from disk using an explicit format override.
     std::optional<Texture> load(const std::string& path, TextureFileFormat fmt);
 
+    /// Load a texture from an in-memory buffer with an explicit format.
+    std::optional<Texture> load(std::span<const u8> data, TextureFileFormat fmt);
+
     /// Load a Diablo IV TEX file by providing both the metadata @p metaPath
     /// and the pixel-data @p payloadPath.  Returns std::nullopt on failure.
     std::optional<Texture> loadTexD4(const std::string& metaPath,
@@ -112,6 +129,15 @@ public:
     std::optional<Texture> loadTexD4(const std::string& metaPath,
                                      const std::string& payloadPath,
                                      const std::string& paylowPath);
+
+    /// Load a Diablo IV TEX from in-memory buffers (meta + hi-res payload).
+    std::optional<Texture> loadTexD4(std::span<const u8> meta,
+                                     std::span<const u8> payload);
+
+    /// Load a Diablo IV TEX from in-memory buffers (meta + hi + low payload).
+    std::optional<Texture> loadTexD4(std::span<const u8> meta,
+                                     std::span<const u8> payload,
+                                     std::span<const u8> paylow);
 
     // ── Saving ─────────────────────────────────────────────────────────
 

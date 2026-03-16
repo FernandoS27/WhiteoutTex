@@ -4,7 +4,6 @@
 #include "image_viewer.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <cstdio>
 
 #include <whiteout/textures/texture.h>
@@ -15,6 +14,17 @@
 namespace tex = whiteout::textures;
 
 namespace whiteout::gui {
+
+// ── Channel button colors ──────────────────────────────────────────────
+static constexpr ImVec4 kChannelColorR{0.80f, 0.15f, 0.15f, 0.90f};
+static constexpr ImVec4 kChannelColorG{0.15f, 0.65f, 0.15f, 0.90f};
+static constexpr ImVec4 kChannelColorB{0.15f, 0.35f, 0.90f, 0.90f};
+static constexpr ImVec4 kChannelColorA{0.55f, 0.55f, 0.55f, 0.90f};
+static constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
+
+/// Squared distance threshold below which a mouse-up is treated as a click
+/// rather than a drag (in pixels^2).
+static constexpr float kClickThresholdSq = 9.0f;
 
 // ============================================================================
 // Lifetime
@@ -116,12 +126,12 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         bool visible;
     };
     ChannelDef ch_defs[4] = {
-        {is_orm ? "O" : "R", &channel_r_, ImVec4(0.80f, 0.15f, 0.15f, 0.90f), true},
-        {is_orm ? "R" : "G", &channel_g_, ImVec4(0.15f, 0.65f, 0.15f, 0.90f), true},
-        {is_orm ? "M" : "B", &channel_b_, ImVec4(0.15f, 0.35f, 0.90f, 0.90f), true},
-        {"A", &channel_a_, ImVec4(0.55f, 0.55f, 0.55f, 0.90f), !is_orm},
+        {is_orm ? "O" : "R", &channel_r_, kChannelColorR, true},
+        {is_orm ? "R" : "G", &channel_g_, kChannelColorG, true},
+        {is_orm ? "M" : "B", &channel_b_, kChannelColorB, true},
+        {"A", &channel_a_, kChannelColorA, !is_orm},
     };
-    constexpr ImVec4 k_off_col{0.18f, 0.18f, 0.18f, 0.75f};
+    constexpr ImVec4 k_off_col = kChannelColorOff;
 
     const int visible_count = is_orm ? 3 : 4;
     const float btn_size = ImGui::GetFrameHeight() * 1.4f;
@@ -219,10 +229,9 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         }
 
         // Click actions
-        constexpr float k_click_thresh_sq = 9.0f;
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
             const ImVec2 dd = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
-            if (dd.x * dd.x + dd.y * dd.y < k_click_thresh_sq) {
+            if (dd.x * dd.x + dd.y * dd.y < kClickThresholdSq) {
                 auto_fit_ = false;
                 zoom_scale_ = 1.0f;
                 pan_offset_ = ImVec2{0.0f, 0.0f};
@@ -230,7 +239,7 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         }
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Middle)) {
             const ImVec2 dd = ImGui::GetMouseDragDelta(ImGuiMouseButton_Middle);
-            if (dd.x * dd.x + dd.y * dd.y < k_click_thresh_sq) {
+            if (dd.x * dd.x + dd.y * dd.y < kClickThresholdSq) {
                 auto_fit_ = true;
                 pan_offset_ = ImVec2{0.0f, 0.0f};
             }
@@ -252,19 +261,19 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
 // Private helpers
 // ============================================================================
 
-std::vector<uint8_t> ImageViewer::applyChannelFilter(const uint8_t* data, int width, int height,
+std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, int width, int height,
                                                      bool show_r, bool show_g, bool show_b,
                                                      bool show_a) {
     const int count = width * height;
-    std::vector<uint8_t> out(static_cast<size_t>(count) * 4);
+    std::vector<u8> out(static_cast<size_t>(count) * 4);
     const int active = (show_r ? 1 : 0) + (show_g ? 1 : 0) + (show_b ? 1 : 0) + (show_a ? 1 : 0);
     for (int i = 0; i < count; ++i) {
-        const uint8_t r = data[i * 4 + 0];
-        const uint8_t g = data[i * 4 + 1];
-        const uint8_t b = data[i * 4 + 2];
-        const uint8_t a = data[i * 4 + 3];
+        const u8 r = data[i * 4 + 0];
+        const u8 g = data[i * 4 + 1];
+        const u8 b = data[i * 4 + 2];
+        const u8 a = data[i * 4 + 3];
         if (active == 1) {
-            uint8_t val = show_r ? r : (show_g ? g : (show_b ? b : a));
+            u8 val = show_r ? r : (show_g ? g : (show_b ? b : a));
             out[i * 4 + 0] = val;
             out[i * 4 + 1] = val;
             out[i * 4 + 2] = val;
@@ -279,7 +288,7 @@ std::vector<uint8_t> ImageViewer::applyChannelFilter(const uint8_t* data, int wi
     return out;
 }
 
-SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const uint8_t* data,
+SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
                                                  int width, int height) {
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
                                              SDL_TEXTUREACCESS_STATIC, width, height);
@@ -316,7 +325,7 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         SDL_DestroyTexture(image_texture_);
         image_texture_ = nullptr;
     }
-    const auto mip_idx = static_cast<whiteout::u32>(selected_mip_);
+    const auto mip_idx = static_cast<u32>(selected_mip_);
     const auto& dml = display_texture_->mipLevel(mip_idx);
     image_width_ = static_cast<int>(dml.width);
     image_height_ = static_cast<int>(dml.height);

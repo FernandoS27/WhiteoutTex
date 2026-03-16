@@ -1,8 +1,8 @@
 
 # WhiteoutLib
 
+set(WHITEOUT_ENABLE_CASC ON CACHE BOOL "Enable CASC support" FORCE)
 add_subdirectory(WhiteoutLib)
-set(WHITEOUT_ENABLE_CASC ON)
 
 # SDL3
 add_subdirectory(SDL)
@@ -11,7 +11,6 @@ add_subdirectory(SDL)
 
 add_library(DearImgui STATIC
     DearImgui/imgui.cpp
-    DearImgui/imgui_demo.cpp
     DearImgui/imgui_draw.cpp
     DearImgui/imgui_tables.cpp
     DearImgui/imgui_widgets.cpp
