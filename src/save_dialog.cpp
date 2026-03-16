@@ -24,7 +24,8 @@ constexpr const char* BLP_ENCODING_NAMES[] = {
 constexpr int BLP_ENCODING_COUNT = static_cast<int>(std::size(BLP_ENCODING_NAMES));
 
 constexpr const char* DDS_FORMAT_NAMES[] = {
-    "True Color (RGBA8)", "BC1", "BC2", "BC3", "BC4", "BC5", "BC6H", "BC7", "BC3N"};
+    "True Color (RGBA8)", "BC1 (DXT1)", "BC2 (DXT3)", "BC3 (DXT5)", "BC4 (RGTC1)", "BC5 (RGTC2)",
+    "BC6H (BPTC Float)", "BC7 (BPTC)", "BC3N (DXT5nm)"};
 
 } // anonymous namespace
 
