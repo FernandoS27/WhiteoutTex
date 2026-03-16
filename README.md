@@ -56,6 +56,15 @@ WhiteoutTex can **open** and **save** textures across a wide range of game and s
 - **Regenerate Mipmaps** with a single click — works on both uncompressed and BCn-compressed textures (automatically round-trips through a float working format).
 - **Kind-aware generation** — mipmap filtering takes the texture kind into account so that normal maps are renormalized and PBR textures (roughness, metalness, ORM, etc.) are downsampled in a way that preserves their correct physical properties across mip levels.
 
+### Batch Conversion
+
+- **Convert entire directories** of textures to a target format in one operation.
+- **Recursive processing** — optionally walk sub-directories and mirror the source folder layout in the output directory.
+- **Per-format input filters** — choose which source formats (BLP, BMP, DDS, JPEG, PNG, TEX, TGA) to include in each batch run.
+- **Format-specific output settings** — the same BLP, DDS, and JPEG options available in the single-file save dialog are also available for batch jobs.
+- **DDS per-kind targeting** — optionally override the DDS pixel format per texture kind (Normal, single-channel, general) so each texture lands in the best compression format automatically.
+- **Multi-threaded** — files are processed in parallel workers to make full use of available CPU cores.
+
 ### Save Options
 
 - **Format-specific settings** surfaced in a save-options dialog:

@@ -89,6 +89,33 @@ public:
         return result;
     }
 
+    std::optional<Texture> loadTexD4(const std::string& metaPath,
+                                     const std::string& payloadPath) {
+        tex::Parser parser;
+        auto result = parser.parse(metaPath, payloadPath);
+        if (parser.hasIssues()) {
+            issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
+            return std::nullopt;
+        }
+        if (!result)
+            issues.push_back("Unknown D4 TEX parse error");
+        return result;
+    }
+
+    std::optional<Texture> loadTexD4(const std::string& metaPath,
+                                     const std::string& payloadPath,
+                                     const std::string& paylowPath) {
+        tex::Parser parser;
+        auto result = parser.parse(metaPath, payloadPath, paylowPath);
+        if (parser.hasIssues()) {
+            issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
+            return std::nullopt;
+        }
+        if (!result)
+            issues.push_back("Unknown D4 TEX parse error");
+        return result;
+    }
+
     std::optional<Texture> loadTga(const std::string& path) {
         tga::Parser parser;
         auto result = parser.parse(path);
@@ -226,6 +253,11 @@ TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
     if (ext == ".tga")
         return TextureFileFormat::TGA;
     return TextureFileFormat::Unknown;
+}
+
+bool TextureConverter::isD4Tex(const std::string& path) {
+    tex::Parser parser;
+    return parser.detectKind(path) == tex::Parser::FileKind::Diablo4MetaTex;
 }
 
 TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFormat fmt) {
@@ -413,6 +445,21 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
     }
+}
+
+std::optional<Texture> TextureConverter::loadTexD4(const std::string& metaPath,
+                                                    const std::string& payloadPath) {
+    pImpl->clearIssues();
+    return pImpl->loadTexD4(metaPath, payloadPath);
+}
+
+std::optional<Texture> TextureConverter::loadTexD4(const std::string& metaPath,
+                                                    const std::string& payloadPath,
+                                                    const std::string& paylowPath) {
+    pImpl->clearIssues();
+    if (paylowPath.empty())
+        return pImpl->loadTexD4(metaPath, payloadPath);
+    return pImpl->loadTexD4(metaPath, payloadPath, paylowPath);
 }
 
 // ============================================================================

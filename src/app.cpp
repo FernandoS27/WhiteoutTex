@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 
 #include <whiteout/textures/blp/types.h>
@@ -144,6 +145,42 @@ void App::shutdown() {
 // File dialog result processing
 // ============================================================================
 
+void App::applyLoadedTexture(const std::string& path, tex::Texture texture) {
+    loaded_texture_ = std::move(texture);
+    auto guessed_kind = TC::guessTextureKind(path, loaded_texture_->format());
+    loaded_texture_->setKind(guessed_kind);
+
+    const tex::PixelFormat loaded_fmt = loaded_texture_->format();
+    loaded_source_fmt_ = loaded_fmt;
+    const bool is_bcn =
+        loaded_fmt >= tex::PixelFormat::BC1 && loaded_fmt <= tex::PixelFormat::BC7;
+
+    tex::PixelFormat target_fmt;
+    if (loaded_fmt == tex::PixelFormat::BC4)
+        target_fmt = tex::PixelFormat::R32F;
+    else if (loaded_fmt == tex::PixelFormat::BC5)
+        target_fmt = tex::PixelFormat::RG32F;
+    else
+        target_fmt = tex::PixelFormat::RGBA32F;
+
+    const auto preserved_kind = loaded_texture_->kind();
+    const bool preserved_srgb = loaded_texture_->isSrgb();
+    *loaded_texture_ = loaded_texture_->copyAsFormat(target_fmt);
+    loaded_texture_->setKind(preserved_kind);
+    loaded_texture_->setSrgb(preserved_srgb);
+
+    bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
+    viewer_.setTexture(*loaded_texture_, is_orm);
+    if (is_bcn && loaded_fmt == tex::PixelFormat::BC3 &&
+        loaded_texture_->kind() == tex::TextureKind::Normal) {
+        // Defer conversion: BC3N dialog will handle it.
+        show_bc3n_dialog_ = true;
+    }
+    loaded_path_ = path;
+    loaded_file_format_ = TC::classifyPath(path);
+    status_message_.clear();
+}
+
 void App::processOpenResult() {
     if (!open_dialog_state_.has_pending.load())
         return;
@@ -155,20 +192,65 @@ void App::processOpenResult() {
         open_dialog_state_.has_pending.store(false);
     }
 
+    // Detect Diablo IV TEX (metadata-only, requires separate payload)
+    if (TC::classifyPath(path) == TFF::TEX && TC::isD4Tex(path)) {
+        // Derive the payload path by replacing the first occurrence of
+        // "meta" with "payload" in the file-system path.
+        std::string guessed_payload = path;
+        const auto pos = guessed_payload.find("meta");
+        if (pos != std::string::npos)
+            guessed_payload.replace(pos, 4, "payload");
+        else
+            guessed_payload.clear();
+
+        // Derive the low-res payload path ("paylow") similarly.
+        std::string guessed_paylow = path;
+        const auto paylow_pos = guessed_paylow.find("meta");
+        if (paylow_pos != std::string::npos)
+            guessed_paylow.replace(paylow_pos, 4, "paylow");
+        else
+            guessed_paylow.clear();
+
+        const bool payload_exists =
+            !guessed_payload.empty() && std::filesystem::exists(guessed_payload);
+        const bool paylow_exists =
+            !guessed_paylow.empty() && std::filesystem::exists(guessed_paylow);
+
+        if (payload_exists) {
+            const std::string& paylow_arg = paylow_exists ? guessed_paylow : std::string{};
+            auto result = converter_.loadTexD4(path, guessed_payload, paylow_arg);
+            if (result) {
+                applyLoadedTexture(path, std::move(*result));
+            } else {
+                status_message_ = "Failed to load D4 TEX: " + path;
+                for (const auto& issue : converter_.getIssues())
+                    status_message_ += "\n  " + issue;
+            }
+        } else if (paylow_exists) {
+            // Payload not found — fall back to paylow as the payload.
+            auto result = converter_.loadTexD4(path, guessed_paylow);
+            if (result) {
+                applyLoadedTexture(path, std::move(*result));
+            } else {
+                status_message_ = "Failed to load D4 TEX: " + path;
+                for (const auto& issue : converter_.getIssues())
+                    status_message_ += "\n  " + issue;
+            }
+        } else {
+            // Neither payload nor paylow found — ask the user to locate it manually.
+            pending_d4_meta_path_ = path;
+            const std::string& prefill = guessed_payload.empty() ? path : guessed_payload;
+            std::strncpy(d4_payload_path_buf_, prefill.c_str(),
+                         sizeof(d4_payload_path_buf_) - 1);
+            d4_payload_path_buf_[sizeof(d4_payload_path_buf_) - 1] = '\0';
+            show_d4_payload_dialog_ = true;
+        }
+        return;
+    }
+
     auto result = converter_.load(path);
     if (result) {
-        loaded_texture_ = std::move(*result);
-        auto guessed_kind = TC::guessTextureKind(path, loaded_texture_->format());
-        loaded_texture_->setKind(guessed_kind);
-        bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
-        viewer_.setTexture(*loaded_texture_, is_orm);
-        loaded_path_ = path;
-        if (loaded_texture_->format() == tex::PixelFormat::BC3 &&
-            loaded_texture_->kind() == tex::TextureKind::Normal) {
-            show_bc3n_dialog_ = true;
-        }
-        loaded_file_format_ = TC::classifyPath(path);
-        status_message_.clear();
+        applyLoadedTexture(path, std::move(*result));
     } else {
         status_message_ = "Failed to load: " + path;
         if (converter_.hasIssues()) {
@@ -216,6 +298,12 @@ void App::drawMenuBar() {
         }
         ImGui::EndMenu();
     }
+    if (ImGui::BeginMenu("Tools")) {
+        if (ImGui::MenuItem("Batch convert...")) {
+            batch_convert_.open();
+        }
+        ImGui::EndMenu();
+    }
     if (ImGui::BeginMenu("Help")) {
         if (ImGui::MenuItem("About WhiteoutTex")) {
             show_about_ = true;
@@ -242,7 +330,7 @@ void App::drawDetailsPanel(float width, float height) {
             ImGui::Text("Depth: %u", t.depth());
         }
         ImGui::Text("Type: %s", TC::textureTypeName(t.type()));
-        ImGui::Text("Pixel Format: %s", TC::pixelFormatName(t.format()));
+        ImGui::Text("Pixel Format: %s", TC::pixelFormatName(loaded_source_fmt_));
 
         int current_kind = static_cast<int>(t.kind());
         if (ImGui::Combo("Kind", &current_kind, TEXTURE_KIND_NAMES, TEXTURE_KIND_COUNT)) {
@@ -256,7 +344,6 @@ void App::drawDetailsPanel(float width, float height) {
         ImGui::SeparatorText("Mip Chain");
         ImGui::Text("Mip Levels: %u", t.mipCount());
         ImGui::Text("Layers: %u", t.layerCount());
-        ImGui::Text("Total Data Size: %llu bytes", static_cast<unsigned long long>(t.dataSize()));
 
         if (ImGui::Button("Regenerate Mipmaps")) {
             auto work = *loaded_texture_;
@@ -324,9 +411,14 @@ void App::drawResultDialog() {
         ImGui::OpenPopup("##ResultDialog");
         show_result_popup_ = false;
     }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
     if (ImGui::BeginPopupModal("##ResultDialog", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool success = result_popup_message_.rfind("Saved:", 0) == 0 ||
-                             result_popup_message_.rfind("Mipmaps", 0) == 0;
+                             result_popup_message_.rfind("Mipmaps", 0) == 0 ||
+                             result_popup_message_.rfind("Batch complete:", 0) == 0;
         if (success) {
             ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Success");
         } else {
@@ -349,16 +441,19 @@ void App::drawBC3NDialog() {
         ImGui::OpenPopup("BC3N Normal Map");
         show_bc3n_dialog_ = false;
     }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
     if (ImGui::BeginPopupModal("BC3N Normal Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::TextUnformatted("This DDS uses BC3 compression and is identified as a Normal map.");
         ImGui::TextUnformatted("Treat it as BC3N (X stored in alpha, Y stored in green)?");
         ImGui::Spacing();
         if (ImGui::Button("Yes", ImVec2(120, 0))) {
             if (loaded_texture_) {
-                if (auto expanded = loaded_texture_->copyFromNormalToRGBA()) {
-                    *loaded_texture_ = std::move(*expanded);
-                    viewer_.setTexture(*loaded_texture_, false);
-                }
+                loaded_texture_->swapChannels(tex::Channel::R, tex::Channel::A);
+                loaded_texture_->invertChannel(tex::Channel::G);
+                viewer_.setTexture(*loaded_texture_, false);
             }
             ImGui::CloseCurrentPopup();
         }
@@ -370,10 +465,72 @@ void App::drawBC3NDialog() {
     }
 }
 
+void App::drawD4PayloadDialog() {
+    if (show_d4_payload_dialog_) {
+        ImGui::OpenPopup("Diablo IV Payload Required");
+        show_d4_payload_dialog_ = false;
+    }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
+    if (ImGui::BeginPopupModal("Diablo IV Payload Required", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("This is a Diablo IV TEX file. Pixel data lives in a separate");
+        ImGui::TextUnformatted("payload file that could not be found automatically.");
+        ImGui::Spacing();
+        ImGui::TextDisabled("Meta: %s", pending_d4_meta_path_.c_str());
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Payload file path:");
+        ImGui::SetNextItemWidth(600.0f);
+        ImGui::InputText("##d4_payload", d4_payload_path_buf_, sizeof(d4_payload_path_buf_));
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Low-res payload file path (Optional):");
+        ImGui::SetNextItemWidth(600.0f);
+        ImGui::InputText("##d4_paylow", d4_paylow_path_buf_, sizeof(d4_paylow_path_buf_));
+        ImGui::Spacing();
+        if (ImGui::Button("Load", ImVec2(120, 0))) {
+            const std::string payload_path(d4_payload_path_buf_);
+            const std::string paylow_path(d4_paylow_path_buf_);
+            if (!payload_path.empty() && std::filesystem::exists(payload_path)) {
+                const bool use_paylow =
+                    !paylow_path.empty() && std::filesystem::exists(paylow_path);
+                auto result = use_paylow
+                                  ? converter_.loadTexD4(pending_d4_meta_path_, payload_path,
+                                                        paylow_path)
+                                  : converter_.loadTexD4(pending_d4_meta_path_, payload_path);
+                if (result) {
+                    applyLoadedTexture(pending_d4_meta_path_, std::move(*result));
+                } else {
+                    status_message_ = "Failed to load D4 TEX: " + pending_d4_meta_path_;
+                    for (const auto& issue : converter_.getIssues())
+                        status_message_ += "\n  " + issue;
+                }
+            } else {
+                status_message_ = "Payload file not found: " + payload_path;
+            }
+            pending_d4_meta_path_.clear();
+            d4_paylow_path_buf_[0] = '\0';
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            pending_d4_meta_path_.clear();
+            d4_paylow_path_buf_[0] = '\0';
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void App::drawAboutDialog() {
     if (show_about_) {
         ImGui::OpenPopup("About WhiteoutTex");
         show_about_ = false;
+    }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     }
     if (ImGui::BeginPopupModal("About WhiteoutTex", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::SeparatorText("WhiteoutTex");
@@ -525,9 +682,18 @@ int App::run() {
             show_result_popup_ = true;
         }
 
+        {
+            auto batch_status = batch_convert_.draw(window_);
+            if (!batch_status.empty()) {
+                result_popup_message_ = std::move(batch_status);
+                show_result_popup_ = true;
+            }
+        }
+
         drawAboutDialog();
         drawResultDialog();
         drawBC3NDialog();
+        drawD4PayloadDialog();
 
         // Render
         ImGuiIO& io = ImGui::GetIO();

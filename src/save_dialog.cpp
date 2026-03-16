@@ -24,7 +24,7 @@ constexpr const char* BLP_ENCODING_NAMES[] = {
 constexpr int BLP_ENCODING_COUNT = static_cast<int>(std::size(BLP_ENCODING_NAMES));
 
 constexpr const char* DDS_FORMAT_NAMES[] = {
-    "True Color (RGBA8)", "BC1", "BC2", "BC3", "BC4", "BC5", "BC6H", "BC7"};
+    "True Color (RGBA8)", "BC1", "BC2", "BC3", "BC4", "BC5", "BC6H", "BC7", "BC3N"};
 
 } // anonymous namespace
 
@@ -101,6 +101,10 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
     if (opts_.confirm_overwrite) {
         ImGui::OpenPopup("Overwrite?");
     }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    }
     if (ImGui::BeginPopupModal("Overwrite?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("File already exists:\n  %s\n\nOverwrite?", opts_.save_path.c_str());
         ImGui::Separator();
@@ -120,6 +124,10 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
     // Save options dialog
     if (opts_.show_dialog) {
         ImGui::OpenPopup("Save Options");
+    }
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     }
     if (ImGui::BeginPopupModal("Save Options", &opts_.show_dialog,
                                ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -175,7 +183,7 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
         case TFF::DDS: {
             ImGui::SeparatorText("DDS Options");
 
-            static constexpr int PRESET_NORMAL[] = {0, 5};
+            static constexpr int PRESET_NORMAL[] = {0, 5, 8};
             static constexpr int PRESET_CHANNEL[] = {0, 4};
             static constexpr int PRESET_OTHER[] = {0, 1, 2, 3, 6, 7};
 
@@ -184,7 +192,7 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
             int allowed_count;
             if (tk == 2) {
                 allowed = PRESET_NORMAL;
-                allowed_count = 2;
+                allowed_count = 4;
             } else if (tk == 6 || tk == 7 || tk == 8 || tk == 9) {
                 allowed = PRESET_CHANNEL;
                 allowed_count = 2;
@@ -224,6 +232,9 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
                         ImGui::SetItemDefaultFocus();
                 }
                 ImGui::EndCombo();
+            }
+            if (tk == 2) {
+                ImGui::Checkbox("Invert Y Channel", &opts_.dds_invert_y);
             }
             break;
         }
@@ -342,7 +353,26 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
             tex::PixelFormat::BC3,   tex::PixelFormat::BC4, tex::PixelFormat::BC5,
             tex::PixelFormat::BC6H,  tex::PixelFormat::BC7,
         };
-        auto target = DDS_FORMATS[opts_.dds_format];
+        const bool is_bc3n = (opts_.dds_format == 8);
+        auto target = is_bc3n ? tex::PixelFormat::BC3 : DDS_FORMATS[opts_.dds_format];
+        if (is_bc3n) {
+            // BC3N (DXT5nm): X stored in alpha, Y stored in green for better precision.
+            // Requires RGBA8 for channel manipulation before BC3 compression.
+            if (tex_copy.format() != tex::PixelFormat::RGBA8) {
+                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
+            }
+            if (opts_.dds_invert_y) {
+                tex_copy.invertChannel(tex::Channel::G);
+            }
+            tex_copy.swapChannels(tex::Channel::R, tex::Channel::A);
+        } else if (opts_.dds_invert_y) {
+            bool is_bcn = tex_copy.format() >= tex::PixelFormat::BC1 &&
+                          tex_copy.format() <= tex::PixelFormat::BC7;
+            if (is_bcn) {
+                tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8);
+            }
+            tex_copy.invertChannel(tex::Channel::G);
+        }
         if (tex_copy.format() != target) {
             tex_copy = tex_copy.copyAsFormat(target);
         }
@@ -365,6 +395,7 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
         prefs.blp_dither = opts_.blp_dither;
         prefs.blp_dither_strength = opts_.blp_dither_strength;
         prefs.dds_format = opts_.dds_format;
+        prefs.dds_invert_y = opts_.dds_invert_y;
         prefs.jpeg_quality = opts_.jpeg_quality;
         prefs.generate_mipmaps = opts_.generate_mipmaps;
     } else {

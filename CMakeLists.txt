@@ -13,6 +13,7 @@ add_subdirectory(externals)
 add_executable(WhiteoutTex
     src/main.cpp
     src/app.cpp
+    src/batch_convert.cpp
     src/image_viewer.cpp
     src/preferences.cpp
     src/save_dialog.cpp

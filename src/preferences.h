@@ -32,6 +32,7 @@ struct SavePrefs {
     bool blp_dither = false;
     float blp_dither_strength = 0.8f;
     int dds_format = 0;
+    bool dds_invert_y = false;
     int jpeg_quality = 75;
     bool generate_mipmaps = false;
 };

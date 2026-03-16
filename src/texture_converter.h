@@ -72,6 +72,10 @@ public:
     /// Classify a file path by its extension.
     static TextureFileFormat classifyPath(const std::string& path);
 
+    /// Return true if the TEX file at @p path is a Diablo IV SNO (metadata-only) file.
+    /// Returns false for Diablo III TEX files or unrecognised data.
+    static bool isD4Tex(const std::string& path);
+
     /// Guess the semantic TextureKind from the file-name stem and pixel
     /// format.  Checks common suffixes (_n, _norm, _diff, _albedo, …)
     /// and falls back to pixel-format heuristics (BC5 → Normal, etc.).
@@ -97,6 +101,17 @@ public:
 
     /// Load a texture from disk using an explicit format override.
     std::optional<Texture> load(const std::string& path, TextureFileFormat fmt);
+
+    /// Load a Diablo IV TEX file by providing both the metadata @p metaPath
+    /// and the pixel-data @p payloadPath.  Returns std::nullopt on failure.
+    std::optional<Texture> loadTexD4(const std::string& metaPath,
+                                     const std::string& payloadPath);
+
+    /// Load a Diablo IV TEX file with hi-res payload and low-res payload.
+    /// @p paylowPath may be empty if no low-res payload is available.
+    std::optional<Texture> loadTexD4(const std::string& metaPath,
+                                     const std::string& payloadPath,
+                                     const std::string& paylowPath);
 
     // ── Saving ─────────────────────────────────────────────────────────
 

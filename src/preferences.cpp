@@ -155,6 +155,10 @@ SavePrefs load_save_prefs(const std::string& ini_path) {
             prefs.dds_format = iv;
             continue;
         }
+        if (std::sscanf(line.c_str(), "DdsInvertY=%d", &iv) == 1) {
+            prefs.dds_invert_y = iv != 0;
+            continue;
+        }
         if (std::sscanf(line.c_str(), "JpegQuality=%d", &iv) == 1) {
             prefs.jpeg_quality = iv;
             continue;
@@ -179,6 +183,7 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "BlpDither=" << (prefs.blp_dither ? 1 : 0) << "\n";
     out << "BlpDitherStrength=" << prefs.blp_dither_strength << "\n";
     out << "DdsFormat=" << prefs.dds_format << "\n";
+    out << "DdsInvertY=" << (prefs.dds_invert_y ? 1 : 0) << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
 }

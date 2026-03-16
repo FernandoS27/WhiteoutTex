@@ -296,7 +296,17 @@ tex::Texture ImageViewer::makeDisplayTexture(const tex::Texture& texture) {
             return std::move(*expanded);
         }
     }
-    return texture.copyAsFormat(tex::PixelFormat::RGBA8);
+    auto result = texture.copyAsFormat(tex::PixelFormat::RGBA8);
+    const auto src_fmt = texture.format();
+    if (src_fmt == tex::PixelFormat::R8 || src_fmt == tex::PixelFormat::R16 ||
+        src_fmt == tex::PixelFormat::R32F || src_fmt == tex::PixelFormat::BC4) {
+        auto span = result.data();
+        for (size_t i = 0; i + 3 < span.size(); i += 4) {
+            span[i + 1] = span[i]; // G = R
+            span[i + 2] = span[i]; // B = R
+        }
+    }
+    return result;
 }
 
 void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {

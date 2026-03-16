@@ -30,9 +30,9 @@ constexpr int SAVE_FILTER_COUNT = static_cast<int>(std::size(SAVE_FILTERS));
 
 /// Human-readable names for TextureKind enum values (shared by details panel and save dialog).
 constexpr const char* TEXTURE_KIND_NAMES[] = {
-    "Other",     "Diffuse",           "Normal", "Specular", "ORM", "Albedo", "Roughness",
-    "Metalness", "Ambient Occlusion", "Gloss",  "Emissive", "Alpha Mask", "Lightmap",
-    "Environment (PBR)", "Environment (Legacy)"};
+    "Other",    "Diffuse",    "Normal",    "Specular",          "ORM",
+    "Albedo",   "Roughness",  "Metalness", "Ambient Occlusion", "Gloss",
+    "Emissive", "Alpha Mask", "Lightmap",  "Environment (PBR)", "Environment (Legacy)"};
 constexpr int TEXTURE_KIND_COUNT = static_cast<int>(std::size(TEXTURE_KIND_NAMES));
 
 /// Manages the save-options popup and performs the actual save operation.
@@ -78,6 +78,7 @@ private:
 
         // DDS
         int dds_format = 0;
+        bool dds_invert_y = false;
 
         // JPEG quality
         int jpeg_quality = 75;

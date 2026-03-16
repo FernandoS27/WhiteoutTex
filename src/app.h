@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "batch_convert.h"
 #include "image_viewer.h"
 #include "preferences.h"
 #include "save_dialog.h"
@@ -60,6 +61,10 @@ private:
     void drawAboutDialog();
     void drawResultDialog();
     void drawBC3NDialog();
+    void drawD4PayloadDialog();
+
+    /// Apply a successfully loaded texture and update all dependent state.
+    void applyLoadedTexture(const std::string& path, whiteout::textures::Texture texture);
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -75,10 +80,13 @@ private:
     std::string status_message_;
     whiteout::textures::TextureFileFormat loaded_file_format_ =
         whiteout::textures::TextureFileFormat::Unknown;
+    whiteout::textures::PixelFormat loaded_source_fmt_ =
+        whiteout::textures::PixelFormat::RGBA8;
 
     // Components
     ImageViewer viewer_;
     SaveDialog save_dialog_;
+    BatchConvert batch_convert_;
     whiteout::textures::TextureConverter converter_;
 
     // File dialog state
@@ -90,6 +98,12 @@ private:
     bool show_result_popup_ = false;
     std::string result_popup_message_;
     bool show_bc3n_dialog_ = false;
+
+    // Diablo IV TEX payload dialog
+    bool show_d4_payload_dialog_ = false;
+    std::string pending_d4_meta_path_;
+    char d4_payload_path_buf_[4096] = {};
+    char d4_paylow_path_buf_[4096] = {};
 };
 
 /// Convenience wrapper matching the old API.
