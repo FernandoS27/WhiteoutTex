@@ -527,7 +527,7 @@ void App::drawAboutDialog() {
 // Main loop
 // ============================================================================
 
-int App::run() {
+int App::run(int argc, char** argv) {
     if (!initSDL())
         return 1;
 
@@ -544,6 +544,12 @@ int App::run() {
     if (!initWindow())
         return 1;
     initImGui();
+
+    // "Open With" / command-line file support
+    if (argc >= 2 && argv[1] && argv[1][0] != '\0') {
+        open_dialog_state_.pending_path = argv[1];
+        open_dialog_state_.has_pending.store(true);
+    }
 
     const ImVec4 clear_color = kClearColor;
     bool done = false;

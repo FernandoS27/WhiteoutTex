@@ -47,7 +47,7 @@ public:
     App& operator=(const App&) = delete;
 
     /// Run the application.  Returns the process exit code.
-    int run();
+    int run(int argc = 0, char** argv = nullptr);
 
 private:
     bool initSDL();
@@ -112,9 +112,9 @@ private:
 };
 
 /// Convenience wrapper matching the old API.
-inline int run() {
+inline int run(int argc = 0, char** argv = nullptr) {
     App app;
-    return app.run();
+    return app.run(argc, argv);
 }
 
 } // namespace whiteout::gui

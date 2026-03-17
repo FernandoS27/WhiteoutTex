@@ -18,10 +18,10 @@ namespace interfaces = whiteout::interfaces;
 namespace whiteout::gui {
 
 // ── Channel button colors ──────────────────────────────────────────────
-static constexpr ImVec4 kChannelColorR{0.80f, 0.15f, 0.15f, 0.90f};
-static constexpr ImVec4 kChannelColorG{0.15f, 0.65f, 0.15f, 0.90f};
-static constexpr ImVec4 kChannelColorB{0.15f, 0.35f, 0.90f, 0.90f};
-static constexpr ImVec4 kChannelColorA{0.55f, 0.55f, 0.55f, 0.90f};
+static constexpr ImVec4 kChannelColorR{0.58f, 0.28f, 0.28f, 0.90f};
+static constexpr ImVec4 kChannelColorG{0.28f, 0.50f, 0.28f, 0.90f};
+static constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
+static constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
 static constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
 
 /// Squared distance threshold below which a mouse-up is treated as a click
