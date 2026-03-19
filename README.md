@@ -9,18 +9,33 @@
 </p>
 
 <p align="center">
-  <img src="resources/media/media_0.png" alt="Screenshot 1" width="45%" />
-  &nbsp;
-  <img src="resources/media/media_1.png" alt="Screenshot 2" width="45%" />
+  <img src="resources/media/media_0.png" alt="Image Viewer" width="80%" />
 </p>
+
+<details>
+<summary><h3 align="center">🖼️ More Screenshots</h3></summary>
+
 <p align="center">
-  <img src="resources/media/media_2.png" alt="Screenshot 3" width="45%" />
-  &nbsp;
-  <img src="resources/media/media_3.png" alt="Screenshot 4" width="45%" />
+  <img src="resources/media/media_1.png" alt="Texture Details" width="80%" />
 </p>
+<br />
 <p align="center">
-  <img src="resources/media/media_4.png" alt="Screenshot 5" width="45%" />
+  <img src="resources/media/media_2.png" alt="Batch Conversion" width="80%" />
 </p>
+<br />
+<p align="center">
+  <img src="resources/media/media_3.png" alt="CASC Browser" width="80%" />
+</p>
+<br />
+<p align="center">
+  <img src="resources/media/media_4.png" alt="Save Options" width="80%" />
+</p>
+<br />
+<p align="center">
+  <img src="resources/media/media_5.png" alt="AI Upscaling" width="80%" />
+</p>
+
+</details>
 
 ---
 
