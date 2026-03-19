@@ -7,21 +7,12 @@
 #include "casc_browser.h"
 #include "image_details.h"
 #include "image_viewer.h"
+#include "models/app_state.h"
 #include "preferences.h"
 #include "save_dialog.h"
 #include "texture_converter.h"
 
-#ifdef WHITEOUT_HAS_UPSCALER
-#include "upscaler.h"
-#endif
-
-#include <atomic>
-#include <mutex>
-#include <optional>
 #include <string>
-#include <thread>
-
-#include <whiteout/textures/texture.h>
 
 #include <SDL3/SDL.h>
 
@@ -33,14 +24,6 @@ constexpr i32 WINDOW_HEIGHT = 800;
 constexpr i32 MIN_WINDOW_WIDTH = 320;
 constexpr i32 MIN_WINDOW_HEIGHT = 240;
 constexpr const char* WINDOW_TITLE = "WhiteoutTex";
-
-/// File dialog state shared between the OS callback and the main loop.
-struct FileDialogState {
-    std::mutex mtx;
-    std::string pending_path;
-    i32 pending_filter = -1;
-    std::atomic<bool> has_pending{false};
-};
 
 /// Main application class.  Owns the SDL window, ImGui context,
 /// and coordinates the image viewer, save dialog, and preferences.
@@ -97,13 +80,7 @@ private:
     RecentPaths recent_batch_output_dirs_;
 
     // Loaded image data
-    std::optional<whiteout::textures::Texture> loaded_texture_;
-    std::string loaded_path_;
-    std::string status_message_;
-    whiteout::textures::TextureFileFormat loaded_file_format_ =
-        whiteout::textures::TextureFileFormat::Unknown;
-    whiteout::textures::PixelFormat loaded_source_fmt_ =
-        whiteout::textures::PixelFormat::RGBA8;
+    TextureState tex_state_;
 
     // Components
     ImageViewer viewer_;
@@ -117,33 +94,12 @@ private:
     FileDialogState open_dialog_state_;
     FileDialogState save_dialog_state_;
 
-    // UI flags
-    bool show_about_ = false;
-    bool show_result_popup_ = false;
-    bool result_popup_success_ = false;
-    std::string result_popup_message_;
-    bool show_bc3n_dialog_ = false;
-
-    // Diablo IV TEX payload dialog
-    bool show_d4_payload_dialog_ = false;
-    std::string pending_d4_meta_path_;
-    char d4_payload_path_buf_[PATH_BUFFER_SIZE] = {};
-    char d4_paylow_path_buf_[PATH_BUFFER_SIZE] = {};
+    // UI flags & dialog state
+    UIFlags ui_;
 
 #ifdef WHITEOUT_HAS_UPSCALER
     // Upscaler state
-    Upscaler upscaler_;
-    bool show_upscale_dialog_ = false;
-    bool upscale_in_progress_ = false;
-    i32 upscale_model_index_ = 0;
-    i32 upscale_gpu_id_ = 0;
-    std::vector<UpscalerModel> upscale_models_;
-    std::string upscale_status_;
-    mutable std::mutex upscale_status_mtx_; ///< Guards upscale_status_ across threads.
-    std::atomic<bool> upscale_done_{false};
-    bool upscale_success_ = false;
-    std::optional<textures::Texture> upscale_result_;
-    std::thread upscale_thread_;
+    UpscaleState upscale_;
 #endif
 };
 

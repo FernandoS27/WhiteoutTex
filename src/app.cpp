@@ -107,8 +107,8 @@ namespace whiteout::gui {
 
 App::~App() {
 #ifdef WHITEOUT_HAS_UPSCALER
-    if (upscale_thread_.joinable())
-        upscale_thread_.join();
+    if (upscale_.thread.joinable())
+        upscale_.thread.join();
 #endif
 }
 
@@ -216,13 +216,13 @@ void App::openFile(const std::string& path) {
         if (result) {
             applyLoadedTexture(path, std::move(*result));
         } else if (converter_.hasIssues()) {
-            status_message_ = "Failed to load D4 TEX: " + path;
-            appendIssues(status_message_, converter_.getIssues());
+            tex_state_.status_message = "Failed to load D4 TEX: " + path;
+            appendIssues(tex_state_.status_message, converter_.getIssues());
         } else {
-            pending_d4_meta_path_ = path;
+            ui_.pending_d4_meta_path = path;
             const std::string prefill = replaceMetaSegment(path, "payload");
-            copyToBuffer(d4_payload_path_buf_, prefill.empty() ? path : prefill);
-            show_d4_payload_dialog_ = true;
+            copyToBuffer(ui_.d4_payload_path_buf, prefill.empty() ? path : prefill);
+            ui_.show_d4_payload_dialog = true;
         }
         return;
     }
@@ -231,35 +231,35 @@ void App::openFile(const std::string& path) {
     if (result) {
         applyLoadedTexture(path, std::move(*result));
     } else {
-        status_message_ = "Failed to load: " + path;
+        tex_state_.status_message = "Failed to load: " + path;
         if (converter_.hasIssues())
-            appendIssues(status_message_, converter_.getIssues());
+            appendIssues(tex_state_.status_message, converter_.getIssues());
     }
 }
 
 void App::applyLoadedTexture(const std::string& path, tex::Texture texture) {
-    loaded_texture_ = std::move(texture);
-    applyGuessedKind(*loaded_texture_, path);
+    tex_state_.texture = std::move(texture);
+    applyGuessedKind(*tex_state_.texture, path);
 
-    const tex::PixelFormat loaded_fmt = loaded_texture_->format();
-    loaded_source_fmt_ = loaded_fmt;
+    const tex::PixelFormat loaded_fmt = tex_state_.texture->format();
+    tex_state_.source_fmt = loaded_fmt;
 
     if (tex::isBcn(loaded_fmt)) {
         auto* pool = threadPoolManager().get();
-        auto decompressed = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool);
-        copyKindMetadata(decompressed, *loaded_texture_);
-        *loaded_texture_ = std::move(decompressed);
+        auto decompressed = tex_state_.texture->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool);
+        copyKindMetadata(decompressed, *tex_state_.texture);
+        *tex_state_.texture = std::move(decompressed);
     }
 
-    viewer_.setTexture(*loaded_texture_);
+    viewer_.setTexture(*tex_state_.texture);
     if (tex::isBcn(loaded_fmt) && loaded_fmt == tex::PixelFormat::BC3 &&
-        loaded_texture_->kind() == tex::TextureKind::Normal) {
+        tex_state_.texture->kind() == tex::TextureKind::Normal) {
         // Defer conversion: BC3N dialog will handle it.
-        show_bc3n_dialog_ = true;
+        ui_.show_bc3n_dialog = true;
     }
-    loaded_path_ = path;
-    loaded_file_format_ = TC::classifyPath(path);
-    status_message_.clear();
+    tex_state_.path = path;
+    tex_state_.file_format = TC::classifyPath(path);
+    tex_state_.status_message.clear();
 }
 
 void App::processOpenResult() {
@@ -291,7 +291,7 @@ void App::processSaveResult() {
     }
 
     save_dialog_.onFileChosen(path, filter_idx, save_prefs_,
-                              loaded_texture_ ? &*loaded_texture_ : nullptr);
+                              tex_state_.texture ? &*tex_state_.texture : nullptr);
     rememberParentDir(path, save_prefs_.last_save_dir);
 }
 
@@ -331,7 +331,7 @@ void App::drawMenuBar() {
                 openFile(pending_recent_open);
             }
         }
-        if (ImGui::MenuItem("Save As...", nullptr, false, loaded_texture_.has_value())) {
+        if (ImGui::MenuItem("Save As...", nullptr, false, tex_state_.texture.has_value())) {
             save_dialog_.buildFilterOrder(save_prefs_);
             const char* save_default = save_prefs_.last_save_dir.empty()
                                            ? nullptr
@@ -355,22 +355,22 @@ void App::drawMenuBar() {
         }
 #ifdef WHITEOUT_HAS_UPSCALER
         ImGui::Separator();
-        if (ImGui::MenuItem("Upscale (AI)...", nullptr, false, loaded_texture_.has_value())) {
+        if (ImGui::MenuItem("Upscale (AI)...", nullptr, false, tex_state_.texture.has_value())) {
             auto model_dir = Upscaler::defaultModelDir();
-            upscale_models_ = Upscaler::availableModels(model_dir);
-            upscale_model_index_ = 0;
+            upscale_.models = Upscaler::availableModels(model_dir);
+            upscale_.model_index = 0;
             {
-                std::lock_guard<std::mutex> lk(upscale_status_mtx_);
-                upscale_status_.clear();
+                std::lock_guard<std::mutex> lk(upscale_.status_mtx);
+                upscale_.status.clear();
             }
-            show_upscale_dialog_ = true;
+            upscale_.show_dialog = true;
         }
 #endif
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Help")) {
         if (ImGui::MenuItem("About WhiteoutTex")) {
-            show_about_ = true;
+            ui_.show_about = true;
         }
         ImGui::EndMenu();
     }
@@ -378,20 +378,20 @@ void App::drawMenuBar() {
 }
 
 void App::drawResultDialog() {
-    if (show_result_popup_) {
+    if (ui_.show_result_popup) {
         ImGui::OpenPopup("##ResultDialog");
-        show_result_popup_ = false;
+        ui_.show_result_popup = false;
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("##ResultDialog", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        const bool success = result_popup_success_;
+        const bool success = ui_.result_popup_success;
         if (success) {
             ImGui::TextColored(kSuccessColor, "Success");
         } else {
             ImGui::TextColored(kErrorColor, "Error");
         }
         ImGui::Separator();
-        ImGui::TextUnformatted(result_popup_message_.c_str());
+        ImGui::TextUnformatted(ui_.result_popup_message.c_str());
         ImGui::Spacing();
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 120.0f) * 0.5f +
                              ImGui::GetCursorPosX());
@@ -403,9 +403,9 @@ void App::drawResultDialog() {
 }
 
 void App::drawBC3NDialog() {
-    if (show_bc3n_dialog_) {
+    if (ui_.show_bc3n_dialog) {
         ImGui::OpenPopup("BC3N Normal Map");
-        show_bc3n_dialog_ = false;
+        ui_.show_bc3n_dialog = false;
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("BC3N Normal Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -413,10 +413,10 @@ void App::drawBC3NDialog() {
         ImGui::TextUnformatted("Treat it as BC3N (X stored in alpha, Y stored in green)?");
         ImGui::Spacing();
         if (ImGui::Button("Yes", ImVec2(120, 0))) {
-            if (loaded_texture_) {
-                loaded_texture_->swapChannels(tex::Channel::R, tex::Channel::A);
-                loaded_texture_->invertChannel(tex::Channel::G);
-                viewer_.setTexture(*loaded_texture_);
+            if (tex_state_.texture) {
+                tex_state_.texture->swapChannels(tex::Channel::R, tex::Channel::A);
+                tex_state_.texture->invertChannel(tex::Channel::G);
+                viewer_.setTexture(*tex_state_.texture);
             }
             ImGui::CloseCurrentPopup();
         }
@@ -429,9 +429,9 @@ void App::drawBC3NDialog() {
 }
 
 void App::drawD4PayloadDialog() {
-    if (show_d4_payload_dialog_) {
+    if (ui_.show_d4_payload_dialog) {
         ImGui::OpenPopup("Diablo IV Payload Required");
-        show_d4_payload_dialog_ = false;
+        ui_.show_d4_payload_dialog = false;
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("Diablo IV Payload Required", nullptr,
@@ -439,42 +439,42 @@ void App::drawD4PayloadDialog() {
         ImGui::TextUnformatted("This is a Diablo IV TEX file. Pixel data lives in a separate");
         ImGui::TextUnformatted("payload file that could not be found automatically.");
         ImGui::Spacing();
-        ImGui::TextDisabled("Meta: %s", pending_d4_meta_path_.c_str());
+        ImGui::TextDisabled("Meta: %s", ui_.pending_d4_meta_path.c_str());
         ImGui::Spacing();
         ImGui::TextUnformatted("Payload file path:");
         ImGui::SetNextItemWidth(600.0f);
-        ImGui::InputText("##d4_payload", d4_payload_path_buf_, sizeof(d4_payload_path_buf_));
+        ImGui::InputText("##d4_payload", ui_.d4_payload_path_buf, sizeof(ui_.d4_payload_path_buf));
         ImGui::Spacing();
         ImGui::TextUnformatted("Low-res payload file path (Optional):");
         ImGui::SetNextItemWidth(600.0f);
-        ImGui::InputText("##d4_paylow", d4_paylow_path_buf_, sizeof(d4_paylow_path_buf_));
+        ImGui::InputText("##d4_paylow", ui_.d4_paylow_path_buf, sizeof(ui_.d4_paylow_path_buf));
         ImGui::Spacing();
 
         auto closeDialog = [&] {
-            pending_d4_meta_path_.clear();
-            d4_payload_path_buf_[0] = '\0';
-            d4_paylow_path_buf_[0] = '\0';
+            ui_.pending_d4_meta_path.clear();
+            ui_.d4_payload_path_buf[0] = '\0';
+            ui_.d4_paylow_path_buf[0] = '\0';
             ImGui::CloseCurrentPopup();
         };
 
         if (ImGui::Button("Load", ImVec2(120, 0))) {
-            const std::string payload_path(d4_payload_path_buf_);
-            const std::string paylow_path(d4_paylow_path_buf_);
+            const std::string payload_path(ui_.d4_payload_path_buf);
+            const std::string paylow_path(ui_.d4_paylow_path_buf);
             if (!payload_path.empty() && std::filesystem::exists(payload_path)) {
                 const bool use_paylow =
                     !paylow_path.empty() && std::filesystem::exists(paylow_path);
                 auto result = use_paylow
-                                  ? converter_.loadTexD4(pending_d4_meta_path_, payload_path,
+                                  ? converter_.loadTexD4(ui_.pending_d4_meta_path, payload_path,
                                                         paylow_path)
-                                  : converter_.loadTexD4(pending_d4_meta_path_, payload_path);
+                                  : converter_.loadTexD4(ui_.pending_d4_meta_path, payload_path);
                 if (result) {
-                    applyLoadedTexture(pending_d4_meta_path_, std::move(*result));
+                    applyLoadedTexture(ui_.pending_d4_meta_path, std::move(*result));
                 } else {
-                    status_message_ = "Failed to load D4 TEX: " + pending_d4_meta_path_;
-                    appendIssues(status_message_, converter_.getIssues());
+                    tex_state_.status_message = "Failed to load D4 TEX: " + ui_.pending_d4_meta_path;
+                    appendIssues(tex_state_.status_message, converter_.getIssues());
                 }
             } else {
-                status_message_ = "Payload file not found: " + payload_path;
+                tex_state_.status_message = "Payload file not found: " + payload_path;
             }
             closeDialog();
         }
@@ -489,10 +489,10 @@ void App::drawD4PayloadDialog() {
 #ifdef WHITEOUT_HAS_UPSCALER
 void App::startUpscaleThread(const UpscalerModel& model,
                              const tex::Texture& source, bool upscale_alpha) {
-    upscale_in_progress_ = true;
+    upscale_.in_progress = true;
     {
-        std::lock_guard<std::mutex> lk(upscale_status_mtx_);
-        upscale_status_ = "Initializing model...";
+        std::lock_guard<std::mutex> lk(upscale_.status_mtx);
+        upscale_.status = "Initializing model...";
     }
 
     auto model_dir = Upscaler::defaultModelDir();
@@ -500,46 +500,46 @@ void App::startUpscaleThread(const UpscalerModel& model,
     auto texture_copy = std::make_shared<tex::Texture>(source);
     auto* app = this;
 
-    if (upscale_thread_.joinable())
-        upscale_thread_.join();
+    if (upscale_.thread.joinable())
+        upscale_.thread.join();
 
-    upscale_thread_ = std::thread([app, model_dir, model_copy, texture_copy, upscale_alpha]() {
-        if (!app->upscaler_.init(model_dir, model_copy)) {
+    upscale_.thread = std::thread([app, model_dir, model_copy, texture_copy, upscale_alpha]() {
+        if (!app->upscale_.upscaler.init(model_dir, model_copy)) {
             {
-                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
-                app->upscale_status_ = "Failed to load model.";
+                std::lock_guard<std::mutex> lk(app->upscale_.status_mtx);
+                app->upscale_.status = "Failed to load model.";
             }
-            app->upscale_success_ = false;
-            app->upscale_done_.store(true);
+            app->upscale_.success = false;
+            app->upscale_.done.store(true);
             return;
         }
         {
-            std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
-            app->upscale_status_ = "Upscaling...";
+            std::lock_guard<std::mutex> lk(app->upscale_.status_mtx);
+            app->upscale_.status = "Upscaling...";
         }
-        auto result = app->upscaler_.process(*texture_copy, upscale_alpha);
+        auto result = app->upscale_.upscaler.process(*texture_copy, upscale_alpha);
         if (result) {
-            app->upscale_result_ = std::move(*result);
+            app->upscale_.result = std::move(*result);
             {
-                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
-                app->upscale_status_ = "Upscale complete.";
+                std::lock_guard<std::mutex> lk(app->upscale_.status_mtx);
+                app->upscale_.status = "Upscale complete.";
             }
-            app->upscale_success_ = true;
+            app->upscale_.success = true;
         } else {
             {
-                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
-                app->upscale_status_ = "Upscale failed.";
+                std::lock_guard<std::mutex> lk(app->upscale_.status_mtx);
+                app->upscale_.status = "Upscale failed.";
             }
-            app->upscale_success_ = false;
+            app->upscale_.success = false;
         }
-        app->upscale_done_.store(true);
+        app->upscale_.done.store(true);
     });
 }
 
 void App::drawUpscaleDialog() {
-    if (show_upscale_dialog_) {
+    if (upscale_.show_dialog) {
         ImGui::OpenPopup("AI Upscale");
-        show_upscale_dialog_ = false;
+        upscale_.show_dialog = false;
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("AI Upscale", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -553,7 +553,7 @@ void App::drawUpscaleDialog() {
             return;
         }
 
-        if (upscale_models_.empty()) {
+        if (upscale_.models.empty()) {
             ImGui::TextColored(kErrorColor, "No models found.");
             ImGui::TextUnformatted("Download models with:");
             ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
@@ -572,21 +572,21 @@ void App::drawUpscaleDialog() {
 
         // Model selector
         if (ImGui::BeginCombo("Model",
-                              upscale_models_[upscale_model_index_].display_name.c_str())) {
-            for (i32 i = 0; i < static_cast<i32>(upscale_models_.size()); ++i) {
-                bool selected = (i == upscale_model_index_);
-                std::string label = upscale_models_[i].label();
+                              upscale_.models[upscale_.model_index].display_name.c_str())) {
+            for (i32 i = 0; i < static_cast<i32>(upscale_.models.size()); ++i) {
+                bool selected = (i == upscale_.model_index);
+                std::string label = upscale_.models[i].label();
                 if (ImGui::Selectable(label.c_str(), selected)) {
-                    upscale_model_index_ = i;
+                    upscale_.model_index = i;
                 }
             }
             ImGui::EndCombo();
         }
 
-        const auto& model = upscale_models_[upscale_model_index_];
-        if (loaded_texture_) {
-            i32 outw = static_cast<i32>(loaded_texture_->width()) * model.scale;
-            i32 outh = static_cast<i32>(loaded_texture_->height()) * model.scale;
+        const auto& model = upscale_.models[upscale_.model_index];
+        if (tex_state_.texture) {
+            i32 outw = static_cast<i32>(tex_state_.texture->width()) * model.scale;
+            i32 outh = static_cast<i32>(tex_state_.texture->height()) * model.scale;
             ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
         }
 
@@ -595,8 +595,8 @@ void App::drawUpscaleDialog() {
         {
             std::string status_snapshot;
             {
-                std::lock_guard<std::mutex> lk(upscale_status_mtx_);
-                status_snapshot = upscale_status_;
+                std::lock_guard<std::mutex> lk(upscale_.status_mtx);
+                status_snapshot = upscale_.status;
             }
             if (!status_snapshot.empty()) {
                 ImGui::TextWrapped("%s", status_snapshot.c_str());
@@ -604,11 +604,11 @@ void App::drawUpscaleDialog() {
             }
         }
 
-        bool busy = upscale_in_progress_;
+        bool busy = upscale_.in_progress;
         if (busy) ImGui::BeginDisabled();
         if (ImGui::Button("Upscale", ImVec2(120, 0))) {
-            if (loaded_texture_) {
-                startUpscaleThread(model, *loaded_texture_, false);
+            if (tex_state_.texture) {
+                startUpscaleThread(model, *tex_state_.texture, false);
             }
         }
         ImGui::SameLine();
@@ -623,9 +623,9 @@ void App::drawUpscaleDialog() {
 #endif // WHITEOUT_HAS_UPSCALER
 
 void App::drawAboutDialog() {
-    if (show_about_) {
+    if (ui_.show_about) {
         ImGui::OpenPopup("About WhiteoutTex");
-        show_about_ = false;
+        ui_.show_about = false;
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("About WhiteoutTex", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -669,8 +669,8 @@ i32 App::run(i32 argc, char** argv) {
 
 #ifdef WHITEOUT_HAS_UPSCALER
     // Discover available upscaler models and pass to image details panel.
-    upscale_models_ = Upscaler::availableModels(Upscaler::defaultModelDir());
-    image_details_.setUpscalerModels(upscale_models_);
+    upscale_.models = Upscaler::availableModels(Upscaler::defaultModelDir());
+    image_details_.setUpscalerModels(upscale_.models);
 #endif
 
     if (!initWindow())
@@ -729,7 +729,7 @@ i32 App::run(i32 argc, char** argv) {
         const f32 available_height = ImGui::GetContentRegionAvail().y;
         const f32 left_panel_width = available_width * 0.4f;
 
-        const bool show_mip_list = loaded_texture_ && loaded_texture_->mipCount() > 1;
+        const bool show_mip_list = tex_state_.texture && tex_state_.texture->mipCount() > 1;
         const f32 mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
         const f32 details_height = available_height - mip_list_height;
 
@@ -737,57 +737,57 @@ i32 App::run(i32 argc, char** argv) {
         ImGui::BeginGroup();
         {
             auto details_result = image_details_.drawDetailsPanel(
-                loaded_texture_ ? &*loaded_texture_ : nullptr,
-                loaded_path_, loaded_file_format_, loaded_source_fmt_,
+                tex_state_.texture ? &*tex_state_.texture : nullptr,
+                tex_state_.path, tex_state_.file_format, tex_state_.source_fmt,
                 left_panel_width, details_height);
 
-            if (details_result.refresh_display && loaded_texture_) {
-                viewer_.refreshDisplay(*loaded_texture_);
+            if (details_result.refresh_display && tex_state_.texture) {
+                viewer_.refreshDisplay(*tex_state_.texture);
             }
             if (details_result.updated_texture) {
-                *loaded_texture_ = std::move(*details_result.updated_texture);
-                viewer_.setTexture(*loaded_texture_);
+                *tex_state_.texture = std::move(*details_result.updated_texture);
+                viewer_.setTexture(*tex_state_.texture);
             }
             if (!details_result.result_message.empty()) {
-                result_popup_message_ = std::move(details_result.result_message);
-                result_popup_success_ = details_result.result_success;
-                show_result_popup_ = true;
+                ui_.result_popup_message = std::move(details_result.result_message);
+                ui_.result_popup_success = details_result.result_success;
+                ui_.show_result_popup = true;
             }
 #ifdef WHITEOUT_HAS_UPSCALER
-            if (details_result.upscale_model_index >= 0 && loaded_texture_ &&
-                !upscale_in_progress_) {
-                upscale_model_index_ = details_result.upscale_model_index;
+            if (details_result.upscale_model_index >= 0 && tex_state_.texture &&
+                !upscale_.in_progress) {
+                upscale_.model_index = details_result.upscale_model_index;
                 image_details_.setUpscaleInProgress(true);
-                startUpscaleThread(upscale_models_[upscale_model_index_],
-                                   *loaded_texture_, details_result.upscale_alpha);
+                startUpscaleThread(upscale_.models[upscale_.model_index],
+                                   *tex_state_.texture, details_result.upscale_alpha);
             }
 
             // Process upscale completion on the main thread.
-            if (upscale_done_.load()) {
-                if (upscale_thread_.joinable())
-                    upscale_thread_.join();
-                upscale_done_.store(false);
-                upscale_in_progress_ = false;
+            if (upscale_.done.load()) {
+                if (upscale_.thread.joinable())
+                    upscale_.thread.join();
+                upscale_.done.store(false);
+                upscale_.in_progress = false;
                 image_details_.setUpscaleInProgress(false);
-                if (upscale_success_ && upscale_result_) {
-                    loaded_texture_ = std::move(*upscale_result_);
-                    upscale_result_.reset();
-                    loaded_source_fmt_ = tex::PixelFormat::RGBA8;
-                    viewer_.setTexture(*loaded_texture_);
-                    result_popup_message_ = "Upscale complete.";
-                    result_popup_success_ = true;
+                if (upscale_.success && upscale_.result) {
+                    tex_state_.texture = std::move(*upscale_.result);
+                    upscale_.result.reset();
+                    tex_state_.source_fmt = tex::PixelFormat::RGBA8;
+                    viewer_.setTexture(*tex_state_.texture);
+                    ui_.result_popup_message = "Upscale complete.";
+                    ui_.result_popup_success = true;
                 } else {
-                    upscale_result_.reset();
-                    result_popup_message_ = upscale_status_;
-                    result_popup_success_ = false;
+                    upscale_.result.reset();
+                    ui_.result_popup_message = upscale_.status;
+                    ui_.result_popup_success = false;
                 }
-                show_result_popup_ = true;
+                ui_.show_result_popup = true;
             }
 #endif
         }
         if (show_mip_list) {
             i32 new_mip = image_details_.drawMipList(
-                *loaded_texture_, viewer_.selectedMip(),
+                *tex_state_.texture, viewer_.selectedMip(),
                 left_panel_width, mip_list_height);
             if (new_mip >= 0)
                 viewer_.selectMip(new_mip);
@@ -802,8 +802,8 @@ i32 App::run(i32 argc, char** argv) {
 
         if (viewer_.hasImage()) {
             viewer_.draw(renderer_);
-        } else if (!status_message_.empty()) {
-            ImGui::TextWrapped("%s", status_message_.c_str());
+        } else if (!tex_state_.status_message.empty()) {
+            ImGui::TextWrapped("%s", tex_state_.status_message.c_str());
         } else {
             ImGui::Text("No image loaded. Use File > Open to load a texture.");
         }
@@ -813,11 +813,11 @@ i32 App::run(i32 argc, char** argv) {
 
         // Popups
         auto save_status = save_dialog_.draw(
-            converter_, loaded_texture_ ? &*loaded_texture_ : nullptr, save_prefs_);
+            converter_, tex_state_.texture ? &*tex_state_.texture : nullptr, save_prefs_);
         if (!save_status.empty()) {
-            result_popup_message_ = std::move(save_status);
-            result_popup_success_ = result_popup_message_.starts_with("Saved:");
-            show_result_popup_ = true;
+            ui_.result_popup_message = std::move(save_status);
+            ui_.result_popup_success = ui_.result_popup_message.starts_with("Saved:");
+            ui_.show_result_popup = true;
         }
 
         {
@@ -825,9 +825,9 @@ i32 App::run(i32 argc, char** argv) {
                                                       recent_batch_input_dirs_,
                                                       recent_batch_output_dirs_);
             if (!batch_status.empty()) {
-                result_popup_message_ = std::move(batch_status);
-                result_popup_success_ = result_popup_message_.starts_with("Batch complete:");
-                show_result_popup_ = true;
+                ui_.result_popup_message = std::move(batch_status);
+                ui_.result_popup_success = ui_.result_popup_message.starts_with("Batch complete:");
+                ui_.show_result_popup = true;
             }
         }
 
@@ -851,9 +851,9 @@ i32 App::run(i32 argc, char** argv) {
                 if (loaded) {
                     applyLoadedTexture(casc_result.name, std::move(*loaded));
                 } else {
-                    status_message_ = "Failed to load CASC file: " + casc_result.name;
+                    tex_state_.status_message = "Failed to load CASC file: " + casc_result.name;
                     if (converter_.hasIssues()) {
-                        appendIssues(status_message_, converter_.getIssues());
+                        appendIssues(tex_state_.status_message, converter_.getIssues());
                     }
                 }
             }
