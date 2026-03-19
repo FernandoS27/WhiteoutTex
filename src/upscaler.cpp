@@ -15,7 +15,7 @@
 #include <SDL3/SDL.h>
 
 #include "thread_pool_manager.h"
-#include "save_helpers.h"
+#include "views/save_helpers.h"
 
 namespace whiteout::gui {
 

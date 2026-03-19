@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "services/texture_service.h"
-#include "save_helpers.h"
+#include "views/save_helpers.h"
 #include "thread_pool_manager.h"
 
 namespace tex = whiteout::textures;
@@ -139,6 +139,43 @@ TextureLoadResult TextureService::prepare(
 
     r.texture = std::move(texture);
     return r;
+}
+
+// ============================================================================
+// Texture transform operations
+// ============================================================================
+
+TextureOpResult TextureService::regenerateMipmaps(tex::Texture& texture, u32 mip_count) {
+    namespace interfaces = whiteout::interfaces;
+    auto* pool = threadPoolManager().get();
+    tex::Texture out;
+    if (auto err = withBcnRoundtrip(texture, pool, out,
+            [mip_count](tex::Texture& work, interfaces::WorkerPool* p) {
+                return work.generateMipmaps(mip_count, p);
+            })) {
+        return {false, "Mipmap generation failed: " + *err};
+    }
+    texture = std::move(out);
+    return {true, "Mipmaps regenerated successfully."};
+}
+
+TextureOpResult TextureService::downscale(tex::Texture& texture, u32 levels) {
+    namespace interfaces = whiteout::interfaces;
+    auto* pool = threadPoolManager().get();
+    tex::Texture out;
+    if (auto err = withBcnRoundtrip(texture, pool, out,
+            [levels](tex::Texture& work, interfaces::WorkerPool* p) {
+                return work.downscale(levels, p);
+            })) {
+        return {false, "Downscale failed: " + *err};
+    }
+    texture = std::move(out);
+    return {true, "Image downscaled successfully."};
+}
+
+void TextureService::applyBC3NSwap(tex::Texture& texture) {
+    texture.swapChannels(tex::Channel::R, tex::Channel::A);
+    texture.invertChannel(tex::Channel::G);
 }
 
 // ============================================================================

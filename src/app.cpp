@@ -3,8 +3,6 @@
 
 #include "app.h"
 #include "common_types.h"
-#include "save_helpers.h"
-#include "thread_pool_manager.h"
 #include "views/dialogs.h"
 #include "views/menu_bar.h"
 
@@ -13,8 +11,6 @@
 #include <cstring>
 #include <filesystem>
 #include <thread>
-
-#include <whiteout/textures/blp/types.h>
 
 #include <SDL3/SDL.h>
 #include <imgui.h>
@@ -58,9 +54,6 @@ constexpr SDL_DialogFileFilter OPEN_FILTERS[] = {
 };
 
 namespace tex = whiteout::textures;
-namespace interfaces = whiteout::interfaces;
-using TFF = tex::TextureFileFormat;
-using TC = tex::TextureConverter;
 
 /// Default window clear color.
 constexpr ImVec4 kClearColor{0.10f, 0.10f, 0.12f, 1.00f};
@@ -213,38 +206,18 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
             },
             [&](RegenerateMipmapsCmd& c) {
                 if (!tex_state_.texture) return;
-                auto* pool = threadPoolManager().get();
-                tex::Texture out;
-                if (auto err = withBcnRoundtrip(*tex_state_.texture, pool, out,
-                        [&c](tex::Texture& work, interfaces::WorkerPool* p) {
-                            return work.generateMipmaps(c.mip_count, p);
-                        })) {
-                    ui_.result_popup_message = "Mipmap generation failed: " + *err;
-                    ui_.result_popup_success = false;
-                } else {
-                    *tex_state_.texture = std::move(out);
-                    viewer_.setTexture(*tex_state_.texture);
-                    ui_.result_popup_message = "Mipmaps regenerated successfully.";
-                    ui_.result_popup_success = true;
-                }
+                auto op = texture_service_.regenerateMipmaps(*tex_state_.texture, c.mip_count);
+                if (op.success) viewer_.setTexture(*tex_state_.texture);
+                ui_.result_popup_message = std::move(op.message);
+                ui_.result_popup_success = op.success;
                 ui_.show_result_popup = true;
             },
             [&](DownscaleCmd& c) {
                 if (!tex_state_.texture) return;
-                auto* pool = threadPoolManager().get();
-                tex::Texture out;
-                if (auto err = withBcnRoundtrip(*tex_state_.texture, pool, out,
-                        [&c](tex::Texture& work, interfaces::WorkerPool* p) {
-                            return work.downscale(c.levels, p);
-                        })) {
-                    ui_.result_popup_message = "Downscale failed: " + *err;
-                    ui_.result_popup_success = false;
-                } else {
-                    *tex_state_.texture = std::move(out);
-                    viewer_.setTexture(*tex_state_.texture);
-                    ui_.result_popup_message = "Image downscaled successfully.";
-                    ui_.result_popup_success = true;
-                }
+                auto op = texture_service_.downscale(*tex_state_.texture, c.levels);
+                if (op.success) viewer_.setTexture(*tex_state_.texture);
+                ui_.result_popup_message = std::move(op.message);
+                ui_.result_popup_success = op.success;
                 ui_.show_result_popup = true;
             },
             [&](StartUpscaleCmd& c) {
@@ -322,8 +295,7 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
             },
             [&](ApplyBC3NSwapCmd&) {
                 if (tex_state_.texture) {
-                    tex_state_.texture->swapChannels(tex::Channel::R, tex::Channel::A);
-                    tex_state_.texture->invertChannel(tex::Channel::G);
+                    TextureService::applyBC3NSwap(*tex_state_.texture);
                     viewer_.setTexture(*tex_state_.texture);
                 }
             },
@@ -372,91 +344,25 @@ void App::processSaveResult() {
 }
 
 #ifdef WHITEOUT_HAS_UPSCALER
+void App::pollUpscaleResult() {
+    auto upscale_result = upscaler_service_.pollResult();
+    if (!upscale_result)
+        return;
 
-void App::drawUpscaleDialog() {
-    if (ui_.show_upscale_dialog) {
-        ImGui::OpenPopup("AI Upscale");
-        ui_.show_upscale_dialog = false;
+    image_details_.setUpscaleInProgress(false);
+    if (upscale_result->success && upscale_result->texture) {
+        tex_state_.texture = std::move(*upscale_result->texture);
+        tex_state_.source_fmt = tex::PixelFormat::RGBA8;
+        viewer_.setTexture(*tex_state_.texture);
+        ui_.result_popup_message = "Upscale complete.";
+        ui_.result_popup_success = true;
+    } else {
+        ui_.result_popup_message = std::move(upscale_result->status_message);
+        ui_.result_popup_success = false;
     }
-    centerNextWindow();
-    if (ImGui::BeginPopupModal("AI Upscale", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        constexpr ImVec4 kErrorColor{1.0f, 0.4f, 0.4f, 1.0f};
-
-        if (!UpscalerService::isGpuAvailable()) {
-            ImGui::TextColored(kErrorColor, "No Vulkan-capable GPU detected.");
-            ImGui::Spacing();
-            if (ImGui::Button("Close", ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-            return;
-        }
-
-        if (upscale_models_.empty()) {
-            ImGui::TextColored(kErrorColor, "No models found.");
-            ImGui::TextUnformatted("Download models with:");
-            ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
-            ImGui::TextUnformatted("Models directory:");
-            ImGui::TextDisabled("  %s", UpscalerService::defaultModelDir().string().c_str());
-            ImGui::Spacing();
-            if (ImGui::Button("Close", ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-            return;
-        }
-
-        ImGui::TextUnformatted("Upscale the current texture using Real-ESRGAN.");
-        ImGui::Spacing();
-
-        // Model selector
-        if (ImGui::BeginCombo("Model",
-                              upscale_models_[upscale_model_index_].display_name.c_str())) {
-            for (i32 i = 0; i < static_cast<i32>(upscale_models_.size()); ++i) {
-                bool selected = (i == upscale_model_index_);
-                std::string label = upscale_models_[i].label();
-                if (ImGui::Selectable(label.c_str(), selected)) {
-                    upscale_model_index_ = i;
-                }
-            }
-            ImGui::EndCombo();
-        }
-
-        const auto& model = upscale_models_[upscale_model_index_];
-        if (tex_state_.texture) {
-            i32 outw = static_cast<i32>(tex_state_.texture->width()) * model.scale;
-            i32 outh = static_cast<i32>(tex_state_.texture->height()) * model.scale;
-            ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
-        }
-
-        ImGui::Spacing();
-
-        {
-            std::string status_snapshot = upscaler_service_.status();
-            if (!status_snapshot.empty()) {
-                ImGui::TextWrapped("%s", status_snapshot.c_str());
-                ImGui::Spacing();
-            }
-        }
-
-        bool busy = upscaler_service_.isRunning();
-        if (busy) ImGui::BeginDisabled();
-        if (ImGui::Button("Upscale", ImVec2(120, 0))) {
-            if (tex_state_.texture) {
-                upscaler_service_.startAsync(model, *tex_state_.texture, false);
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Close", ImVec2(120, 0))) {
-            ImGui::CloseCurrentPopup();
-        }
-        if (busy) ImGui::EndDisabled();
-
-        ImGui::EndPopup();
-    }
+    ui_.show_result_popup = true;
 }
-
-#endif // WHITEOUT_HAS_UPSCALER
+#endif
 
 // ============================================================================
 // Main loop
@@ -568,21 +474,7 @@ i32 App::run(i32 argc, char** argv) {
             dispatchCommands(cmds);
 
 #ifdef WHITEOUT_HAS_UPSCALER
-            // Process upscale completion on the main thread.
-            if (auto upscale_result = upscaler_service_.pollResult()) {
-                image_details_.setUpscaleInProgress(false);
-                if (upscale_result->success && upscale_result->texture) {
-                    tex_state_.texture = std::move(*upscale_result->texture);
-                    tex_state_.source_fmt = tex::PixelFormat::RGBA8;
-                    viewer_.setTexture(*tex_state_.texture);
-                    ui_.result_popup_message = "Upscale complete.";
-                    ui_.result_popup_success = true;
-                } else {
-                    ui_.result_popup_message = std::move(upscale_result->status_message);
-                    ui_.result_popup_success = false;
-                }
-                ui_.show_result_popup = true;
-            }
+            pollUpscaleResult();
 #endif
         }
         if (show_mip_list) {
@@ -638,7 +530,18 @@ i32 App::run(i32 argc, char** argv) {
             dispatchCommands(cmds);
         }
 #ifdef WHITEOUT_HAS_UPSCALER
-        drawUpscaleDialog();
+        {
+            const i32 tw = tex_state_.texture
+                               ? static_cast<i32>(tex_state_.texture->width()) : 0;
+            const i32 th = tex_state_.texture
+                               ? static_cast<i32>(tex_state_.texture->height()) : 0;
+            auto cmds = drawUpscaleDialog(
+                ui_.show_upscale_dialog, upscale_models_, upscale_model_index_,
+                UpscalerService::isGpuAvailable(), upscaler_service_.isRunning(),
+                upscaler_service_.status(), UpscalerService::defaultModelDir(),
+                tw, th);
+            dispatchCommands(cmds);
+        }
 #endif
 
         // Render

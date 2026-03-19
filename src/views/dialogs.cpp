@@ -193,4 +193,101 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
     return commands;
 }
 
+// ============================================================================
+// Upscale dialog
+// ============================================================================
+
+#ifdef WHITEOUT_HAS_UPSCALER
+
+std::vector<AppCommand> drawUpscaleDialog(
+    bool& show,
+    const std::vector<UpscalerModel>& models,
+    i32& selected_index,
+    bool has_gpu,
+    bool is_running,
+    const std::string& status,
+    const std::filesystem::path& model_dir,
+    i32 tex_width, i32 tex_height) {
+
+    std::vector<AppCommand> commands;
+
+    if (show) {
+        ImGui::OpenPopup("AI Upscale");
+        show = false;
+    }
+    centerNextWindow();
+    if (ImGui::BeginPopupModal("AI Upscale", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (!has_gpu) {
+            ImGui::TextColored(kErrorColor, "No Vulkan-capable GPU detected.");
+            ImGui::Spacing();
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return commands;
+        }
+
+        if (models.empty()) {
+            ImGui::TextColored(kErrorColor, "No models found.");
+            ImGui::TextUnformatted("Download models with:");
+            ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
+            ImGui::TextUnformatted("Models directory:");
+            ImGui::TextDisabled("  %s", model_dir.string().c_str());
+            ImGui::Spacing();
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return commands;
+        }
+
+        ImGui::TextUnformatted("Upscale the current texture using Real-ESRGAN.");
+        ImGui::Spacing();
+
+        // Model selector
+        if (ImGui::BeginCombo("Model", models[selected_index].display_name.c_str())) {
+            for (i32 i = 0; i < static_cast<i32>(models.size()); ++i) {
+                bool selected = (i == selected_index);
+                std::string label = models[i].label();
+                if (ImGui::Selectable(label.c_str(), selected)) {
+                    selected_index = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        const auto& model = models[selected_index];
+        if (tex_width > 0 && tex_height > 0) {
+            i32 outw = tex_width * model.scale;
+            i32 outh = tex_height * model.scale;
+            ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
+        }
+
+        ImGui::Spacing();
+
+        if (!status.empty()) {
+            ImGui::TextWrapped("%s", status.c_str());
+            ImGui::Spacing();
+        }
+
+        if (is_running) ImGui::BeginDisabled();
+        if (ImGui::Button("Upscale", ImVec2(120, 0))) {
+            if (tex_width > 0 && tex_height > 0) {
+                commands.push_back(StartUpscaleCmd{selected_index, false});
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Close", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        if (is_running) ImGui::EndDisabled();
+
+        ImGui::EndPopup();
+    }
+
+    return commands;
+}
+
+#endif // WHITEOUT_HAS_UPSCALER
+
 } // namespace whiteout::gui

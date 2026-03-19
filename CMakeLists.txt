@@ -15,20 +15,20 @@ add_subdirectory(externals)
 add_executable(WhiteoutTex
     src/main.cpp
     src/app.cpp
-    src/batch_convert.cpp
-    src/casc_browser.cpp
-    src/image_details.cpp
-    src/image_viewer.cpp
     src/preferences.cpp
-    src/save_dialog.cpp
-    src/save_helpers.cpp
     src/texture_converter.cpp
     src/thread_pool_manager.cpp
     src/services/texture_service.cpp
     src/services/casc_service.cpp
     src/services/batch_service.cpp
-    src/views/menu_bar.cpp
+    src/views/batch_convert.cpp
+    src/views/casc_browser.cpp
     src/views/dialogs.cpp
+    src/views/image_details.cpp
+    src/views/image_viewer.cpp
+    src/views/menu_bar.cpp
+    src/views/save_dialog.cpp
+    src/views/save_helpers.cpp
 )
 
 if(WHITEOUT_ENABLE_UPSCALER)

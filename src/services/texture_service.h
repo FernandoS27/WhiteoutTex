@@ -38,6 +38,12 @@ struct TextureLoadResult {
     std::string d4_payload_prefill;
 };
 
+/// Result of a mipmap/downscale/transform operation.
+struct TextureOpResult {
+    bool success = false;
+    std::string message;
+};
+
 /// Business logic for texture loading, preparation, and pixel operations.
 class TextureService {
 public:
@@ -62,6 +68,15 @@ public:
                                        std::span<const u8> meta,
                                        std::span<const u8> payload,
                                        std::span<const u8> paylow = {});
+
+    /// Regenerate mipmaps on the texture (with BCn round-trip if needed).
+    TextureOpResult regenerateMipmaps(whiteout::textures::Texture& texture, u32 mip_count);
+
+    /// Downscale the texture by the given number of levels (with BCn round-trip if needed).
+    TextureOpResult downscale(whiteout::textures::Texture& texture, u32 levels);
+
+    /// Apply BC3N normal-map channel swap (R↔A, invert G).
+    static void applyBC3NSwap(whiteout::textures::Texture& texture);
 
     /// Build an RGBA8 display copy (handles normal-map expansion, single-channel broadcast).
     static whiteout::textures::Texture makeDisplayTexture(

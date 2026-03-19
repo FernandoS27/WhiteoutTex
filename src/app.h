@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "batch_convert.h"
-#include "casc_browser.h"
-#include "image_details.h"
-#include "image_viewer.h"
 #include "models/app_state.h"
 #include "preferences.h"
-#include "save_dialog.h"
+#include "views/batch_convert.h"
+#include "views/casc_browser.h"
+#include "views/image_details.h"
+#include "views/image_viewer.h"
+#include "views/save_dialog.h"
 #include "services/texture_service.h"
 #include "texture_converter.h"
 
@@ -56,7 +56,7 @@ private:
     void dispatchCommands(std::vector<AppCommand>& commands);
 
 #ifdef WHITEOUT_HAS_UPSCALER
-    void drawUpscaleDialog();
+    void pollUpscaleResult();
 #endif
 
     /// Open a file by path (used by Open Recent and the file-dialog callback).
