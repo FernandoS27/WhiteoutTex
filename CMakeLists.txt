@@ -24,10 +24,13 @@ add_executable(WhiteoutTex
     src/save_helpers.cpp
     src/texture_converter.cpp
     src/thread_pool_manager.cpp
+    src/services/texture_service.cpp
+    src/services/casc_service.cpp
+    src/services/batch_service.cpp
 )
 
 if(WHITEOUT_ENABLE_UPSCALER)
-    target_sources(WhiteoutTex PRIVATE src/upscaler.cpp)
+    target_sources(WhiteoutTex PRIVATE src/upscaler.cpp src/services/upscaler_service.cpp)
     target_compile_definitions(WhiteoutTex PRIVATE WHITEOUT_HAS_UPSCALER)
 endif()
 

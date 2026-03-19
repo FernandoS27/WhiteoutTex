@@ -5,24 +5,15 @@
 #include "common_types.h"
 #include "save_dialog.h"
 #include "save_helpers.h"
-#include "thread_pool_manager.h"
 
 #include <algorithm>
 #include <cstdio>
-#include <cstring>
 #include <filesystem>
 #include <string>
-#include <unordered_map>
 #include <vector>
-
-#include <whiteout/textures/blp/types.h>
 
 #include <imgui.h>
 
-namespace tex = whiteout::textures;
-namespace interfaces = whiteout::interfaces;
-using TFF = tex::TextureFileFormat;
-using TC = tex::TextureConverter;
 using whiteout::gui::BLP_ENCODING_NAMES;
 using whiteout::gui::DDS_FORMAT_NAMES;
 
@@ -33,7 +24,6 @@ using whiteout::i32;
 // ── Output format table ────────────────────────────────────────────────
 
 constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG", "TGA"};
-constexpr const char* OUTPUT_EXTENSIONS[] = {".blp", ".bmp", ".dds", ".jpg", ".png", ".tga"};
 
 // ── BLP / DDS name arrays live in save_dialog.h
 
@@ -434,7 +424,7 @@ void BatchConvert::setUpscalerModels(std::vector<UpscalerModel> models) {
 // ============================================================================
 
 void BatchConvert::drawProgressDialog(std::string& status) {
-    if (converting_) {
+    if (batch_service_.isRunning()) {
         ImGui::OpenPopup("##BatchProgress");
     }
     centerNextWindow();
@@ -443,26 +433,20 @@ void BatchConvert::drawProgressDialog(std::string& status) {
                                 ImGuiWindowFlags_AlwaysAutoResize |
                                     ImGuiWindowFlags_NoTitleBar |
                                     ImGuiWindowFlags_NoResize)) {
-        const i32 total = static_cast<i32>(pending_files_.size());
-        const i32 processed = batch_processed_.load(std::memory_order_relaxed);
-        const f32 fraction = total > 0 ? static_cast<f32>(processed) / total : 0.0f;
+        const auto prog = batch_service_.progress();
+        const f32 fraction = prog.total > 0 ? static_cast<f32>(prog.processed) / prog.total : 0.0f;
 
-        ImGui::Text("Converting... (%d / %d)", processed, total);
+        ImGui::Text("Converting... (%d / %d)", prog.processed, prog.total);
         ImGui::ProgressBar(fraction, ImVec2(-1, 0));
 
-        if (batch_done_.load(std::memory_order_acquire)) {
-            // Join all worker threads
-            for (auto& t : workers_)
-                if (t.joinable()) t.join();
-            workers_.clear();
+        if (prog.done) {
+            batch_service_.joinWorkers();
 
-            converting_ = false;
             char msg[256];
             std::snprintf(msg, sizeof(msg),
                           "Batch complete: %d succeeded, %d failed out of %d files.",
-                          batch_success_.load(), batch_fail_.load(), total);
+                          prog.success, prog.fail, prog.total);
             status = msg;
-            pending_files_.clear();
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -476,7 +460,7 @@ void BatchConvert::drawProgressDialog(std::string& status) {
 std::string BatchConvert::beginBatch() {
     namespace fs = std::filesystem;
 
-    if (converting_)
+    if (batch_service_.isRunning())
         return "Error: A batch conversion is already in progress.";
 
     const std::string input_dir(input_dir_buf_);
@@ -498,14 +482,14 @@ std::string BatchConvert::beginBatch() {
         return "Error: Could not create output directory.";
 
     // Collect matching files
-    pending_files_.clear();
+    std::vector<std::string> files;
     auto collect = [&](auto& it) {
         for (const auto& entry : it) {
             if (!entry.is_regular_file())
                 continue;
             std::string ext = to_lower(entry.path().extension().string());
             if (matchesFilter(ext, prefs_)) {
-                pending_files_.push_back(entry.path().string());
+                files.push_back(entry.path().string());
             }
         }
     };
@@ -517,233 +501,19 @@ std::string BatchConvert::beginBatch() {
         collect(it);
     }
 
-    if (pending_files_.empty())
+    if (files.empty())
         return "No matching files found in input directory.";
 
-    batch_input_dir_ = input_dir;
-    batch_output_dir_ = output_dir;
-    batch_processed_.store(0, std::memory_order_relaxed);
-    batch_success_.store(0, std::memory_order_relaxed);
-    batch_fail_.store(0, std::memory_order_relaxed);
-    batch_done_.store(false, std::memory_order_relaxed);
-    work_index_.store(0, std::memory_order_relaxed);
-    converting_ = true;
-
-    // Launch worker threads
-    // If the pipeline contains upscale steps, use one thread to avoid GPU memory issues.
-    bool has_upscale = false;
-    for (const auto& step : prefs_.transform_pipeline) {
-        if (step.type == TransformType::Upscale) {
-            has_upscale = true;
-            break;
-        }
-    }
-    const i32 thread_count = has_upscale
-        ? 1
-        : std::max(1, static_cast<i32>(std::thread::hardware_concurrency()));
-    workers_.clear();
-    workers_.reserve(thread_count);
-    for (i32 i = 0; i < thread_count; ++i) {
-        workers_.emplace_back([this]() { workerFunc(); });
-    }
-
-    return {};
-}
-
-void BatchConvert::workerFunc() {
-    namespace fs = std::filesystem;
-
-    // Each thread gets its own converter to avoid shared mutable state
-    TC converter;
-    auto* pool = threadPoolManager().get();
-    const i32 total = static_cast<i32>(pending_files_.size());
-
-    // Take a snapshot of the pipeline for this worker
-    const auto pipeline = prefs_.transform_pipeline;
-
+    BatchJob job;
+    job.input_dir = input_dir;
+    job.output_dir = output_dir;
+    job.files = std::move(files);
+    job.prefs = prefs_;
 #ifdef WHITEOUT_HAS_UPSCALER
-    // Initialize one Upscaler per required model (lazily)
-    // Map model_index -> initialized Upscaler
-    std::unordered_map<i32, std::unique_ptr<Upscaler>> upscalers;
-    const auto model_dir = Upscaler::defaultModelDir();
-
-    auto getUpscaler = [&](i32 model_index) -> Upscaler* {
-        auto it = upscalers.find(model_index);
-        if (it != upscalers.end())
-            return it->second.get();
-        if (model_index >= static_cast<i32>(upscale_models_.size()))
-            return nullptr;
-        auto up = std::make_unique<Upscaler>();
-        if (!up->init(model_dir, upscale_models_[model_index]))
-            return nullptr;
-        auto* ptr = up.get();
-        upscalers[model_index] = std::move(up);
-        return ptr;
-    };
+    job.upscale_models = upscale_models_;
 #endif
 
-    // Signal progress and detect completion atomically via the return value
-    // of fetch_add, avoiding the race in a separate load-after-loop check.
-    const auto signalProgress = [&] {
-        if (batch_processed_.fetch_add(1, std::memory_order_acq_rel) + 1 >= total) {
-            batch_done_.store(true, std::memory_order_release);
-        }
-    };
-
-    while (true) {
-        const i32 idx = work_index_.fetch_add(1, std::memory_order_relaxed);
-        if (idx >= total)
-            break;
-
-        try {
-            const auto& file = pending_files_[idx];
-
-            TFF file_fmt = TC::classifyPath(file);
-            std::optional<tex::Texture> loaded;
-
-            if (file_fmt == TFF::TEX && TC::isD4Tex(file)) {
-                loaded = loadD4TexWithFallback(converter, file);
-            } else {
-                loaded = converter.load(file);
-            }
-
-            if (!loaded) {
-                batch_fail_.fetch_add(1, std::memory_order_relaxed);
-                signalProgress();
-                continue;
-            }
-
-            applyGuessedKind(*loaded, file);
-
-            // ── Apply transformation pipeline ──────────────────────────
-            bool pipeline_failed = false;
-            for (const auto& step : pipeline) {
-                if (step.type == TransformType::Downscale) {
-                    tex::Texture out;
-                    if (auto err = withBcnRoundtrip(*loaded, pool, out,
-                            [&step](tex::Texture& work, interfaces::WorkerPool* p)
-                                -> std::optional<std::string> {
-                                const u32 new_w = work.width() >> step.downscale_levels;
-                                const u32 new_h = work.height() >> step.downscale_levels;
-                                if (new_w < 1 || new_h < 1)
-                                    return std::string("Image too small to downscale");
-                                return work.downscale(
-                                    static_cast<u32>(step.downscale_levels), p);
-                            })) {
-                        pipeline_failed = true;
-                        break;
-                    }
-                    *loaded = std::move(out);
-                }
-#ifdef WHITEOUT_HAS_UPSCALER
-                else if (step.type == TransformType::Upscale) {
-                    auto* upscaler = getUpscaler(step.upscale_model_index);
-                    if (!upscaler) {
-                        pipeline_failed = true;
-                        break;
-                    }
-                    const auto prev = *loaded;
-                    auto result = upscaler->process(*loaded, step.upscale_alpha);
-                    if (!result) {
-                        pipeline_failed = true;
-                        break;
-                    }
-                    *loaded = std::move(*result);
-                    copyKindMetadata(*loaded, prev);
-                }
-#endif
-            }
-
-            if (pipeline_failed) {
-                batch_fail_.fetch_add(1, std::memory_order_relaxed);
-                signalProgress();
-                continue;
-            }
-
-            std::error_code ec;
-            fs::path out_base;
-            if (prefs_.keep_layout) {
-                auto rel = fs::relative(fs::path(file).parent_path(), batch_input_dir_, ec);
-                out_base = fs::path(batch_output_dir_) / rel;
-                fs::create_directories(out_base, ec);
-            } else {
-                out_base = fs::path(batch_output_dir_);
-            }
-            auto stem = fs::path(file).stem().string();
-            auto out_path = (out_base / (stem + OUTPUT_EXTENSIONS[prefs_.output_format])).string();
-
-            const auto tex_kind = loaded->kind();
-            if (saveOne(converter, std::move(*loaded), out_path, tex_kind)) {
-                batch_success_.fetch_add(1, std::memory_order_relaxed);
-            } else {
-                batch_fail_.fetch_add(1, std::memory_order_relaxed);
-            }
-        } catch (...) {
-            batch_fail_.fetch_add(1, std::memory_order_relaxed);
-        }
-        signalProgress();
-    }
-}
-
-// ============================================================================
-// Single-file save (mirrors SaveDialog::performSave)
-// ============================================================================
-
-bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::string& out_path,
-                            tex::TextureKind kind) {
-    auto* pool = threadPoolManager().get();
-
-    if (prefs_.generate_mipmaps) {
-        if (tex::isBcn(tex_copy.format()))
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-        const auto mipCount = effectiveMipCount(prefs_.mipmap_mode, prefs_.mipmap_custom_count, tex_copy);
-        if (auto err = tex_copy.generateMipmaps(mipCount, pool))
-            return false;
-    }
-
-    switch (prefs_.output_format) {
-    case 0: { // BLP
-        auto blp = buildBlpSaveOptions(prefs_.blp_version, prefs_.blp_encoding,
-                                       prefs_.blp_dither, prefs_.blp_dither_strength,
-                                       prefs_.jpeg_quality);
-        coerceBlpFormat(tex_copy, prefs_.blp_encoding, blp.encoding, pool);
-        return converter.save(tex_copy, out_path, blp);
-    }
-
-    case 2: { // DDS
-        i32 dds_fmt;
-        bool invert_y;
-
-        if (prefs_.dds_mode == 1) {
-            if (kind == tex::TextureKind::Normal) {
-                dds_fmt = prefs_.dds_format_normal;
-                invert_y = prefs_.dds_invert_y_normal;
-            } else if (isChannelMapKind(kind)) {
-                dds_fmt = prefs_.dds_format_channel;
-                invert_y = false;
-            } else {
-                dds_fmt = prefs_.dds_format_other;
-                invert_y = false;
-            }
-        } else {
-            dds_fmt = prefs_.dds_format_general;
-            invert_y = prefs_.dds_invert_y_general;
-        }
-
-        coerceDdsFormat(tex_copy, dds_fmt, invert_y, pool);
-        return converter.save(tex_copy, out_path);
-    }
-
-    case 3: // JPEG
-        if (tex::isBcn(tex_copy.format()))
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-        return converter.save(tex_copy, out_path, prefs_.jpeg_quality);
-
-    default: // BMP (1), PNG (4), TGA (5)
-        if (tex::isBcn(tex_copy.format()))
-            tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-        return converter.save(tex_copy, out_path);
-    }
+    return batch_service_.start(std::move(job));
 }
 
 // ============================================================================

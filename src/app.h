@@ -10,7 +10,12 @@
 #include "models/app_state.h"
 #include "preferences.h"
 #include "save_dialog.h"
+#include "services/texture_service.h"
 #include "texture_converter.h"
+
+#ifdef WHITEOUT_HAS_UPSCALER
+#include "services/upscaler_service.h"
+#endif
 
 #include <string>
 
@@ -54,17 +59,13 @@ private:
     void drawD4PayloadDialog();
 #ifdef WHITEOUT_HAS_UPSCALER
     void drawUpscaleDialog();
-
-    /// Launch the upscale process on a background thread (safe: result applied on main thread).
-    void startUpscaleThread(const UpscalerModel& model,
-                            const whiteout::textures::Texture& source, bool upscale_alpha);
 #endif
-
-    /// Apply a successfully loaded texture and update all dependent state.
-    void applyLoadedTexture(const std::string& path, whiteout::textures::Texture texture);
 
     /// Open a file by path (used by Open Recent and the file-dialog callback).
     void openFile(const std::string& path);
+
+    /// Apply a TextureLoadResult to the application state.
+    void applyLoadResult(const std::string& path, TextureLoadResult result);
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -90,6 +91,9 @@ private:
     CascBrowser casc_browser_;
     whiteout::textures::TextureConverter converter_;
 
+    // Services
+    TextureService texture_service_{converter_};
+
     // File dialog state
     FileDialogState open_dialog_state_;
     FileDialogState save_dialog_state_;
@@ -98,8 +102,10 @@ private:
     UIFlags ui_;
 
 #ifdef WHITEOUT_HAS_UPSCALER
-    // Upscaler state
-    UpscaleState upscale_;
+    // Upscaler service
+    UpscalerService upscaler_service_;
+    i32 upscale_model_index_ = 0;
+    std::vector<UpscalerModel> upscale_models_;
 #endif
 };
 

@@ -5,17 +5,14 @@
 
 #include "common_types.h"
 #include "preferences.h"
-#include "texture_converter.h"
+#include "services/batch_service.h"
 
 #ifdef WHITEOUT_HAS_UPSCALER
 #include "upscaler.h"
 #endif
 
 #include <string>
-#include <thread>
 #include <vector>
-
-#include <whiteout/textures/texture.h>
 
 #include <SDL3/SDL.h>
 
@@ -46,10 +43,6 @@ private:
 
     void processFolderResults();
     std::string beginBatch();
-    void workerFunc();
-    bool saveOne(whiteout::textures::TextureConverter& converter,
-                 whiteout::textures::Texture tex_copy, const std::string& out_path,
-                 whiteout::textures::TextureKind kind);
     void drawBlpOptions();
     void drawDdsOptions();
     void drawTransformPipeline();
@@ -71,17 +64,8 @@ private:
     std::vector<UpscalerModel> upscale_models_;
 #endif
 
-    // Progress state
-    bool converting_ = false;
-    std::vector<std::string> pending_files_;
-    std::string batch_input_dir_;
-    std::string batch_output_dir_;
-    std::atomic<i32> batch_processed_{0};
-    std::atomic<i32> batch_success_{0};
-    std::atomic<i32> batch_fail_{0};
-    std::atomic<bool> batch_done_{false};
-    std::vector<std::thread> workers_;
-    std::atomic<i32> work_index_{0};
+    // Batch execution service
+    BatchService batch_service_;
 
     FolderState input_folder_state_;
     FolderState output_folder_state_;

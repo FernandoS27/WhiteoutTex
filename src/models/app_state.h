@@ -13,14 +13,8 @@
 #include <mutex>
 #include <optional>
 #include <string>
-#include <thread>
-#include <vector>
 
 #include <whiteout/textures/texture.h>
-
-#ifdef WHITEOUT_HAS_UPSCALER
-#include "upscaler.h"
-#endif
 
 namespace whiteout::gui {
 
@@ -72,28 +66,9 @@ struct UIFlags {
     std::string pending_d4_meta_path;
     char d4_payload_path_buf[PATH_BUFFER_SIZE] = {};
     char d4_paylow_path_buf[PATH_BUFFER_SIZE] = {};
-};
 
-// ============================================================================
-// Upscaler state (optional feature)
-// ============================================================================
-
-#ifdef WHITEOUT_HAS_UPSCALER
-/// All state related to the AI upscaler.
-struct UpscaleState {
-    Upscaler upscaler;
-    bool show_dialog = false;
-    bool in_progress = false;
-    i32 model_index = 0;
-    i32 gpu_id = 0;
-    std::vector<UpscalerModel> models;
-    std::string status;
-    mutable std::mutex status_mtx; ///< Guards status across threads.
-    std::atomic<bool> done{false};
-    bool success = false;
-    std::optional<textures::Texture> result;
-    std::thread thread;
+    // Upscale dialog trigger
+    bool show_upscale_dialog = false;
 };
-#endif
 
 } // namespace whiteout::gui

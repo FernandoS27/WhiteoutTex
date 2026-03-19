@@ -3,6 +3,7 @@
 
 #include "image_viewer.h"
 #include "save_helpers.h"
+#include "services/texture_service.h"
 #include "thread_pool_manager.h"
 
 #include <algorithm>
@@ -80,7 +81,7 @@ ImageViewer::~ImageViewer() {
 void ImageViewer::setTexture(const tex::Texture& texture) {
     updateChannelInfo(texture);
     auto* pool = threadPoolManager().get();
-    display_texture_ = makeDisplayTexture(texture, pool);
+    display_texture_ = TextureService::makeDisplayTexture(texture, pool);
     selected_mip_ = 0;
     resetChannelVisibility();
     auto_fit_ = true;
@@ -94,7 +95,7 @@ void ImageViewer::refreshDisplay(const tex::Texture& texture) {
     updateChannelInfo(texture);
     resetChannelVisibility();
     auto* pool = threadPoolManager().get();
-    display_texture_ = makeDisplayTexture(texture, pool);
+    display_texture_ = TextureService::makeDisplayTexture(texture, pool);
     if (display_texture_ && display_texture_->mipCount() > 0) {
         if (selected_mip_ >= static_cast<i32>(display_texture_->mipCount())) {
             selected_mip_ = static_cast<i32>(display_texture_->mipCount()) - 1;
@@ -337,33 +338,6 @@ void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
     }
 }
 
-std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, i32 width, i32 height,
-                                                     bool show_r, bool show_g, bool show_b,
-                                                     bool show_a) {
-    const i32 count = width * height;
-    std::vector<u8> out(static_cast<size_t>(count) * 4);
-    const i32 active = (show_r ? 1 : 0) + (show_g ? 1 : 0) + (show_b ? 1 : 0) + (show_a ? 1 : 0);
-    for (i32 i = 0; i < count; ++i) {
-        const u8 r = data[i * 4 + 0];
-        const u8 g = data[i * 4 + 1];
-        const u8 b = data[i * 4 + 2];
-        const u8 a = data[i * 4 + 3];
-        if (active == 1) {
-            u8 val = show_r ? r : (show_g ? g : (show_b ? b : a));
-            out[i * 4 + 0] = val;
-            out[i * 4 + 1] = val;
-            out[i * 4 + 2] = val;
-            out[i * 4 + 3] = 255;
-        } else {
-            out[i * 4 + 0] = show_r ? r : 0;
-            out[i * 4 + 1] = show_g ? g : 0;
-            out[i * 4 + 2] = show_b ? b : 0;
-            out[i * 4 + 3] = show_a ? a : 255;
-        }
-    }
-    return out;
-}
-
 SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
                                                  i32 width, i32 height) {
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
@@ -373,26 +347,6 @@ SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u
     }
     SDL_UpdateTexture(texture, nullptr, data, width * 4);
     return texture;
-}
-
-tex::Texture ImageViewer::makeDisplayTexture(const tex::Texture& texture,
-                                              interfaces::WorkerPool* pool) {
-    if (texture.kind() == tex::TextureKind::Normal) {
-        if (auto expanded = texture.copyFromNormalToRGBA(pool)) {
-            return std::move(*expanded);
-        }
-    }
-    auto result = texture.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-    const auto src_fmt = texture.format();
-    if (src_fmt == tex::PixelFormat::R8 || src_fmt == tex::PixelFormat::R16 ||
-        src_fmt == tex::PixelFormat::R32F || src_fmt == tex::PixelFormat::BC4) {
-        auto span = result.data();
-        for (size_t i = 0; i + 3 < span.size(); i += 4) {
-            span[i + 1] = span[i]; // G = R
-            span[i + 2] = span[i]; // B = R
-        }
-    }
-    return result;
 }
 
 void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
@@ -411,7 +365,7 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         image_texture_ =
             createTextureFromRGBA8(renderer, mip_data.data(), image_width_, image_height_);
     } else {
-        auto filtered = applyChannelFilter(mip_data.data(), image_width_, image_height_, channel_r_,
+        auto filtered = TextureService::applyChannelFilter(mip_data.data(), image_width_, image_height_, channel_r_,
                                            channel_g_, channel_b_, channel_a_);
         image_texture_ =
             createTextureFromRGBA8(renderer, filtered.data(), image_width_, image_height_);

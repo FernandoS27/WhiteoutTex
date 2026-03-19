@@ -50,19 +50,9 @@ public:
     i32 mipCount() const;
 
 private:
-    /// Apply per-channel filter to RGBA8 pixel data.
-    static std::vector<u8> applyChannelFilter(const u8* data, i32 width, i32 height,
-                                              bool show_r, bool show_g, bool show_b,
-                                              bool show_a);
-
     /// Upload RGBA8 pixel data into an SDL_Texture.
     static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
                                                i32 width, i32 height);
-
-    /// Build an RGBA8 display copy (handles normal-map expansion).
-    static whiteout::textures::Texture makeDisplayTexture(
-        const whiteout::textures::Texture& texture,
-        whiteout::interfaces::WorkerPool* pool = nullptr);
 
     /// Extract per-channel info (labels, visibility) from a texture.
     void updateChannelInfo(const whiteout::textures::Texture& texture);
