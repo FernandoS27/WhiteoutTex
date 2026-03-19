@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common_types.h"
+#include "models/commands.h"
 #include "preferences.h"
 #include "save_dialog.h"
 #include "texture_converter.h"
@@ -12,7 +13,6 @@
 #include "upscaler.h"
 #endif
 
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,25 +20,8 @@
 
 namespace whiteout::gui {
 
-/// Result returned by ImageDetails::draw() when the texture was modified.
-struct ImageDetailsResult {
-    /// If set, the loaded texture was replaced (e.g. mipmaps regenerated).
-    std::optional<whiteout::textures::Texture> updated_texture;
-    /// If set, the viewer display needs refreshing (e.g. kind changed).
-    bool refresh_display = false;
-    /// Result message to show in a popup (empty = no popup).
-    std::string result_message;
-    /// Whether the result message indicates success.
-    bool result_success = false;
-#ifdef WHITEOUT_HAS_UPSCALER
-    /// If >= 0, the user clicked Upscale with this model index.
-    i32 upscale_model_index = -1;
-    /// Whether to upscale alpha through the model.
-    bool upscale_alpha = false;
-#endif
-};
-
-/// Draws the image details panel and mip list, and handles mipmap regeneration.
+/// Draws the image details panel and mip list.
+/// Returns commands for the coordinator to dispatch (no business logic here).
 class ImageDetails {
 public:
     ImageDetails() = default;
@@ -50,8 +33,8 @@ public:
     /// @param source_fmt     Original pixel format before any conversion.
     /// @param width          Panel width.
     /// @param height         Panel height.
-    /// @return Result describing any texture modifications or messages.
-    ImageDetailsResult drawDetailsPanel(
+    /// @return Commands describing requested actions.
+    std::vector<AppCommand> drawDetailsPanel(
         whiteout::textures::Texture* texture,
         const std::string& path,
         whiteout::textures::TextureFileFormat file_format,
@@ -64,8 +47,9 @@ public:
     /// @param width        Panel width.
     /// @param height       Panel height.
     /// @return The newly selected mip index, or -1 if unchanged.
-    i32 drawMipList(const whiteout::textures::Texture& texture,
-                    i32 selected_mip, f32 width, f32 height);
+    std::vector<AppCommand> drawMipList(
+        const whiteout::textures::Texture& texture,
+        i32 selected_mip, f32 width, f32 height);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).

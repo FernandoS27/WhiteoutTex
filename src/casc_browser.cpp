@@ -140,8 +140,8 @@ void CascBrowser::buildTree() {
 // Tree drawing
 // ============================================================================
 
-CascBrowserResult CascBrowser::drawTree(const TreeNode& node) {
-    CascBrowserResult result;
+std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
+    std::vector<AppCommand> commands;
 
     for (const auto& child : node.children) {
         if (child.is_file) {
@@ -150,14 +150,23 @@ CascBrowserResult CascBrowser::drawTree(const TreeNode& node) {
             ImGui::TreeNodeEx(child.name.c_str(), kLeafFlags);
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                CascBrowserResult file_result;
                 if (child.sno_id >= 0) {
-                    result = casc_service_.readD4Tex(child.full_path, child.sno_id);
-                    status_ = result ? ("Loaded D4 TEX: " + child.full_path)
-                                     : ("Skipped (encrypted or unavailable): " + child.full_path);
+                    file_result = casc_service_.readD4Tex(child.full_path, child.sno_id);
+                    status_ = file_result ? ("Loaded D4 TEX: " + child.full_path)
+                                          : ("Skipped (encrypted or unavailable): " + child.full_path);
                 } else {
-                    result = casc_service_.readFile(child.full_path);
-                    status_ = result ? ("Loaded: " + child.full_path)
-                                     : ("Failed to read: " + child.full_path);
+                    file_result = casc_service_.readFile(child.full_path);
+                    status_ = file_result ? ("Loaded: " + child.full_path)
+                                          : ("Failed to read: " + child.full_path);
+                }
+                if (file_result) {
+                    commands.push_back(LoadCascTextureCmd{
+                        std::move(file_result.name),
+                        std::move(file_result.data),
+                        std::move(file_result.payload),
+                        std::move(file_result.paylow),
+                        file_result.is_d4_tex});
                 }
             }
             if (ImGui::IsItemHovered()) {
@@ -169,21 +178,22 @@ CascBrowserResult CascBrowser::drawTree(const TreeNode& node) {
             }
         } else {
             if (ImGui::TreeNode(child.name.c_str())) {
-                auto child_result = drawTree(child);
-                if (child_result)
-                    result = std::move(child_result);
+                auto child_cmds = drawTree(child);
+                commands.insert(commands.end(),
+                    std::make_move_iterator(child_cmds.begin()),
+                    std::make_move_iterator(child_cmds.end()));
                 ImGui::TreePop();
             }
         }
     }
-    return result;
+    return commands;
 }
 
 // ============================================================================
 // Main draw
 // ============================================================================
 
-CascBrowserResult CascBrowser::draw(SDL_Window* window, RecentPaths& recent_paths) {
+std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recent_paths) {
     if (!show_window_)
         return {};
 
@@ -193,7 +203,7 @@ CascBrowserResult CascBrowser::draw(SDL_Window* window, RecentPaths& recent_path
 
     processFolderResult();
 
-    CascBrowserResult result;
+    std::vector<AppCommand> commands;
 
     ImGui::SetNextWindowSize(ImVec2(700, 500), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("CASC Browser", &show_window_)) {
@@ -259,12 +269,15 @@ CascBrowserResult CascBrowser::draw(SDL_Window* window, RecentPaths& recent_path
 
         // ── File tree ──────────────────────────────────────────────────
         ImGui::BeginChild("##casc_tree", ImVec2(0, 0), ImGuiChildFlags_Borders);
-        result = drawTree(root_);
+        auto tree_cmds = drawTree(root_);
+        commands.insert(commands.end(),
+            std::make_move_iterator(tree_cmds.begin()),
+            std::make_move_iterator(tree_cmds.end()));
         ImGui::EndChild();
     }
     ImGui::End();
 
-    return result;
+    return commands;
 }
 
 } // namespace whiteout::gui

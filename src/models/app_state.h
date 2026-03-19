@@ -16,6 +16,8 @@
 
 #include <whiteout/textures/texture.h>
 
+#include "texture_converter.h"
+
 namespace whiteout::gui {
 
 // ============================================================================

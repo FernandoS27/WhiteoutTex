@@ -94,10 +94,10 @@ void BatchConvert::processFolderResults() {
 // Draw
 // ============================================================================
 
-std::string BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
-                               RecentPaths& recent_input_dirs,
-                               RecentPaths& recent_output_dirs) {
-    std::string status;
+std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
+                                           RecentPaths& recent_input_dirs,
+                                           RecentPaths& recent_output_dirs) {
+    std::vector<AppCommand> commands;
 
     processFolderResults();
 
@@ -107,8 +107,8 @@ std::string BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
     centerNextWindow();
     if (!ImGui::BeginPopupModal("Batch Convert", &show_dialog_,
                                  ImGuiWindowFlags_AlwaysAutoResize)) {
-        drawProgressDialog(status);
-        return status;
+        drawProgressDialog(commands);
+        return commands;
     }
 
     // ── Input ──────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ std::string BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
             recent_input_dirs.push(std::string(input_dir_buf_));
             recent_output_dirs.push(std::string(output_dir_buf_));
         } else {
-            status = std::move(err);
+            commands.push_back(ShowResultPopupCmd{std::move(err), false});
         }
         show_dialog_ = false;
         ImGui::CloseCurrentPopup();
@@ -236,8 +236,8 @@ std::string BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
 
     ImGui::EndPopup();
 
-    drawProgressDialog(status);
-    return status;
+    drawProgressDialog(commands);
+    return commands;
 }
 
 // ============================================================================
@@ -423,7 +423,7 @@ void BatchConvert::setUpscalerModels(std::vector<UpscalerModel> models) {
 // Progress dialog
 // ============================================================================
 
-void BatchConvert::drawProgressDialog(std::string& status) {
+void BatchConvert::drawProgressDialog(std::vector<AppCommand>& commands) {
     if (batch_service_.isRunning()) {
         ImGui::OpenPopup("##BatchProgress");
     }
@@ -446,7 +446,7 @@ void BatchConvert::drawProgressDialog(std::string& status) {
             std::snprintf(msg, sizeof(msg),
                           "Batch complete: %d succeeded, %d failed out of %d files.",
                           prog.success, prog.fail, prog.total);
-            status = msg;
+            commands.push_back(ShowResultPopupCmd{msg, prog.fail == 0});
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();

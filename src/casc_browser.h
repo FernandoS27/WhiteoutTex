@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_types.h"
+#include "models/commands.h"
 #include "services/casc_service.h"
 
 #include <SDL3/SDL.h>
@@ -29,9 +30,9 @@ public:
     /// Show the browser window.
     void open();
 
-    /// Draw the browser window.  Returns a result when the user selects
-    /// a texture to open (empty/false otherwise).
-    CascBrowserResult draw(SDL_Window* window, RecentPaths& recent_paths);
+    /// Draw the browser window.  Returns commands when the user selects
+    /// a texture to open (e.g. LoadCascTextureCmd).
+    std::vector<AppCommand> draw(SDL_Window* window, RecentPaths& recent_paths);
 
 private:
     // ── Inner types ────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ private:
     void openStorage();
     void buildTree();
     void insertPathIntoTree(TreeNode& root, const std::string& file_path);
-    CascBrowserResult drawTree(const TreeNode& node);
+    std::vector<AppCommand> drawTree(const TreeNode& node);
 
     // ── State ──────────────────────────────────────────────────────────
 

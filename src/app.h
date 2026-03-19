@@ -52,11 +52,9 @@ private:
     void processOpenResult();
     void processSaveResult();
 
-    void drawMenuBar();
-    void drawAboutDialog();
-    void drawResultDialog();
-    void drawBC3NDialog();
-    void drawD4PayloadDialog();
+    /// Dispatch a batch of commands from any view.
+    void dispatchCommands(std::vector<AppCommand>& commands);
+
 #ifdef WHITEOUT_HAS_UPSCALER
     void drawUpscaleDialog();
 #endif

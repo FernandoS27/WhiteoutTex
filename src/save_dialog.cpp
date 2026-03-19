@@ -78,8 +78,9 @@ void SaveDialog::onFileChosen(const std::string& path, i32 filter_idx, SavePrefs
 // Draw
 // ============================================================================
 
-std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, SavePrefs& prefs) {
-    std::string status;
+std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture,
+                                         SavePrefs& prefs) {
+    std::vector<AppCommand> commands;
 
     // Overwrite confirmation
     if (opts_.confirm_overwrite) {
@@ -159,7 +160,11 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
 
         ImGui::Separator();
         if (ImGui::Button("Save", ImVec2(120, 0)) && loaded_texture) {
-            status = performSave(converter, *loaded_texture, prefs);
+            std::string status = performSave(converter, *loaded_texture, prefs);
+            if (!status.empty()) {
+                bool ok = status.starts_with("Saved:");
+                commands.push_back(ShowResultPopupCmd{std::move(status), ok});
+            }
             opts_.show_dialog = false;
             ImGui::CloseCurrentPopup();
         }
@@ -171,7 +176,7 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
         ImGui::EndPopup();
     }
 
-    return status;
+    return commands;
 }
 
 // ============================================================================

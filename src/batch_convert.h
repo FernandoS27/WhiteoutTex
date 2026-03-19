@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common_types.h"
+#include "models/commands.h"
 #include "preferences.h"
 #include "services/batch_service.h"
 
@@ -27,10 +28,11 @@ public:
     /// Open the batch conversion dialog.
     void open(const BatchPrefs& prefs);
 
-    /// Draw the dialog.  Returns a status message when conversion finishes
-    /// (empty string otherwise).
-    std::string draw(SDL_Window* window, BatchPrefs& prefs,
-                     RecentPaths& recent_input_dirs, RecentPaths& recent_output_dirs);
+    /// Draw the dialog.  Returns commands when conversion finishes
+    /// (e.g. ShowResultPopupCmd).
+    std::vector<AppCommand> draw(SDL_Window* window, BatchPrefs& prefs,
+                                RecentPaths& recent_input_dirs,
+                                RecentPaths& recent_output_dirs);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models for the transformation pipeline.
@@ -46,7 +48,7 @@ private:
     void drawBlpOptions();
     void drawDdsOptions();
     void drawTransformPipeline();
-    void drawProgressDialog(std::string& status);
+    void drawProgressDialog(std::vector<AppCommand>& commands);
 
     void applyPrefs(const BatchPrefs& prefs);
     void persistPrefs(BatchPrefs& prefs) const;

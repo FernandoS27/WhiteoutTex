@@ -3,12 +3,14 @@
 
 #pragma once
 
+#include "models/commands.h"
 #include "preferences.h"
 #include "texture_converter.h"
 
 #include <algorithm>
 #include <array>
 #include <string>
+#include <vector>
 
 #include <whiteout/textures/blp/types.h>
 #include <whiteout/textures/texture.h>
@@ -183,9 +185,10 @@ public:
                       const whiteout::textures::Texture* loaded_texture);
 
     /// Draw the overwrite-confirmation popup and save-options popup.
-    /// Returns a status message after a save attempt (empty if nothing happened).
-    std::string draw(whiteout::textures::TextureConverter& converter,
-                     const whiteout::textures::Texture* loaded_texture, SavePrefs& prefs);
+    /// Returns commands (e.g. ShowResultPopupCmd after a save attempt).
+    std::vector<AppCommand> draw(whiteout::textures::TextureConverter& converter,
+                                const whiteout::textures::Texture* loaded_texture,
+                                SavePrefs& prefs);
 
 private:
     /// Per-format save options edited in the options dialog.

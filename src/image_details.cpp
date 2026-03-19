@@ -3,14 +3,10 @@
 
 #include "image_details.h"
 #include "save_helpers.h"
-#include "thread_pool_manager.h"
-
-#include <cstdio>
 
 #include <imgui.h>
 
 namespace tex = whiteout::textures;
-namespace interfaces = whiteout::interfaces;
 using TC = tex::TextureConverter;
 
 namespace whiteout::gui {
@@ -19,14 +15,14 @@ namespace whiteout::gui {
 // Details panel
 // ============================================================================
 
-ImageDetailsResult ImageDetails::drawDetailsPanel(
+std::vector<AppCommand> ImageDetails::drawDetailsPanel(
     tex::Texture* texture,
     const std::string& path,
     tex::TextureFileFormat file_format,
     tex::PixelFormat source_fmt,
     f32 width, f32 height) {
 
-    ImageDetailsResult result;
+    std::vector<AppCommand> commands;
 
     ImGui::BeginChild("##TextPanel", ImVec2(width, height), ImGuiChildFlags_Borders);
     ImGui::SeparatorText("Image Details");
@@ -54,7 +50,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
                     bool selected = (kSelectableKinds[i].kind == cur_kind);
                     if (ImGui::Selectable(kSelectableKinds[i].name, selected)) {
                         texture->setKind(kSelectableKinds[i].kind);
-                        result.refresh_display = true;
+                        commands.push_back(RefreshDisplayCmd{});
                     }
                     if (selected)
                         ImGui::SetItemDefaultFocus();
@@ -75,7 +71,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
                         bool sel = (kChannelKinds[ki].kind == ch_kind);
                         if (ImGui::Selectable(kChannelKinds[ki].name, sel)) {
                             texture->setChannelKind(ch, kChannelKinds[ki].kind);
-                            result.refresh_display = true;
+                            commands.push_back(RefreshDisplayCmd{});
                         }
                         if (sel)
                             ImGui::SetItemDefaultFocus();
@@ -98,21 +94,9 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
                              mipmap_custom_count_, maxMips);
         }
         if (ImGui::Button("Regenerate Mipmaps")) {
-            auto* pool = threadPoolManager().get();
             const auto mipCount = effectiveMipCount(
                 mipmap_mode_, mipmap_custom_count_, *texture);
-            tex::Texture out;
-            if (auto err = withBcnRoundtrip(*texture, pool, out,
-                    [mipCount](tex::Texture& work, interfaces::WorkerPool* p) {
-                        return work.generateMipmaps(mipCount, p);
-                    })) {
-                result.result_message = "Mipmap generation failed: " + *err;
-                result.result_success = false;
-            } else {
-                result.updated_texture = std::move(out);
-                result.result_message = "Mipmaps regenerated successfully.";
-                result.result_success = true;
-            }
+            commands.push_back(RegenerateMipmapsCmd{mipCount});
         }
 
         if (t.mipCount() > 0 && ImGui::TreeNode("Mip Level Details")) {
@@ -135,19 +119,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
             const bool can_downscale = new_w >= 1 && new_h >= 1;
             if (!can_downscale) ImGui::BeginDisabled();
             if (ImGui::Button("Downscale")) {
-                auto* pool = threadPoolManager().get();
-                tex::Texture out;
-                if (auto err = withBcnRoundtrip(*texture, pool, out,
-                        [levels](tex::Texture& work, interfaces::WorkerPool* p) {
-                            return work.downscale(levels, p);
-                        })) {
-                    result.result_message = "Downscale failed: " + *err;
-                    result.result_success = false;
-                } else {
-                    result.updated_texture = std::move(out);
-                    result.result_message = "Image downscaled successfully.";
-                    result.result_success = true;
-                }
+                commands.push_back(DownscaleCmd{levels});
             }
             if (!can_downscale) {
                 ImGui::EndDisabled();
@@ -174,8 +146,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
             ImGui::Checkbox("Upscale Alpha", &upscale_alpha_);
             ImGui::SameLine();
             if (ImGui::Button("Upscale")) {
-                result.upscale_model_index = upscale_model_index_;
-                result.upscale_alpha = upscale_alpha_;
+                commands.push_back(StartUpscaleCmd{upscale_model_index_, upscale_alpha_});
             }
             if (upscale_in_progress_) {
                 ImGui::EndDisabled();
@@ -188,16 +159,18 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
     }
     ImGui::EndChild();
 
-    return result;
+    return commands;
 }
 
 // ============================================================================
 // Mip list
 // ============================================================================
 
-i32 ImageDetails::drawMipList(const tex::Texture& texture,
-                              i32 selected_mip, f32 width, f32 height) {
-    i32 new_selection = -1;
+std::vector<AppCommand> ImageDetails::drawMipList(
+    const tex::Texture& texture,
+    i32 selected_mip, f32 width, f32 height) {
+
+    std::vector<AppCommand> commands;
 
     ImGui::BeginChild("##MipList", ImVec2(width, height), ImGuiChildFlags_Borders);
     ImGui::SeparatorText("Mip Levels");
@@ -206,12 +179,12 @@ i32 ImageDetails::drawMipList(const tex::Texture& texture,
         char label[64];
         std::snprintf(label, sizeof(label), "Mip %u  (%u x %u)", mip, ml.width, ml.height);
         if (ImGui::Selectable(label, selected_mip == static_cast<i32>(mip))) {
-            new_selection = static_cast<i32>(mip);
+            commands.push_back(SelectMipCmd{static_cast<i32>(mip)});
         }
     }
     ImGui::EndChild();
 
-    return new_selection;
+    return commands;
 }
 
 #ifdef WHITEOUT_HAS_UPSCALER

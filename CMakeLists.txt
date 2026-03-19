@@ -27,6 +27,8 @@ add_executable(WhiteoutTex
     src/services/texture_service.cpp
     src/services/casc_service.cpp
     src/services/batch_service.cpp
+    src/views/menu_bar.cpp
+    src/views/dialogs.cpp
 )
 
 if(WHITEOUT_ENABLE_UPSCALER)
