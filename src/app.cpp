@@ -190,7 +190,10 @@ void App::applyLoadResult(const std::string& path, TextureLoadResult result) {
             ui_.show_bc3n_dialog = true;
         }
     } else {
-        tex_state_.status_message = std::move(result.error_message);
+        tex_state_.status_message = result.error_message;
+        ui_.result_popup_message = std::move(result.error_message);
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
     }
 }
 
