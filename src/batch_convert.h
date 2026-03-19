@@ -4,7 +4,12 @@
 #pragma once
 
 #include "common_types.h"
+#include "preferences.h"
 #include "texture_converter.h"
+
+#ifdef WHITEOUT_HAS_UPSCALER
+#include "upscaler.h"
+#endif
 
 #include <string>
 #include <thread>
@@ -23,11 +28,17 @@ public:
     BatchConvert() = default;
 
     /// Open the batch conversion dialog.
-    void open();
+    void open(const BatchPrefs& prefs);
 
     /// Draw the dialog.  Returns a status message when conversion finishes
     /// (empty string otherwise).
-    std::string draw(SDL_Window* window);
+    std::string draw(SDL_Window* window, BatchPrefs& prefs,
+                     RecentPaths& recent_input_dirs, RecentPaths& recent_output_dirs);
+
+#ifdef WHITEOUT_HAS_UPSCALER
+    /// Set the list of available upscaler models for the transformation pipeline.
+    void setUpscalerModels(std::vector<UpscalerModel> models);
+#endif
 
 private:
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
@@ -41,46 +52,24 @@ private:
                  whiteout::textures::TextureKind kind);
     void drawBlpOptions();
     void drawDdsOptions();
+    void drawTransformPipeline();
     void drawProgressDialog(std::string& status);
+
+    void applyPrefs(const BatchPrefs& prefs);
+    void persistPrefs(BatchPrefs& prefs) const;
 
     bool show_dialog_ = false;
 
-    // Input
+    // Persisted preferences (format options, filters, pipeline, etc.)
+    BatchPrefs prefs_;
+
+    // ImGui text-input buffers (char arrays required by ImGui API)
     char input_dir_buf_[PATH_BUFFER_SIZE] = {};
-    bool filter_blp_ = true;
-    bool filter_bmp_ = true;
-    bool filter_dds_ = true;
-    bool filter_jpeg_ = true;
-    bool filter_png_ = true;
-    bool filter_tex_ = true;
-    bool filter_tga_ = true;
-
-    // Output
     char output_dir_buf_[PATH_BUFFER_SIZE] = {};
-    int output_format_ = 2; // DDS
 
-    // BLP options
-    int blp_version_ = 1;
-    int blp_encoding_ = 0;
-    bool blp_dither_ = false;
-    float blp_dither_strength_ = 0.8f;
-
-    // DDS options
-    int dds_mode_ = 0; // 0 = general, 1 = per kind group
-    int dds_format_general_ = 7;
-    bool dds_invert_y_general_ = false;
-    int dds_format_normal_ = 5;
-    bool dds_invert_y_normal_ = false;
-    int dds_format_channel_ = 4;
-    int dds_format_other_ = 7;
-
-    // JPEG quality (shared with BLP JPEG encoding)
-    int jpeg_quality_ = 75;
-
-    // Common
-    bool generate_mipmaps_ = false;
-    bool recursive_ = true;
-    bool keep_layout_ = true;
+#ifdef WHITEOUT_HAS_UPSCALER
+    std::vector<UpscalerModel> upscale_models_;
+#endif
 
     // Progress state
     bool converting_ = false;

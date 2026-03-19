@@ -5,15 +5,21 @@
 
 #include "batch_convert.h"
 #include "casc_browser.h"
+#include "image_details.h"
 #include "image_viewer.h"
 #include "preferences.h"
 #include "save_dialog.h"
 #include "texture_converter.h"
 
+#ifdef WHITEOUT_HAS_UPSCALER
+#include "upscaler.h"
+#endif
+
 #include <atomic>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 
 #include <whiteout/textures/texture.h>
 
@@ -41,7 +47,7 @@ struct FileDialogState {
 class App {
 public:
     App() = default;
-    ~App() = default;
+    ~App();
 
     App(const App&) = delete;
     App& operator=(const App&) = delete;
@@ -59,15 +65,23 @@ private:
     void processSaveResult();
 
     void drawMenuBar();
-    void drawDetailsPanel(float width, float height);
-    void drawMipList(float width, float height);
     void drawAboutDialog();
     void drawResultDialog();
     void drawBC3NDialog();
     void drawD4PayloadDialog();
+#ifdef WHITEOUT_HAS_UPSCALER
+    void drawUpscaleDialog();
+
+    /// Launch the upscale process on a background thread (safe: result applied on main thread).
+    void startUpscaleThread(const UpscalerModel& model,
+                            const whiteout::textures::Texture& source, bool upscale_alpha);
+#endif
 
     /// Apply a successfully loaded texture and update all dependent state.
     void applyLoadedTexture(const std::string& path, whiteout::textures::Texture texture);
+
+    /// Open a file by path (used by Open Recent and the file-dialog callback).
+    void openFile(const std::string& path);
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -76,6 +90,11 @@ private:
     // Paths & preferences
     std::string imgui_ini_path_;
     SavePrefs save_prefs_;
+    BatchPrefs batch_prefs_;
+    RecentFiles recent_files_;
+    RecentPaths recent_casc_paths_;
+    RecentPaths recent_batch_input_dirs_;
+    RecentPaths recent_batch_output_dirs_;
 
     // Loaded image data
     std::optional<whiteout::textures::Texture> loaded_texture_;
@@ -88,6 +107,7 @@ private:
 
     // Components
     ImageViewer viewer_;
+    ImageDetails image_details_;
     SaveDialog save_dialog_;
     BatchConvert batch_convert_;
     CascBrowser casc_browser_;
@@ -109,6 +129,21 @@ private:
     std::string pending_d4_meta_path_;
     char d4_payload_path_buf_[PATH_BUFFER_SIZE] = {};
     char d4_paylow_path_buf_[PATH_BUFFER_SIZE] = {};
+
+#ifdef WHITEOUT_HAS_UPSCALER
+    // Upscaler state
+    Upscaler upscaler_;
+    bool show_upscale_dialog_ = false;
+    bool upscale_in_progress_ = false;
+    int upscale_model_index_ = 0;
+    int upscale_gpu_id_ = 0;
+    std::vector<UpscalerModel> upscale_models_;
+    std::string upscale_status_;
+    std::atomic<bool> upscale_done_{false};
+    bool upscale_success_ = false;
+    std::optional<textures::Texture> upscale_result_;
+    std::thread upscale_thread_;
+#endif
 };
 
 /// Convenience wrapper matching the old API.

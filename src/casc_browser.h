@@ -20,6 +20,8 @@
 
 namespace whiteout::gui {
 
+struct RecentPaths;
+
 /// Result returned by CascBrowser::draw() when a file is selected.
 struct CascBrowserResult {
     std::string name;                      ///< Display name (e.g. CASC path or D4 tex name).
@@ -43,7 +45,7 @@ public:
 
     /// Draw the browser window.  Returns a result when the user selects
     /// a texture to open (empty/false otherwise).
-    CascBrowserResult draw(SDL_Window* window);
+    CascBrowserResult draw(SDL_Window* window, RecentPaths& recent_paths);
 
 private:
     // ── Inner types ────────────────────────────────────────────────────

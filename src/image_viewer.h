@@ -28,11 +28,10 @@ public:
 
     /// Replace the loaded texture and reset the viewer state.
     /// @param texture     The source texture (in its original pixel format).
-    /// @param is_orm      Whether this is an ORM texture (changes default channel filter).
-    void setTexture(const whiteout::textures::Texture& texture, bool is_orm);
+    void setTexture(const whiteout::textures::Texture& texture);
 
     /// Rebuild the GPU preview after a kind change (e.g. normal-map expansion).
-    void refreshDisplay(const whiteout::textures::Texture& texture, bool is_orm);
+    void refreshDisplay(const whiteout::textures::Texture& texture);
 
     /// Returns true if a texture has been loaded (may still need GPU upload).
     bool hasImage() const {
@@ -41,7 +40,7 @@ public:
 
     /// Draw the toolbar (zoom controls + channel buttons) and the zoomable
     /// image area.  Must be called inside an ImGui child/window.
-    void draw(SDL_Renderer* renderer, bool is_orm);
+    void draw(SDL_Renderer* renderer);
 
     // ── Accessors for mip selection (used by details panel) ────────────
     int selectedMip() const {
@@ -65,6 +64,18 @@ private:
         const whiteout::textures::Texture& texture,
         whiteout::interfaces::WorkerPool* pool = nullptr);
 
+    /// Extract per-channel info (labels, visibility) from a texture.
+    void updateChannelInfo(const whiteout::textures::Texture& texture);
+
+    /// Reset channel visibility flags based on the current texture kind.
+    void resetChannelVisibility();
+
+    /// Draw the toolbar row (zoom controls + channel filter buttons).
+    void drawToolbar(SDL_Renderer* renderer);
+
+    /// Draw the zoomable / pannable image area.
+    void drawImageArea(SDL_Renderer* renderer);
+
     /// Rebuild the SDL preview texture from the current display_texture_
     /// at the selected mip with the active channel filter.
     void rebuildPreview(SDL_Renderer* renderer);
@@ -82,6 +93,14 @@ private:
     bool channel_g_ = true;
     bool channel_b_ = true;
     bool channel_a_ = true;
+
+    // Per-channel display info (derived from texture kind)
+    struct ChannelInfo {
+        char label[4] = {};
+        bool visible = true;
+    };
+    ChannelInfo channel_info_[4] = {{"R", true}, {"G", true}, {"B", true}, {"A", true}};
+    bool is_multikind_ = false;
 
     // Zoom / pan
     bool auto_fit_ = true;

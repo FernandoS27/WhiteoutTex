@@ -14,6 +14,7 @@
  * formats.
  */
 
+#include <array>
 #include <memory>
 #include <optional>
 #include <span>
@@ -94,6 +95,12 @@ public:
     /// format.  Checks common suffixes (_n, _norm, _diff, _albedo, …)
     /// and falls back to pixel-format heuristics (BC5 → Normal, etc.).
     static TextureKind guessTextureKind(const std::string& path, PixelFormat fmt);
+
+    /// When guessTextureKind() returns Multikind, call this to obtain the
+    /// per-channel kinds (R, G, B, A).  Channels that carry no data are
+    /// set to TextureKind::Unused.
+    static std::array<TextureKind, 4> guessTextureMultiKind(
+        const std::string& path, PixelFormat fmt);
 
     /// Human-readable name for a TextureFileFormat value.
     static const char* fileFormatName(TextureFileFormat fmt);

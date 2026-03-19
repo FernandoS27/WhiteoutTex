@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <thread>
 
 #include <whiteout/textures/blp/types.h>
 
@@ -61,6 +62,13 @@ namespace whiteout::gui {
 // ============================================================================
 // Initialization & Shutdown
 // ============================================================================
+
+App::~App() {
+#ifdef WHITEOUT_HAS_UPSCALER
+    if (upscale_thread_.joinable())
+        upscale_thread_.join();
+#endif
+}
 
 bool App::initSDL() {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -140,6 +148,11 @@ void App::shutdown() {
         append_saved_host_window_size(imgui_ini_path_, final_w, final_h);
     }
     append_save_prefs(imgui_ini_path_, save_prefs_);
+    append_batch_prefs(imgui_ini_path_, batch_prefs_);
+    append_recent_files(imgui_ini_path_, recent_files_);
+    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentCascPaths]", recent_casc_paths_);
+    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]", recent_batch_input_dirs_);
+    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]", recent_batch_output_dirs_);
 
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -154,25 +167,49 @@ void App::shutdown() {
 // File dialog result processing
 // ============================================================================
 
+void App::openFile(const std::string& path) {
+    recent_files_.push(path);
+    if (TC::classifyPath(path) == TFF::TEX && TC::isD4Tex(path)) {
+        auto result = loadD4TexWithFallback(converter_, path);
+        if (result) {
+            applyLoadedTexture(path, std::move(*result));
+        } else if (converter_.hasIssues()) {
+            status_message_ = "Failed to load D4 TEX: " + path;
+            appendIssues(status_message_, converter_.getIssues());
+        } else {
+            pending_d4_meta_path_ = path;
+            const std::string prefill = replaceMetaSegment(path, "payload");
+            copyToBuffer(d4_payload_path_buf_, prefill.empty() ? path : prefill);
+            show_d4_payload_dialog_ = true;
+        }
+        return;
+    }
+
+    auto result = converter_.load(path);
+    if (result) {
+        applyLoadedTexture(path, std::move(*result));
+    } else {
+        status_message_ = "Failed to load: " + path;
+        if (converter_.hasIssues())
+            appendIssues(status_message_, converter_.getIssues());
+    }
+}
+
 void App::applyLoadedTexture(const std::string& path, tex::Texture texture) {
     loaded_texture_ = std::move(texture);
-    auto guessed_kind = TC::guessTextureKind(path, loaded_texture_->format());
-    loaded_texture_->setKind(guessed_kind);
+    applyGuessedKind(*loaded_texture_, path);
 
     const tex::PixelFormat loaded_fmt = loaded_texture_->format();
     loaded_source_fmt_ = loaded_fmt;
 
-    const auto preserved_kind = loaded_texture_->kind();
-    const bool preserved_srgb = loaded_texture_->isSrgb();
     if (tex::isBcn(loaded_fmt)) {
         auto* pool = threadPoolManager().get();
-        *loaded_texture_ = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool);
-        loaded_texture_->setKind(preserved_kind);
-        loaded_texture_->setSrgb(preserved_srgb);
+        auto decompressed = loaded_texture_->copyAsFormat(tex::workingFormatFor(loaded_fmt), pool);
+        copyKindMetadata(decompressed, *loaded_texture_);
+        *loaded_texture_ = std::move(decompressed);
     }
 
-    bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
-    viewer_.setTexture(*loaded_texture_, is_orm);
+    viewer_.setTexture(*loaded_texture_);
     if (tex::isBcn(loaded_fmt) && loaded_fmt == tex::PixelFormat::BC3 &&
         loaded_texture_->kind() == tex::TextureKind::Normal) {
         // Defer conversion: BC3N dialog will handle it.
@@ -194,32 +231,13 @@ void App::processOpenResult() {
         open_dialog_state_.has_pending.store(false);
     }
 
-    // Detect Diablo IV TEX (metadata-only, requires separate payload)
-    if (TC::classifyPath(path) == TFF::TEX && TC::isD4Tex(path)) {
-        auto result = loadD4TexWithFallback(converter_, path);
-        if (result) {
-            applyLoadedTexture(path, std::move(*result));
-        } else if (converter_.hasIssues()) {
-            status_message_ = "Failed to load D4 TEX: " + path;
-            appendIssues(status_message_, converter_.getIssues());
-        } else {
-            // Neither payload nor paylow found — ask the user to locate it manually.
-            pending_d4_meta_path_ = path;
-            const std::string prefill = replaceMetaSegment(path, "payload");
-            copyToBuffer(d4_payload_path_buf_, prefill.empty() ? path : prefill);
-            show_d4_payload_dialog_ = true;
-        }
-        return;
-    }
+    openFile(path);
 
-    auto result = converter_.load(path);
-    if (result) {
-        applyLoadedTexture(path, std::move(*result));
-    } else {
-        status_message_ = "Failed to load: " + path;
-        if (converter_.hasIssues()) {
-            appendIssues(status_message_, converter_.getIssues());
-        }
+    // Remember the parent directory for next File > Open.
+    if (!path.empty()) {
+        auto parent = std::filesystem::path(path).parent_path().make_preferred();
+        if (!parent.empty())
+            save_prefs_.last_open_dir = (parent / "").string();
     }
 }
 
@@ -238,6 +256,13 @@ void App::processSaveResult() {
 
     save_dialog_.onFileChosen(path, filter_idx, save_prefs_,
                               loaded_texture_ ? &*loaded_texture_ : nullptr);
+
+    // Remember the parent directory for next File > Save As.
+    if (!path.empty()) {
+        auto parent = std::filesystem::path(path).parent_path().make_preferred();
+        if (!parent.empty())
+            save_prefs_.last_save_dir = (parent / "").string();
+    }
 }
 
 // ============================================================================
@@ -250,23 +275,64 @@ void App::drawMenuBar() {
 
     if (ImGui::BeginMenu("File")) {
         if (ImGui::MenuItem("Open")) {
+            const char* default_dir = save_prefs_.last_open_dir.empty()
+                                          ? nullptr
+                                          : save_prefs_.last_open_dir.c_str();
             SDL_ShowOpenFileDialog(file_dialog_callback, &open_dialog_state_, window_, OPEN_FILTERS,
-                                   OPEN_FILTER_COUNT, nullptr, false);
+                                   OPEN_FILTER_COUNT, default_dir, false);
+        }
+        if (ImGui::BeginMenu("Open Recent", !recent_files_.paths.empty())) {
+            std::string pending_recent_open;
+            for (const auto& recent_path : recent_files_.paths) {
+                namespace fs = std::filesystem;
+                std::string label = fs::path(recent_path).filename().string();
+                if (ImGui::MenuItem(label.c_str())) {
+                    pending_recent_open = recent_path;
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", recent_path.c_str());
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Clear Recent")) {
+                recent_files_.paths.clear();
+            }
+            ImGui::EndMenu();
+            if (!pending_recent_open.empty()) {
+                openFile(pending_recent_open);
+            }
         }
         if (ImGui::MenuItem("Save As...", nullptr, false, loaded_texture_.has_value())) {
             save_dialog_.buildFilterOrder(save_prefs_);
+            const char* save_default = save_prefs_.last_save_dir.empty()
+                                           ? nullptr
+                                           : save_prefs_.last_save_dir.c_str();
             SDL_ShowSaveFileDialog(file_dialog_callback, &save_dialog_state_, window_,
-                                   save_dialog_.filterData(), save_dialog_.filterCount(), nullptr);
+                                   save_dialog_.filterData(), save_dialog_.filterCount(),
+                                   save_default);
         }
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Tools")) {
         if (ImGui::MenuItem("Batch convert...")) {
-            batch_convert_.open();
+#ifdef WHITEOUT_HAS_UPSCALER
+            batch_convert_.setUpscalerModels(
+                Upscaler::availableModels(Upscaler::defaultModelDir()));
+#endif
+            batch_convert_.open(batch_prefs_);
         }
         if (ImGui::MenuItem("CASC Browser...")) {
             casc_browser_.open();
         }
+#ifdef WHITEOUT_HAS_UPSCALER
+        ImGui::Separator();
+        if (ImGui::MenuItem("Upscale (AI)...", nullptr, false, loaded_texture_.has_value())) {
+            auto model_dir = Upscaler::defaultModelDir();
+            upscale_models_ = Upscaler::availableModels(model_dir);
+            upscale_model_index_ = 0;
+            upscale_status_.clear();
+            show_upscale_dialog_ = true;
+        }
+#endif
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Help")) {
@@ -276,94 +342,6 @@ void App::drawMenuBar() {
         ImGui::EndMenu();
     }
     ImGui::EndMainMenuBar();
-}
-
-void App::drawDetailsPanel(float width, float height) {
-    ImGui::BeginChild("##TextPanel", ImVec2(width, height), ImGuiChildFlags_Borders);
-    ImGui::SeparatorText("Image Details");
-
-    if (loaded_texture_) {
-        const auto& t = *loaded_texture_;
-
-        ImGui::SeparatorText("File");
-        ImGui::Text("Path: %s", loaded_path_.c_str());
-        ImGui::Text("File Format: %s", TC::fileFormatName(loaded_file_format_));
-
-        ImGui::SeparatorText("Texture");
-        ImGui::Text("Dimensions: %u x %u", t.width(), t.height());
-        if (t.depth() > 1) {
-            ImGui::Text("Depth: %u", t.depth());
-        }
-        ImGui::Text("Type: %s", TC::textureTypeName(t.type()));
-        ImGui::Text("Pixel Format: %s", TC::pixelFormatName(loaded_source_fmt_));
-
-        int current_kind = static_cast<int>(t.kind());
-        if (ImGui::Combo("Kind", &current_kind, TEXTURE_KIND_NAMES, TEXTURE_KIND_COUNT)) {
-            loaded_texture_->setKind(static_cast<tex::TextureKind>(current_kind));
-            bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
-            viewer_.refreshDisplay(*loaded_texture_, is_orm);
-        }
-
-        ImGui::Text("sRGB: %s", t.isSrgb() ? "Yes" : "No");
-
-        ImGui::SeparatorText("Mip Chain");
-        ImGui::Text("Mip Levels: %u", t.mipCount());
-        ImGui::Text("Layers: %u", t.layerCount());
-
-        if (ImGui::Button("Regenerate Mipmaps")) {
-            auto work = *loaded_texture_;
-            const auto preserved_kind = work.kind();
-            const tex::PixelFormat original_fmt = work.format();
-            auto* pool = threadPoolManager().get();
-            if (tex::isBcn(original_fmt)) {
-                work = work.copyAsFormat(tex::workingFormatFor(original_fmt), pool);
-                work.setKind(preserved_kind);
-            }
-            if (auto err = work.generateMipmaps(pool)) {
-                result_popup_message_ = "Mipmap generation failed: " + *err;
-                result_popup_success_ = false;
-                show_result_popup_ = true;
-            } else {
-                if (tex::isBcn(original_fmt)) {
-                    work = work.copyAsFormat(original_fmt, pool);
-                }
-                work.setKind(preserved_kind);
-                *loaded_texture_ = std::move(work);
-
-                bool is_orm = loaded_texture_->kind() == tex::TextureKind::ORM;
-                viewer_.setTexture(*loaded_texture_, is_orm);
-                result_popup_message_ = "Mipmaps regenerated successfully.";
-                result_popup_success_ = true;
-                show_result_popup_ = true;
-            }
-        }
-
-        if (t.mipCount() > 0 && ImGui::TreeNode("Mip Level Details")) {
-            for (u32 mip = 0; mip < t.mipCount(); ++mip) {
-                const auto& ml = t.mipLevel(mip);
-                ImGui::Text("Mip %u: %u x %u  (%llu bytes)", mip, ml.width, ml.height,
-                            static_cast<unsigned long long>(ml.size));
-            }
-            ImGui::TreePop();
-        }
-    } else {
-        ImGui::TextWrapped("No image loaded. Use File > Open to load a texture.");
-    }
-    ImGui::EndChild();
-}
-
-void App::drawMipList(float width, float height) {
-    ImGui::BeginChild("##MipList", ImVec2(width, height), ImGuiChildFlags_Borders);
-    ImGui::SeparatorText("Mip Levels");
-    for (u32 mip = 0; mip < loaded_texture_->mipCount(); ++mip) {
-        const auto& ml = loaded_texture_->mipLevel(mip);
-        char label[64];
-        std::snprintf(label, sizeof(label), "Mip %u  (%u x %u)", mip, ml.width, ml.height);
-        if (ImGui::Selectable(label, viewer_.selectedMip() == static_cast<int>(mip))) {
-            viewer_.selectMip(static_cast<int>(mip));
-        }
-    }
-    ImGui::EndChild();
 }
 
 void App::drawResultDialog() {
@@ -405,7 +383,7 @@ void App::drawBC3NDialog() {
             if (loaded_texture_) {
                 loaded_texture_->swapChannels(tex::Channel::R, tex::Channel::A);
                 loaded_texture_->invertChannel(tex::Channel::G);
-                viewer_.setTexture(*loaded_texture_, false);
+                viewer_.setTexture(*loaded_texture_);
             }
             ImGui::CloseCurrentPopup();
         }
@@ -473,6 +451,123 @@ void App::drawD4PayloadDialog() {
     }
 }
 
+#ifdef WHITEOUT_HAS_UPSCALER
+void App::startUpscaleThread(const UpscalerModel& model,
+                             const tex::Texture& source, bool upscale_alpha) {
+    upscale_in_progress_ = true;
+    upscale_status_ = "Initializing model...";
+
+    auto model_dir = Upscaler::defaultModelDir();
+    auto model_copy = model;
+    auto texture_copy = std::make_shared<tex::Texture>(source);
+    auto* app = this;
+
+    if (upscale_thread_.joinable())
+        upscale_thread_.join();
+
+    upscale_thread_ = std::thread([app, model_dir, model_copy, texture_copy, upscale_alpha]() {
+        if (!app->upscaler_.init(model_dir, model_copy)) {
+            app->upscale_status_ = "Failed to load model.";
+            app->upscale_success_ = false;
+            app->upscale_done_.store(true);
+            return;
+        }
+        app->upscale_status_ = "Upscaling...";
+        auto result = app->upscaler_.process(*texture_copy, upscale_alpha);
+        if (result) {
+            app->upscale_result_ = std::move(*result);
+            app->upscale_status_ = "Upscale complete.";
+            app->upscale_success_ = true;
+        } else {
+            app->upscale_status_ = "Upscale failed.";
+            app->upscale_success_ = false;
+        }
+        app->upscale_done_.store(true);
+    });
+}
+
+void App::drawUpscaleDialog() {
+    if (show_upscale_dialog_) {
+        ImGui::OpenPopup("AI Upscale");
+        show_upscale_dialog_ = false;
+    }
+    centerNextWindow();
+    if (ImGui::BeginPopupModal("AI Upscale", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (!Upscaler::isGpuAvailable()) {
+            ImGui::TextColored(kErrorColor, "No Vulkan-capable GPU detected.");
+            ImGui::Spacing();
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return;
+        }
+
+        if (upscale_models_.empty()) {
+            ImGui::TextColored(kErrorColor, "No models found.");
+            ImGui::TextUnformatted("Download models with:");
+            ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
+            ImGui::TextUnformatted("Models directory:");
+            ImGui::TextDisabled("  %s", Upscaler::defaultModelDir().string().c_str());
+            ImGui::Spacing();
+            if (ImGui::Button("Close", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+            return;
+        }
+
+        ImGui::TextUnformatted("Upscale the current texture using Real-ESRGAN.");
+        ImGui::Spacing();
+
+        // Model selector
+        if (ImGui::BeginCombo("Model",
+                              upscale_models_[upscale_model_index_].display_name.c_str())) {
+            for (int i = 0; i < static_cast<int>(upscale_models_.size()); ++i) {
+                bool selected = (i == upscale_model_index_);
+                std::string label = upscale_models_[i].label();
+                if (ImGui::Selectable(label.c_str(), selected)) {
+                    upscale_model_index_ = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        const auto& model = upscale_models_[upscale_model_index_];
+        if (loaded_texture_) {
+            int outw = static_cast<int>(loaded_texture_->width()) * model.scale;
+            int outh = static_cast<int>(loaded_texture_->height()) * model.scale;
+            ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
+        }
+
+        ImGui::Spacing();
+
+        if (!upscale_status_.empty()) {
+            ImGui::TextWrapped("%s", upscale_status_.c_str());
+            ImGui::Spacing();
+        }
+
+        bool busy = upscale_in_progress_;
+        if (busy) ImGui::BeginDisabled();
+        if (ImGui::Button("Upscale", ImVec2(120, 0))) {
+            if (loaded_texture_) {
+                startUpscaleThread(model, *loaded_texture_, false);
+            }
+        }
+        if (busy) ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if (busy) ImGui::BeginDisabled();
+        if (ImGui::Button("Close", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        if (busy) ImGui::EndDisabled();
+
+        ImGui::EndPopup();
+    }
+}
+#endif // WHITEOUT_HAS_UPSCALER
+
 void App::drawAboutDialog() {
     if (show_about_) {
         ImGui::OpenPopup("About WhiteoutTex");
@@ -539,7 +634,18 @@ int App::run(int argc, char** argv) {
     }
 
     save_prefs_ = load_save_prefs(imgui_ini_path_);
+    batch_prefs_ = load_batch_prefs(imgui_ini_path_);
+    recent_files_ = load_recent_files(imgui_ini_path_);
+    recent_casc_paths_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentCascPaths]");
+    recent_batch_input_dirs_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]");
+    recent_batch_output_dirs_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]");
     save_dialog_.buildFilterOrder(save_prefs_);
+
+#ifdef WHITEOUT_HAS_UPSCALER
+    // Discover available upscaler models and pass to image details panel.
+    upscale_models_ = Upscaler::availableModels(Upscaler::defaultModelDir());
+    image_details_.setUpscalerModels(upscale_models_);
+#endif
 
     if (!initWindow())
         return 1;
@@ -603,9 +709,62 @@ int App::run(int argc, char** argv) {
 
         // Left column
         ImGui::BeginGroup();
-        drawDetailsPanel(left_panel_width, details_height);
+        {
+            auto details_result = image_details_.drawDetailsPanel(
+                loaded_texture_ ? &*loaded_texture_ : nullptr,
+                loaded_path_, loaded_file_format_, loaded_source_fmt_,
+                left_panel_width, details_height);
+
+            if (details_result.refresh_display && loaded_texture_) {
+                viewer_.refreshDisplay(*loaded_texture_);
+            }
+            if (details_result.updated_texture) {
+                *loaded_texture_ = std::move(*details_result.updated_texture);
+                viewer_.setTexture(*loaded_texture_);
+            }
+            if (!details_result.result_message.empty()) {
+                result_popup_message_ = std::move(details_result.result_message);
+                result_popup_success_ = details_result.result_success;
+                show_result_popup_ = true;
+            }
+#ifdef WHITEOUT_HAS_UPSCALER
+            if (details_result.upscale_model_index >= 0 && loaded_texture_ &&
+                !upscale_in_progress_) {
+                upscale_model_index_ = details_result.upscale_model_index;
+                image_details_.setUpscaleInProgress(true);
+                startUpscaleThread(upscale_models_[upscale_model_index_],
+                                   *loaded_texture_, details_result.upscale_alpha);
+            }
+
+            // Process upscale completion on the main thread.
+            if (upscale_done_.load()) {
+                if (upscale_thread_.joinable())
+                    upscale_thread_.join();
+                upscale_done_.store(false);
+                upscale_in_progress_ = false;
+                image_details_.setUpscaleInProgress(false);
+                if (upscale_success_ && upscale_result_) {
+                    loaded_texture_ = std::move(*upscale_result_);
+                    upscale_result_.reset();
+                    loaded_source_fmt_ = tex::PixelFormat::RGBA8;
+                    viewer_.setTexture(*loaded_texture_);
+                    result_popup_message_ = "Upscale complete.";
+                    result_popup_success_ = true;
+                } else {
+                    upscale_result_.reset();
+                    result_popup_message_ = upscale_status_;
+                    result_popup_success_ = false;
+                }
+                show_result_popup_ = true;
+            }
+#endif
+        }
         if (show_mip_list) {
-            drawMipList(left_panel_width, mip_list_height);
+            int new_mip = image_details_.drawMipList(
+                *loaded_texture_, viewer_.selectedMip(),
+                left_panel_width, mip_list_height);
+            if (new_mip >= 0)
+                viewer_.selectMip(new_mip);
         }
         ImGui::EndGroup();
 
@@ -615,9 +774,8 @@ int App::run(int argc, char** argv) {
         ImGui::BeginChild("##ImagePanel", ImVec2(0.0f, available_height), ImGuiChildFlags_Borders);
         ImGui::SeparatorText("Image Preview");
 
-        bool is_orm = loaded_texture_ && loaded_texture_->kind() == tex::TextureKind::ORM;
         if (viewer_.hasImage()) {
-            viewer_.draw(renderer_, is_orm);
+            viewer_.draw(renderer_);
         } else if (!status_message_.empty()) {
             ImGui::TextWrapped("%s", status_message_.c_str());
         } else {
@@ -637,7 +795,9 @@ int App::run(int argc, char** argv) {
         }
 
         {
-            auto batch_status = batch_convert_.draw(window_);
+            auto batch_status = batch_convert_.draw(window_, batch_prefs_,
+                                                      recent_batch_input_dirs_,
+                                                      recent_batch_output_dirs_);
             if (!batch_status.empty()) {
                 result_popup_message_ = std::move(batch_status);
                 result_popup_success_ = result_popup_message_.starts_with("Batch complete:");
@@ -646,7 +806,8 @@ int App::run(int argc, char** argv) {
         }
 
         {
-            auto casc_result = casc_browser_.draw(window_);
+            auto casc_result = casc_browser_.draw(window_, recent_casc_paths_);
+
             if (casc_result) {
                 std::optional<tex::Texture> loaded;
                 if (casc_result.is_d4_tex) {
@@ -676,6 +837,9 @@ int App::run(int argc, char** argv) {
         drawResultDialog();
         drawBC3NDialog();
         drawD4PayloadDialog();
+#ifdef WHITEOUT_HAS_UPSCALER
+        drawUpscaleDialog();
+#endif
 
         // Render
         ImGuiIO& io = ImGui::GetIO();

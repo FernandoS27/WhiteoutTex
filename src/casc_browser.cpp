@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "casc_browser.h"
+#include "preferences.h"
 
 #include <algorithm>
 #include <cstring>
@@ -504,9 +505,13 @@ CascBrowserResult CascBrowser::readD4Tex(const std::string& name, i32 sno_id) {
 // Main draw
 // ============================================================================
 
-CascBrowserResult CascBrowser::draw(SDL_Window* window) {
+CascBrowserResult CascBrowser::draw(SDL_Window* window, RecentPaths& recent_paths) {
     if (!show_window_)
         return {};
+
+    // Pre-fill the storage path from the most recent entry if the buffer is empty.
+    if (storage_path_buf_[0] == '\0' && !recent_paths.paths.empty())
+        copyToBuffer(storage_path_buf_, recent_paths.paths.front());
 
     processFolderResult();
 
@@ -519,14 +524,29 @@ CascBrowserResult CascBrowser::draw(SDL_Window* window) {
         ImGui::Text("Storage Path:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 160.0f);
-        ImGui::InputText("##casc_path", storage_path_buf_, sizeof(storage_path_buf_));
+        if (ImGui::BeginCombo("##casc_path", storage_path_buf_,
+                              ImGuiComboFlags_HeightLarge)) {
+            for (const auto& p : recent_paths.paths) {
+                const bool selected = (p == storage_path_buf_);
+                if (ImGui::Selectable(p.c_str(), selected)) {
+                    copyToBuffer(storage_path_buf_, p);
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
         ImGui::SameLine();
         if (ImGui::Button("Browse...")) {
-            SDL_ShowOpenFolderDialog(folderDialogCallback, &folder_state_, window, nullptr, false);
+            SDL_ShowOpenFolderDialog(folderDialogCallback, &folder_state_, window,
+                                     storage_path_buf_[0] ? storage_path_buf_ : nullptr, false);
         }
         ImGui::SameLine();
         if (ImGui::Button("Open")) {
             openStorage();
+            if (storage_open_) {
+                recent_paths.push(std::string(storage_path_buf_));
+            }
         }
 
         // ── Status bar ─────────────────────────────────────────────────

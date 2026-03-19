@@ -6,6 +6,7 @@
 #include "preferences.h"
 #include "texture_converter.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 
@@ -28,12 +29,63 @@ constexpr SDL_DialogFileFilter SAVE_FILTERS[] = {
 };
 constexpr int SAVE_FILTER_COUNT = static_cast<int>(std::size(SAVE_FILTERS));
 
-/// Human-readable names for TextureKind enum values (shared by details panel and save dialog).
-constexpr const char* TEXTURE_KIND_NAMES[] = {
-    "Other",    "Diffuse",    "Normal",    "Specular",          "ORM",
-    "Albedo",   "Roughness",  "Metalness", "Ambient Occlusion", "Gloss",
-    "Emissive", "Alpha Mask", "Lightmap",  "Environment (PBR)", "Environment (Legacy)"};
-constexpr int TEXTURE_KIND_COUNT = static_cast<int>(std::size(TEXTURE_KIND_NAMES));
+/// Entry mapping a human-readable name to a TextureKind enum value.
+struct KindEntry {
+    const char* name;
+    whiteout::textures::TextureKind kind;
+};
+
+/// Kinds selectable in the top-level Kind combo (excludes deprecated ORM and internal Unused).
+inline constexpr KindEntry kSelectableKinds[] = {
+    {"Other",              whiteout::textures::TextureKind::Other},
+    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
+    {"Normal",             whiteout::textures::TextureKind::Normal},
+    {"Specular",           whiteout::textures::TextureKind::Specular},
+    {"Albedo",             whiteout::textures::TextureKind::Albedo},
+    {"Roughness",          whiteout::textures::TextureKind::Roughness},
+    {"Metalness",          whiteout::textures::TextureKind::Metalness},
+    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
+    {"Gloss",              whiteout::textures::TextureKind::Gloss},
+    {"Emissive",           whiteout::textures::TextureKind::Emissive},
+    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
+    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
+    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
+    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
+    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
+    {"Environment (PBR)",  whiteout::textures::TextureKind::EnvironmentPBR},
+    {"Environment (Legacy)", whiteout::textures::TextureKind::EnvironmentLegacy},
+    {"Multi-Kind",         whiteout::textures::TextureKind::Multikind},
+};
+inline constexpr int kSelectableKindCount = static_cast<int>(std::size(kSelectableKinds));
+
+/// Kinds selectable per-channel inside a Multikind texture.
+inline constexpr KindEntry kChannelKinds[] = {
+    {"Unused",             whiteout::textures::TextureKind::Unused},
+    {"Roughness",          whiteout::textures::TextureKind::Roughness},
+    {"Metalness",          whiteout::textures::TextureKind::Metalness},
+    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
+    {"Gloss",              whiteout::textures::TextureKind::Gloss},
+    {"Albedo",             whiteout::textures::TextureKind::Albedo},
+    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
+    {"Normal",             whiteout::textures::TextureKind::Normal},
+    {"Specular",           whiteout::textures::TextureKind::Specular},
+    {"Emissive",           whiteout::textures::TextureKind::Emissive},
+    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
+    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
+    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
+    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
+    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
+};
+inline constexpr int kChannelKindCount = static_cast<int>(std::size(kChannelKinds));
+
+/// Look up the display name for any TextureKind value.
+inline const char* textureKindName(whiteout::textures::TextureKind k) {
+    for (const auto& e : kSelectableKinds)
+        if (e.kind == k) return e.name;
+    if (k == whiteout::textures::TextureKind::Unused) return "Unused";
+    if (k == whiteout::textures::TextureKind::ORM) return "ORM (Legacy)";
+    return "Unknown";
+}
 
 /// Human-readable names for BLP encoding indices (0–6).
 constexpr const char* BLP_ENCODING_NAMES[] = {
@@ -78,6 +130,37 @@ inline whiteout::textures::PixelFormat blpDxtPixelFormat(int index) noexcept {
     return kFormats[index - 4];
 }
 
+/// Draw the "Generate Mipmaps" checkbox, mipmap mode combo, and optional
+/// custom count input.
+/// @p generate  Controls whether mipmap regeneration is enabled at all.
+/// @p mode      Which mip-count strategy to use when generating.
+/// @p customCount  User-specified count (only used when mode == Custom).
+/// @p maxMips   Maximum possible mip count for the current texture
+///              (pass 0 if unknown, e.g. batch mode without a loaded texture).
+inline void drawMipmapModeUI(bool& generate, MipmapMode& mode, int& customCount,
+                             int maxMips = 0) {
+    ImGui::Checkbox("Generate Mipmaps", &generate);
+    if (!generate)
+        return;
+    constexpr const char* MIPMAP_MODE_NAMES[] = {"Keep Original", "Maximum", "Custom"};
+    int modeIdx = static_cast<int>(mode);
+    if (ImGui::Combo("Mipmap Mode", &modeIdx, MIPMAP_MODE_NAMES,
+                     static_cast<int>(std::size(MIPMAP_MODE_NAMES)))) {
+        mode = static_cast<MipmapMode>(modeIdx);
+    }
+    if (mode == MipmapMode::Custom) {
+        const int lo = 1;
+        const int hi = maxMips > 0 ? maxMips : 16;
+        customCount = std::clamp(customCount, lo, hi);
+        ImGui::InputInt("Mipmap Count", &customCount);
+        customCount = std::clamp(customCount, lo, hi);
+        if (maxMips > 0) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(max %d)", maxMips);
+        }
+    }
+}
+
 /// Manages the save-options popup and performs the actual save operation.
 class SaveDialog {
 public:
@@ -113,41 +196,17 @@ private:
         bool show_dialog = false;
         bool confirm_overwrite = false;
 
-        // BLP
-        int blp_version = 1;
-        int blp_encoding = 0;
-        bool blp_dither = false;
-        float blp_dither_strength = 0.8f;
+        // Persisted format/mipmap options (composed, not duplicated)
+        SavePrefs prefs;
 
-        // DDS
-        int dds_format = 0;
-        bool dds_invert_y = false;
-
-        // JPEG quality
-        int jpeg_quality = 75;
-
-        // Common
-        bool generate_mipmaps = false;
+        // Dialog-only state (not persisted)
         int texture_kind = 0;
 
         void applyPrefs(const SavePrefs& p) {
-            blp_version = p.blp_version;
-            blp_encoding = p.blp_encoding;
-            blp_dither = p.blp_dither;
-            blp_dither_strength = p.blp_dither_strength;
-            dds_format = p.dds_format;
-            jpeg_quality = p.jpeg_quality;
-            generate_mipmaps = p.generate_mipmaps;
+            prefs = p;
         }
         void persistPrefs(SavePrefs& p) const {
-            p.blp_version = blp_version;
-            p.blp_encoding = blp_encoding;
-            p.blp_dither = blp_dither;
-            p.blp_dither_strength = blp_dither_strength;
-            p.dds_format = dds_format;
-            p.dds_invert_y = dds_invert_y;
-            p.jpeg_quality = jpeg_quality;
-            p.generate_mipmaps = generate_mipmaps;
+            p = prefs;
         }
     };
 

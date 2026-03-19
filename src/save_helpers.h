@@ -66,6 +66,10 @@ inline constexpr int DDS_PRESET_CHANNEL_COUNT  = 2;
 inline constexpr int DDS_PRESET_OTHER[]        = {0, 1, 2, 3, 6, 7};
 inline constexpr int DDS_PRESET_OTHER_COUNT    = 6;
 
+/// All DDS format indices (used for batch convert "General" mode).
+inline constexpr int DDS_ALL[]       = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+inline constexpr int DDS_ALL_COUNT   = 9;
+
 /// Returns true for channel-map texture kinds (Roughness, Metalness, AO, Gloss).
 inline bool isChannelMapKind(whiteout::textures::TextureKind kind) noexcept {
     return kind == whiteout::textures::TextureKind::Roughness ||
@@ -160,5 +164,139 @@ inline void validateDdsFormatRaw(int& fmt, const int* allowed, int count) noexce
 /// file could be found or the load failed.
 std::optional<whiteout::textures::Texture> loadD4TexWithFallback(
     whiteout::textures::TextureConverter& converter, const std::string& meta_path);
+
+// ============================================================================
+// Mipmap mode helpers
+// ============================================================================
+
+/// Compute the effective mip count to pass to generateMipmaps().
+/// Returns 0 if no generation should happen (KeepOriginal mode).
+inline whiteout::u32 effectiveMipCount(MipmapMode mode, int customCount,
+                                       const whiteout::textures::Texture& tex) {
+    using namespace whiteout::textures;
+    switch (mode) {
+    case MipmapMode::Maximum:
+        return computeMaxMipCount(tex.width(), tex.height());
+    case MipmapMode::Custom: {
+        const u32 maxMips = computeMaxMipCount(tex.width(), tex.height());
+        return static_cast<u32>(std::clamp(customCount, 1, static_cast<int>(maxMips)));
+    }
+    default:
+        return 0; // KeepOriginal
+    }
+}
+
+// ============================================================================
+// Texture kind guessing helper
+// ============================================================================
+
+/// Guess the texture kind from a filename and assign it (including per-channel
+/// kinds for Multikind textures).  Consolidates the duplicated pattern in
+/// App::applyLoadedTexture() and BatchConvert::workerFunc().
+inline void applyGuessedKind(whiteout::textures::Texture& tex, const std::string& path) {
+    namespace t = whiteout::textures;
+    auto kind = t::TextureConverter::guessTextureKind(path, tex.format());
+    tex.setKind(kind);
+    if (kind == t::TextureKind::Multikind) {
+        auto ch = t::TextureConverter::guessTextureMultiKind(path, tex.format());
+        tex.setChannelKind(t::Channel::R, ch[0]);
+        tex.setChannelKind(t::Channel::G, ch[1]);
+        tex.setChannelKind(t::Channel::B, ch[2]);
+        tex.setChannelKind(t::Channel::A, ch[3]);
+    }
+}
+
+// ============================================================================
+// Shared BLP options UI
+// ============================================================================
+
+/// Draw the BLP options panel (version, encoding, dither, JPEG quality).
+/// Used by both SaveDialog and BatchConvert.
+inline void drawBlpOptionsUI(int& blp_version, int& blp_encoding,
+                             bool& blp_dither, float& blp_dither_strength,
+                             int& jpeg_quality) {
+    ImGui::SeparatorText("BLP Options");
+    ImGui::Combo("BLP Version", &blp_version,
+                 "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
+    {
+        const int* enc_allowed;
+        int enc_count;
+        blpAllowedEncodings(blp_version, enc_allowed, enc_count);
+        validateBlpEncoding(blp_version, blp_encoding);
+
+        if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[blp_encoding])) {
+            for (int i = 0; i < enc_count; ++i) {
+                bool selected = (blp_encoding == enc_allowed[i]);
+                if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
+                    blp_encoding = enc_allowed[i];
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+    }
+    if (blp_encoding == 2) {
+        ImGui::Checkbox("Dither", &blp_dither);
+        if (blp_dither)
+            ImGui::SliderFloat("Dither Strength", &blp_dither_strength, 0.0f, 1.0f);
+    }
+    if (blp_encoding == 3) {
+        ImGui::SliderInt("JPEG Quality", &jpeg_quality, 1, 100);
+    }
+}
+
+// ============================================================================
+// Kind metadata transfer
+// ============================================================================
+
+/// Copy texture kind metadata (kind, sRGB, per-channel kinds) from @p src to @p dst.
+/// Useful after format conversions that don't preserve metadata.
+inline void copyKindMetadata(whiteout::textures::Texture& dst,
+                             const whiteout::textures::Texture& src) {
+    dst.setKind(src.kind());
+    dst.setSrgb(src.isSrgb());
+    if (src.kind() == whiteout::textures::TextureKind::Multikind) {
+        dst.setChannelKind(whiteout::textures::Channel::R,
+                           src.channelKind(whiteout::textures::Channel::R));
+        dst.setChannelKind(whiteout::textures::Channel::G,
+                           src.channelKind(whiteout::textures::Channel::G));
+        dst.setChannelKind(whiteout::textures::Channel::B,
+                           src.channelKind(whiteout::textures::Channel::B));
+        dst.setChannelKind(whiteout::textures::Channel::A,
+                           src.channelKind(whiteout::textures::Channel::A));
+    }
+}
+
+// ============================================================================
+// BCn-aware texture operation wrapper
+// ============================================================================
+
+/// Execute an operation on a texture, handling BCn decompression/recompression
+/// and kind preservation automatically.
+/// @p op is called as op(Texture& work, WorkerPool* pool) and should return
+/// std::optional<std::string> — nullopt on success, error message on failure.
+template <typename Op>
+inline std::optional<std::string> withBcnRoundtrip(
+    const whiteout::textures::Texture& source,
+    whiteout::interfaces::WorkerPool* pool,
+    whiteout::textures::Texture& out_result,
+    Op&& op) {
+    using namespace whiteout::textures;
+    auto work = source;
+    const PixelFormat original_fmt = work.format();
+    if (isBcn(original_fmt)) {
+        work = work.copyAsFormat(workingFormatFor(original_fmt), pool);
+        copyKindMetadata(work, source);
+    }
+    if (auto err = op(work, pool)) {
+        return err;
+    }
+    if (isBcn(original_fmt)) {
+        work = work.copyAsFormat(original_fmt, pool);
+    }
+    copyKindMetadata(work, source);
+    out_result = std::move(work);
+    return std::nullopt;
+}
 
 } // namespace whiteout::gui

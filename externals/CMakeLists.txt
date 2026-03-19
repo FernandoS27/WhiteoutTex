@@ -24,3 +24,6 @@ target_include_directories(DearImgui PUBLIC
 )
 
 target_link_libraries(DearImgui PUBLIC SDL3::SDL3)
+
+# Real-ESRGAN AI Upscaler (optional — requires Vulkan SDK)
+add_subdirectory(upscaler)

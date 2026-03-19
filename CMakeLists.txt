@@ -8,6 +8,8 @@ if(MSVC)
     add_compile_options(/FS)
 endif()
 
+option(WHITEOUT_ENABLE_UPSCALER "Enable AI upscaling via Real-ESRGAN / ncnn / Vulkan" OFF)
+
 add_subdirectory(externals)
 
 add_executable(WhiteoutTex
@@ -15,6 +17,7 @@ add_executable(WhiteoutTex
     src/app.cpp
     src/batch_convert.cpp
     src/casc_browser.cpp
+    src/image_details.cpp
     src/image_viewer.cpp
     src/preferences.cpp
     src/save_dialog.cpp
@@ -23,6 +26,11 @@ add_executable(WhiteoutTex
     src/thread_pool_manager.cpp
 )
 
+if(WHITEOUT_ENABLE_UPSCALER)
+    target_sources(WhiteoutTex PRIVATE src/upscaler.cpp)
+    target_compile_definitions(WhiteoutTex PRIVATE WHITEOUT_HAS_UPSCALER)
+endif()
+
 if(WIN32)
     target_sources(WhiteoutTex PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.rc")
     set_target_properties(WhiteoutTex PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -30,6 +38,10 @@ endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
 target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc)
+
+if(WHITEOUT_ENABLE_UPSCALER)
+    target_link_libraries(WhiteoutTex PRIVATE realesrgan_lib)
+endif()
 
 if(WIN32)
     add_custom_command(TARGET WhiteoutTex POST_BUILD

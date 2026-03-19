@@ -3,6 +3,7 @@
 
 #include "preferences.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -91,6 +92,12 @@ SavePrefs load_save_prefs(const std::string& ini_path) {
         float fv = 0.0f;
         if (std::sscanf(line.c_str(), "LastFilter=%d", &iv) == 1)
             prefs.last_filter = iv;
+        else if (line.rfind("LastOpenDir=", 0) == 0)
+            prefs.last_open_dir = line.substr(12);
+        else if (line.rfind("LastSaveDir=", 0) == 0)
+            prefs.last_save_dir = line.substr(12);
+        else if (line.rfind("LastCascDir=", 0) == 0)
+            prefs.last_casc_dir = line.substr(12);
         else if (std::sscanf(line.c_str(), "BlpVersion=%d", &iv) == 1)
             prefs.blp_version = iv;
         else if (std::sscanf(line.c_str(), "BlpEncoding=%d", &iv) == 1)
@@ -107,6 +114,10 @@ SavePrefs load_save_prefs(const std::string& ini_path) {
             prefs.jpeg_quality = iv;
         else if (std::sscanf(line.c_str(), "GenerateMipmaps=%d", &iv) == 1)
             prefs.generate_mipmaps = iv != 0;
+        else if (std::sscanf(line.c_str(), "MipmapMode=%d", &iv) == 1)
+            prefs.mipmap_mode = static_cast<MipmapMode>(std::clamp(iv, 0, 2));
+        else if (std::sscanf(line.c_str(), "MipmapCustomCount=%d", &iv) == 1)
+            prefs.mipmap_custom_count = std::max(1, iv);
     });
     return prefs;
 }
@@ -118,6 +129,9 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     }
     out << "\n[WhiteoutTex][SavePrefs]\n";
     out << "LastFilter=" << prefs.last_filter << "\n";
+    out << "LastOpenDir=" << prefs.last_open_dir << "\n";
+    out << "LastSaveDir=" << prefs.last_save_dir << "\n";
+    out << "LastCascDir=" << prefs.last_casc_dir << "\n";
     out << "BlpVersion=" << prefs.blp_version << "\n";
     out << "BlpEncoding=" << prefs.blp_encoding << "\n";
     out << "BlpDither=" << (prefs.blp_dither ? 1 : 0) << "\n";
@@ -126,6 +140,174 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "DdsInvertY=" << (prefs.dds_invert_y ? 1 : 0) << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
+    out << "MipmapMode=" << static_cast<int>(prefs.mipmap_mode) << "\n";
+    out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
+}
+
+BatchPrefs load_batch_prefs(const std::string& ini_path) {
+    BatchPrefs prefs;
+    visitIniSection(ini_path, "[WhiteoutTex][BatchPrefs]", [&](const std::string& line) {
+        int iv = 0;
+        float fv = 0.0f;
+        if (line.rfind("LastInputDir=", 0) == 0)
+            prefs.last_input_dir = line.substr(13);
+        else if (line.rfind("LastOutputDir=", 0) == 0)
+            prefs.last_output_dir = line.substr(14);
+        else if (std::sscanf(line.c_str(), "FilterBlp=%d", &iv) == 1)
+            prefs.filter_blp = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterBmp=%d", &iv) == 1)
+            prefs.filter_bmp = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterDds=%d", &iv) == 1)
+            prefs.filter_dds = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterJpeg=%d", &iv) == 1)
+            prefs.filter_jpeg = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterPng=%d", &iv) == 1)
+            prefs.filter_png = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterTex=%d", &iv) == 1)
+            prefs.filter_tex = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterTga=%d", &iv) == 1)
+            prefs.filter_tga = iv != 0;
+        else if (std::sscanf(line.c_str(), "Recursive=%d", &iv) == 1)
+            prefs.recursive = iv != 0;
+        else if (std::sscanf(line.c_str(), "KeepLayout=%d", &iv) == 1)
+            prefs.keep_layout = iv != 0;
+        else if (std::sscanf(line.c_str(), "OutputFormat=%d", &iv) == 1)
+            prefs.output_format = iv;
+        else if (std::sscanf(line.c_str(), "BlpVersion=%d", &iv) == 1)
+            prefs.blp_version = iv;
+        else if (std::sscanf(line.c_str(), "BlpEncoding=%d", &iv) == 1)
+            prefs.blp_encoding = iv;
+        else if (std::sscanf(line.c_str(), "BlpDither=%d", &iv) == 1)
+            prefs.blp_dither = iv != 0;
+        else if (std::sscanf(line.c_str(), "BlpDitherStrength=%f", &fv) == 1)
+            prefs.blp_dither_strength = fv;
+        else if (std::sscanf(line.c_str(), "DdsMode=%d", &iv) == 1)
+            prefs.dds_mode = iv;
+        else if (std::sscanf(line.c_str(), "DdsFormatGeneral=%d", &iv) == 1)
+            prefs.dds_format_general = iv;
+        else if (std::sscanf(line.c_str(), "DdsInvertYGeneral=%d", &iv) == 1)
+            prefs.dds_invert_y_general = iv != 0;
+        else if (std::sscanf(line.c_str(), "DdsFormatNormal=%d", &iv) == 1)
+            prefs.dds_format_normal = iv;
+        else if (std::sscanf(line.c_str(), "DdsInvertYNormal=%d", &iv) == 1)
+            prefs.dds_invert_y_normal = iv != 0;
+        else if (std::sscanf(line.c_str(), "DdsFormatChannel=%d", &iv) == 1)
+            prefs.dds_format_channel = iv;
+        else if (std::sscanf(line.c_str(), "DdsFormatOther=%d", &iv) == 1)
+            prefs.dds_format_other = iv;
+        else if (std::sscanf(line.c_str(), "JpegQuality=%d", &iv) == 1)
+            prefs.jpeg_quality = iv;
+        else if (std::sscanf(line.c_str(), "GenerateMipmaps=%d", &iv) == 1)
+            prefs.generate_mipmaps = iv != 0;
+        else if (std::sscanf(line.c_str(), "MipmapMode=%d", &iv) == 1)
+            prefs.mipmap_mode = static_cast<MipmapMode>(std::clamp(iv, 0, 2));
+        else if (std::sscanf(line.c_str(), "MipmapCustomCount=%d", &iv) == 1)
+            prefs.mipmap_custom_count = std::max(1, iv);
+        else if (line.rfind("Transform=", 0) == 0) {
+            TransformStep step;
+            const char* p = line.c_str() + 10;
+            int type_int = 0;
+            int n = 0;
+            if (std::sscanf(p, "%d%n", &type_int, &n) == 1) {
+                step.type = static_cast<TransformType>(std::clamp(type_int, 0, 1));
+                p += n;
+                if (*p == ',') ++p;
+                if (step.type == TransformType::Downscale) {
+                    int lvl = 1;
+                    if (std::sscanf(p, "%d", &lvl) == 1)
+                        step.downscale_levels = std::clamp(lvl, 1, 2);
+                } else {
+                    int mi = 0, ua = 0;
+                    if (std::sscanf(p, "%d,%d", &mi, &ua) >= 1) {
+                        step.upscale_model_index = std::max(0, mi);
+                        step.upscale_alpha = ua != 0;
+                    }
+                }
+                prefs.transform_pipeline.push_back(step);
+            }
+        }
+    });
+    return prefs;
+}
+
+void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
+    std::ofstream out(ini_path, std::ios::app);
+    if (!out.is_open()) {
+        return;
+    }
+    out << "\n[WhiteoutTex][BatchPrefs]\n";
+    out << "LastInputDir=" << prefs.last_input_dir << "\n";
+    out << "LastOutputDir=" << prefs.last_output_dir << "\n";
+    out << "FilterBlp=" << (prefs.filter_blp ? 1 : 0) << "\n";
+    out << "FilterBmp=" << (prefs.filter_bmp ? 1 : 0) << "\n";
+    out << "FilterDds=" << (prefs.filter_dds ? 1 : 0) << "\n";
+    out << "FilterJpeg=" << (prefs.filter_jpeg ? 1 : 0) << "\n";
+    out << "FilterPng=" << (prefs.filter_png ? 1 : 0) << "\n";
+    out << "FilterTex=" << (prefs.filter_tex ? 1 : 0) << "\n";
+    out << "FilterTga=" << (prefs.filter_tga ? 1 : 0) << "\n";
+    out << "Recursive=" << (prefs.recursive ? 1 : 0) << "\n";
+    out << "KeepLayout=" << (prefs.keep_layout ? 1 : 0) << "\n";
+    out << "OutputFormat=" << prefs.output_format << "\n";
+    out << "BlpVersion=" << prefs.blp_version << "\n";
+    out << "BlpEncoding=" << prefs.blp_encoding << "\n";
+    out << "BlpDither=" << (prefs.blp_dither ? 1 : 0) << "\n";
+    out << "BlpDitherStrength=" << prefs.blp_dither_strength << "\n";
+    out << "DdsMode=" << prefs.dds_mode << "\n";
+    out << "DdsFormatGeneral=" << prefs.dds_format_general << "\n";
+    out << "DdsInvertYGeneral=" << (prefs.dds_invert_y_general ? 1 : 0) << "\n";
+    out << "DdsFormatNormal=" << prefs.dds_format_normal << "\n";
+    out << "DdsInvertYNormal=" << (prefs.dds_invert_y_normal ? 1 : 0) << "\n";
+    out << "DdsFormatChannel=" << prefs.dds_format_channel << "\n";
+    out << "DdsFormatOther=" << prefs.dds_format_other << "\n";
+    out << "JpegQuality=" << prefs.jpeg_quality << "\n";
+    out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
+    out << "MipmapMode=" << static_cast<int>(prefs.mipmap_mode) << "\n";
+    out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
+    for (const auto& step : prefs.transform_pipeline) {
+        out << "Transform=" << static_cast<int>(step.type) << ",";
+        if (step.type == TransformType::Downscale) {
+            out << step.downscale_levels;
+        } else {
+            out << step.upscale_model_index << "," << (step.upscale_alpha ? 1 : 0);
+        }
+        out << "\n";
+    }
+}
+
+RecentFiles load_recent_files(const std::string& ini_path) {
+    RecentFiles recent;
+    visitIniSection(ini_path, "[WhiteoutTex][RecentFiles]", [&](const std::string& line) {
+        if (!line.empty() && static_cast<int>(recent.paths.size()) < MAX_RECENT_PATHS)
+            recent.paths.push_back(line);
+    });
+    return recent;
+}
+
+void append_recent_files(const std::string& ini_path, const RecentFiles& recent) {
+    std::ofstream out(ini_path, std::ios::app);
+    if (!out.is_open())
+        return;
+    out << "\n[WhiteoutTex][RecentFiles]\n";
+    for (const auto& p : recent.paths)
+        out << p << "\n";
+}
+
+RecentPaths load_recent_paths(const std::string& ini_path, const char* section) {
+    RecentPaths recent;
+    visitIniSection(ini_path, section, [&](const std::string& line) {
+        if (!line.empty() && static_cast<int>(recent.paths.size()) < MAX_RECENT_PATHS)
+            recent.paths.push_back(line);
+    });
+    return recent;
+}
+
+void append_recent_paths(const std::string& ini_path, const char* section, const RecentPaths& recent) {
+    std::ofstream out(ini_path, std::ios::app);
+    if (!out.is_open())
+        return;
+    out << "\n" << section << "\n";
+    for (const auto& p : recent.paths)
+        out << p << "\n";
 }
 
 } // namespace whiteout::gui

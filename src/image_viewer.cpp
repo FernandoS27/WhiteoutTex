@@ -24,9 +24,43 @@ static constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
 static constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
 static constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
 
+/// Short label for a TextureKind (used for Multikind channel buttons).
+static const char* channelKindShortLabel(tex::TextureKind k) {
+    switch (k) {
+    case tex::TextureKind::AmbientOcclusion: return "O";
+    case tex::TextureKind::Roughness:        return "R";
+    case tex::TextureKind::Metalness:        return "M";
+    case tex::TextureKind::Gloss:            return "G";
+    case tex::TextureKind::Albedo:           return "Al";
+    case tex::TextureKind::Diffuse:          return "D";
+    case tex::TextureKind::Normal:           return "N";
+    case tex::TextureKind::Specular:         return "S";
+    case tex::TextureKind::Emissive:         return "E";
+    case tex::TextureKind::AlphaMask:        return "A";
+    case tex::TextureKind::BinaryMask:       return "Bm";
+    case tex::TextureKind::TransparencyMask: return "T";
+    case tex::TextureKind::BlendMask:        return "Bl";
+    case tex::TextureKind::Lightmap:         return "L";
+    default:                                 return "?";
+    }
+}
+
 /// Squared distance threshold below which a mouse-up is treated as a click
 /// rather than a drag (in pixels^2).
 static constexpr float kClickThresholdSq = 9.0f;
+
+/// Zoom multiplier per mouse wheel tick.
+static constexpr float kZoomFactor = 1.15f;
+
+/// Minimum and maximum zoom levels.
+static constexpr float kZoomMin = 0.01f;
+static constexpr float kZoomMax = 64.0f;
+
+/// Channel button size multiplier relative to frame height.
+static constexpr float kChannelBtnSizeMultiplier = 1.4f;
+
+/// Gap between channel buttons in pixels.
+static constexpr float kChannelBtnGap = 4.0f;
 
 // ============================================================================
 // Lifetime
@@ -42,18 +76,12 @@ ImageViewer::~ImageViewer() {
 // Public API
 // ============================================================================
 
-void ImageViewer::setTexture(const tex::Texture& texture, bool is_orm) {
+void ImageViewer::setTexture(const tex::Texture& texture) {
+    updateChannelInfo(texture);
     auto* pool = threadPoolManager().get();
     display_texture_ = makeDisplayTexture(texture, pool);
     selected_mip_ = 0;
-    if (is_orm) {
-        channel_r_ = true;
-        channel_g_ = false;
-        channel_b_ = false;
-        channel_a_ = false;
-    } else {
-        channel_r_ = channel_g_ = channel_b_ = channel_a_ = true;
-    }
+    resetChannelVisibility();
     auto_fit_ = true;
     pan_offset_ = ImVec2{0.0f, 0.0f};
     if (renderer_) {
@@ -61,15 +89,9 @@ void ImageViewer::setTexture(const tex::Texture& texture, bool is_orm) {
     }
 }
 
-void ImageViewer::refreshDisplay(const tex::Texture& texture, bool is_orm) {
-    if (is_orm) {
-        channel_r_ = true;
-        channel_g_ = false;
-        channel_b_ = false;
-        channel_a_ = false;
-    } else {
-        channel_r_ = channel_g_ = channel_b_ = channel_a_ = true;
-    }
+void ImageViewer::refreshDisplay(const tex::Texture& texture) {
+    updateChannelInfo(texture);
+    resetChannelVisibility();
     auto* pool = threadPoolManager().get();
     display_texture_ = makeDisplayTexture(texture, pool);
     if (display_texture_ && display_texture_->mipCount() > 0) {
@@ -97,7 +119,7 @@ int ImageViewer::mipCount() const {
 // Drawing
 // ============================================================================
 
-void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
+void ImageViewer::draw(SDL_Renderer* renderer) {
     renderer_ = renderer;
 
     // Ensure preview is built (first frame after setTexture when renderer wasn't set yet)
@@ -109,7 +131,16 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         return;
     }
 
-    // ---- Toolbar: zoom controls (left) + channel buttons (right) ----
+    drawToolbar(renderer);
+    drawImageArea(renderer);
+}
+
+// ============================================================================
+// Toolbar
+// ============================================================================
+
+void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
+    // ---- Zoom controls (left) ----
     if (ImGui::Button("Fit")) {
         auto_fit_ = true;
     }
@@ -122,7 +153,7 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
     ImGui::SameLine(0.0f, 8.0f);
     ImGui::Text("%.0f%%", zoom_scale_ * 100.0f);
 
-    // Channel filter buttons (right-aligned)
+    // ---- Channel filter buttons (right-aligned) ----
     struct ChannelDef {
         const char* label;
         bool* flag;
@@ -130,16 +161,19 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         bool visible;
     };
     ChannelDef ch_defs[4] = {
-        {is_orm ? "O" : "R", &channel_r_, kChannelColorR, true},
-        {is_orm ? "R" : "G", &channel_g_, kChannelColorG, true},
-        {is_orm ? "M" : "B", &channel_b_, kChannelColorB, true},
-        {"A", &channel_a_, kChannelColorA, !is_orm},
+        {channel_info_[0].label, &channel_r_, kChannelColorR, channel_info_[0].visible},
+        {channel_info_[1].label, &channel_g_, kChannelColorG, channel_info_[1].visible},
+        {channel_info_[2].label, &channel_b_, kChannelColorB, channel_info_[2].visible},
+        {channel_info_[3].label, &channel_a_, kChannelColorA, channel_info_[3].visible},
     };
     constexpr ImVec4 k_off_col = kChannelColorOff;
 
-    const int visible_count = is_orm ? 3 : 4;
-    const float btn_size = ImGui::GetFrameHeight() * 1.4f;
-    const float btn_gap = 4.0f;
+    int visible_count = 0;
+    for (int i = 0; i < 4; ++i)
+        if (ch_defs[i].visible)
+            ++visible_count;
+    const float btn_size = ImGui::GetFrameHeight() * kChannelBtnSizeMultiplier;
+    const float btn_gap = kChannelBtnGap;
     const float total_btns_width = static_cast<float>(visible_count) * btn_size +
                                    static_cast<float>(visible_count - 1) * btn_gap;
     ImGui::SameLine(0.0f, 0.0f);
@@ -161,10 +195,11 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         char btn_id[8];
         std::snprintf(btn_id, sizeof(btn_id), "%s##ch", ch_defs[ci].label);
         if (ImGui::Button(btn_id, ImVec2(btn_size, btn_size))) {
-            if (is_orm) {
+            if (is_multikind_) {
                 channel_r_ = (ci == 0);
                 channel_g_ = (ci == 1);
                 channel_b_ = (ci == 2);
+                channel_a_ = (ci == 3);
                 rebuildPreview(renderer);
             } else {
                 *ch_defs[ci].flag = !*ch_defs[ci].flag;
@@ -178,8 +213,13 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
         }
         ImGui::PopStyleColor(3);
     }
+}
 
-    // ---- Zoomable / pannable image display ----
+// ============================================================================
+// Zoomable / pannable image area
+// ============================================================================
+
+void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
     const float actual_w = ImGui::GetContentRegionAvail().x;
     const float actual_h = ImGui::GetContentRegionAvail().y;
 
@@ -203,8 +243,8 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
 
         // Scroll wheel: zoom centred on mouse
         if (io_ref.MouseWheel != 0.0f) {
-            const float factor = (io_ref.MouseWheel > 0.0f) ? 1.15f : (1.0f / 1.15f);
-            const float new_zoom = std::clamp(zoom_scale_ * factor, 0.01f, 64.0f);
+            const float factor = (io_ref.MouseWheel > 0.0f) ? kZoomFactor : (1.0f / kZoomFactor);
+            const float new_zoom = std::clamp(zoom_scale_ * factor, kZoomMin, kZoomMax);
 
             const ImVec2 mouse_local{io_ref.MousePos.x - area_pos.x,
                                      io_ref.MousePos.y - area_pos.y};
@@ -264,6 +304,39 @@ void ImageViewer::draw(SDL_Renderer* renderer, bool is_orm) {
 // ============================================================================
 // Private helpers
 // ============================================================================
+
+void ImageViewer::resetChannelVisibility() {
+    if (is_multikind_) {
+        // Default to showing only the first visible channel.
+        channel_r_ = channel_info_[0].visible;
+        channel_g_ = false;
+        channel_b_ = false;
+        channel_a_ = false;
+    } else {
+        channel_r_ = channel_g_ = channel_b_ = channel_a_ = true;
+    }
+}
+
+void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
+    is_multikind_ = (texture.kind() == tex::TextureKind::Multikind);
+    if (is_multikind_) {
+        static const tex::Channel kChannels[] = {
+            tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
+        for (int i = 0; i < 4; ++i) {
+            auto ch_kind = texture.channelKind(kChannels[i]);
+            channel_info_[i].visible = (ch_kind != tex::TextureKind::Unused);
+            const char* lbl = channelKindShortLabel(ch_kind);
+            std::snprintf(channel_info_[i].label, sizeof(channel_info_[i].label), "%s", lbl);
+        }
+    } else {
+        static const char kDefaults[][2] = {"R", "G", "B", "A"};
+        for (int i = 0; i < 4; ++i) {
+            channel_info_[i].visible = true;
+            channel_info_[i].label[0] = kDefaults[i][0];
+            channel_info_[i].label[1] = '\0';
+        }
+    }
+}
 
 std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, int width, int height,
                                                      bool show_r, bool show_g, bool show_b,

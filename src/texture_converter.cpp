@@ -150,21 +150,20 @@ TextureConverter::~TextureConverter() = default;
 // ============================================================================
 
 TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
+    struct ExtMap { const char* ext; TextureFileFormat fmt; };
+    static constexpr ExtMap kTable[] = {
+        {".blp",  TextureFileFormat::BLP},
+        {".bmp",  TextureFileFormat::BMP},
+        {".dds",  TextureFileFormat::DDS},
+        {".jpg",  TextureFileFormat::JPEG},
+        {".jpeg", TextureFileFormat::JPEG},
+        {".png",  TextureFileFormat::PNG},
+        {".tex",  TextureFileFormat::TEX},
+        {".tga",  TextureFileFormat::TGA},
+    };
     auto ext = get_extension_lower(path);
-    if (ext == ".blp")
-        return TextureFileFormat::BLP;
-    if (ext == ".bmp")
-        return TextureFileFormat::BMP;
-    if (ext == ".dds")
-        return TextureFileFormat::DDS;
-    if (ext == ".jpg" || ext == ".jpeg")
-        return TextureFileFormat::JPEG;
-    if (ext == ".png")
-        return TextureFileFormat::PNG;
-    if (ext == ".tex")
-        return TextureFileFormat::TEX;
-    if (ext == ".tga")
-        return TextureFileFormat::TGA;
+    for (const auto& e : kTable)
+        if (ext == e.ext) return e.fmt;
     return TextureFileFormat::Unknown;
 }
 
@@ -176,38 +175,43 @@ bool TextureConverter::isD4Tex(const std::string& path) {
 TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFormat fmt) {
     auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
 
-    if (stem.find("_diff") != std::string::npos || stem.find("diffuse") != std::string::npos)
-        return TextureKind::Diffuse;
-    if (stem.find("_orm") != std::string::npos)
-        return TextureKind::ORM;
-    if (stem.find("_ao") != std::string::npos || stem.find("occlusion") != std::string::npos)
-        return TextureKind::AmbientOcclusion;
-    if (stem.find("_roughness") != std::string::npos || stem.find("_rough") != std::string::npos)
-        return TextureKind::Roughness;
-    if (stem.find("_metal") != std::string::npos)
-        return TextureKind::Metalness;
-    if (stem.find("_gloss") != std::string::npos || stem.find("_smooth") != std::string::npos)
-        return TextureKind::Gloss;
-    if (stem.find("_spec") != std::string::npos || stem.find("specular") != std::string::npos)
-        return TextureKind::Specular;
-    if (stem.find("_emis") != std::string::npos || stem.find("emissive") != std::string::npos)
-        return TextureKind::Emissive;
-    if (stem.find("_alpha") != std::string::npos || stem.find("_mask") != std::string::npos ||
-        stem.find("_opacity") != std::string::npos)
-        return TextureKind::AlphaMask;
-    if (stem.find("lightmap") != std::string::npos)
-        return TextureKind::Lightmap;
-    if (stem.find("_envpbr") != std::string::npos || stem.find("_ibl") != std::string::npos)
-        return TextureKind::EnvironmentPBR;
-    if (stem.find("_envlegacy") != std::string::npos || stem.find("_envmap") != std::string::npos ||
-        stem.find("_env") != std::string::npos || stem.find("_reflection") != std::string::npos)
-        return TextureKind::EnvironmentLegacy;
-    if (stem.find("_albedo") != std::string::npos || stem.find("_tint") != std::string::npos ||
-        stem.find("_basecolor") != std::string::npos)
-        return TextureKind::Albedo;
-    if (stem.find("normal") != std::string::npos || stem.find("_nrm") != std::string::npos ||
-        stem.find("_norm") != std::string::npos)
-        return TextureKind::Normal;
+    // Substring → kind lookup table, checked in priority order.
+    struct KindPattern { const char* substr; TextureKind kind; };
+    static constexpr KindPattern kTable[] = {
+        {"_diff",       TextureKind::Diffuse},
+        {"diffuse",     TextureKind::Diffuse},
+        {"_orm",        TextureKind::Multikind},
+        {"_tint",       TextureKind::Multikind},
+        {"_ao",         TextureKind::AmbientOcclusion},
+        {"occlusion",   TextureKind::AmbientOcclusion},
+        {"_roughness",  TextureKind::Roughness},
+        {"_rough",      TextureKind::Roughness},
+        {"_metal",      TextureKind::Metalness},
+        {"_gloss",      TextureKind::Gloss},
+        {"_smooth",     TextureKind::Gloss},
+        {"_spec",       TextureKind::Specular},
+        {"specular",    TextureKind::Specular},
+        {"_emis",       TextureKind::Emissive},
+        {"emissive",    TextureKind::Emissive},
+        {"_alpha",      TextureKind::AlphaMask},
+        {"_mask",       TextureKind::AlphaMask},
+        {"_opacity",    TextureKind::AlphaMask},
+        {"lightmap",    TextureKind::Lightmap},
+        {"_envpbr",     TextureKind::EnvironmentPBR},
+        {"_ibl",        TextureKind::EnvironmentPBR},
+        {"_envlegacy",  TextureKind::EnvironmentLegacy},
+        {"_envmap",     TextureKind::EnvironmentLegacy},
+        {"_env",        TextureKind::EnvironmentLegacy},
+        {"_reflection", TextureKind::EnvironmentLegacy},
+        {"_albedo",     TextureKind::Albedo},
+        {"_basecolor",  TextureKind::Albedo},
+        {"normal",      TextureKind::Normal},
+        {"_nrm",        TextureKind::Normal},
+        {"_norm",       TextureKind::Normal},
+    };
+
+    for (const auto& p : kTable)
+        if (stem.find(p.substr) != std::string::npos) return p.kind;
 
     // Heuristic: BC5 / dual-channel → normal map.
     if (fmt == PixelFormat::BC5 || fmt == PixelFormat::RG8 || fmt == PixelFormat::RG16 ||
@@ -220,6 +224,25 @@ TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFor
         return TextureKind::Roughness;
 
     return TextureKind::Diffuse;
+}
+
+std::array<TextureKind, 4> TextureConverter::guessTextureMultiKind(
+    const std::string& path, PixelFormat /*fmt*/) {
+    auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
+
+    // ORM: R=AmbientOcclusion, G=Roughness, B=Metalness, A=Unused
+    if (stem.find("_orm") != std::string::npos) {
+        return {TextureKind::AmbientOcclusion, TextureKind::Roughness,
+                TextureKind::Metalness, TextureKind::Unused};
+    }
+    if (stem.find("_tint") != std::string::npos) {
+        return {TextureKind::AlphaMask, TextureKind::AlphaMask,
+                TextureKind::AlphaMask, TextureKind::Unused};
+    }
+
+    // Fallback: all channels unknown
+    return {TextureKind::Other, TextureKind::Other,
+            TextureKind::Other, TextureKind::Other};
 }
 
 const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {

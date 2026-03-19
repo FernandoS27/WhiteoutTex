@@ -125,7 +125,7 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
 
         case TFF::JPEG:
             ImGui::SeparatorText("JPEG Options");
-            ImGui::SliderInt("Quality", &opts_.jpeg_quality, 1, 100);
+            ImGui::SliderInt("Quality", &opts_.prefs.jpeg_quality, 1, 100);
             break;
 
         default:
@@ -134,8 +134,28 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
 
         // Common options
         ImGui::SeparatorText("Common Options");
-        ImGui::Combo("Texture Kind", &opts_.texture_kind, TEXTURE_KIND_NAMES, TEXTURE_KIND_COUNT);
-        ImGui::Checkbox("Generate Mipmaps", &opts_.generate_mipmaps);
+        {
+            auto cur = static_cast<tex::TextureKind>(opts_.texture_kind);
+            const char* preview = textureKindName(cur);
+            if (ImGui::BeginCombo("Texture Kind", preview)) {
+                for (int i = 0; i < kSelectableKindCount; ++i) {
+                    bool selected = (kSelectableKinds[i].kind == cur);
+                    if (ImGui::Selectable(kSelectableKinds[i].name, selected))
+                        opts_.texture_kind = static_cast<int>(kSelectableKinds[i].kind);
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+        {
+            int maxMips = 0;
+            if (loaded_texture)
+                maxMips = static_cast<int>(
+                    tex::computeMaxMipCount(loaded_texture->width(), loaded_texture->height()));
+            drawMipmapModeUI(opts_.prefs.generate_mipmaps, opts_.prefs.mipmap_mode,
+                             opts_.prefs.mipmap_custom_count, maxMips);
+        }
 
         ImGui::Separator();
         if (ImGui::Button("Save", ImVec2(120, 0)) && loaded_texture) {
@@ -159,34 +179,9 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
 // ============================================================================
 
 void SaveDialog::drawBlpOptions() {
-    ImGui::SeparatorText("BLP Options");
-    ImGui::Combo("BLP Version", &opts_.blp_version,
-                 "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
-    {
-        const int* enc_allowed;
-        int enc_count;
-        blpAllowedEncodings(opts_.blp_version, enc_allowed, enc_count);
-        validateBlpEncoding(opts_.blp_version, opts_.blp_encoding);
-
-        if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[opts_.blp_encoding])) {
-            for (int i = 0; i < enc_count; ++i) {
-                bool selected = (opts_.blp_encoding == enc_allowed[i]);
-                if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
-                    opts_.blp_encoding = enc_allowed[i];
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-    }
-    if (opts_.blp_encoding == 2) {
-        ImGui::Checkbox("Dither", &opts_.blp_dither);
-        if (opts_.blp_dither)
-            ImGui::SliderFloat("Dither Strength", &opts_.blp_dither_strength, 0.0f, 1.0f);
-    }
-    if (opts_.blp_encoding == 3) {
-        ImGui::SliderInt("JPEG Quality", &opts_.jpeg_quality, 1, 100);
-    }
+    drawBlpOptionsUI(opts_.prefs.blp_version, opts_.prefs.blp_encoding,
+                     opts_.prefs.blp_dither, opts_.prefs.blp_dither_strength,
+                     opts_.prefs.jpeg_quality);
 }
 
 void SaveDialog::drawDdsOptions() {
@@ -196,12 +191,12 @@ void SaveDialog::drawDdsOptions() {
     const int* allowed;
     int allowed_count;
     ddsPresetForKind(tk_kind, allowed, allowed_count);
-    validateDdsFormat(tk_kind, opts_.dds_format);
+    validateDdsFormat(tk_kind, opts_.prefs.dds_format);
 
     char preset_label[128];
     {
         int n = std::snprintf(preset_label, sizeof(preset_label), "Preset: %s — ",
-                              TEXTURE_KIND_NAMES[opts_.texture_kind]);
+                              textureKindName(static_cast<tex::TextureKind>(opts_.texture_kind)));
         for (int i = 0; i < allowed_count && n < (int)sizeof(preset_label) - 1; ++i) {
             if (i > 0)
                 n += std::snprintf(preset_label + n, sizeof(preset_label) - n, ", ");
@@ -211,18 +206,18 @@ void SaveDialog::drawDdsOptions() {
     }
     ImGui::TextDisabled("%s", preset_label);
 
-    if (ImGui::BeginCombo("Pixel Format", DDS_FORMAT_NAMES[opts_.dds_format])) {
+    if (ImGui::BeginCombo("Pixel Format", DDS_FORMAT_NAMES[opts_.prefs.dds_format])) {
         for (int i = 0; i < allowed_count; ++i) {
-            bool selected = (opts_.dds_format == allowed[i]);
+            bool selected = (opts_.prefs.dds_format == allowed[i]);
             if (ImGui::Selectable(DDS_FORMAT_NAMES[allowed[i]], selected))
-                opts_.dds_format = allowed[i];
+                opts_.prefs.dds_format = allowed[i];
             if (selected)
                 ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
     if (tk_kind == tex::TextureKind::Normal) {
-        ImGui::Checkbox("Invert Y Channel", &opts_.dds_invert_y);
+        ImGui::Checkbox("Invert Y Channel", &opts_.prefs.dds_invert_y);
     }
 }
 
@@ -236,30 +231,32 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
 
     auto* pool = threadPoolManager().get();
 
-    if (opts_.generate_mipmaps) {
+    if (opts_.prefs.generate_mipmaps) {
         if (tex::isBcn(tex_copy.format()))
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-        if (auto err = tex_copy.generateMipmaps(pool))
+        const auto mipCount = effectiveMipCount(opts_.prefs.mipmap_mode,
+                                                opts_.prefs.mipmap_custom_count, tex_copy);
+        if (auto err = tex_copy.generateMipmaps(mipCount, pool))
             return "Mipmap generation failed: " + *err;
     }
 
     bool ok = false;
     switch (opts_.target_format) {
     case TFF::BLP: {
-        auto blp = buildBlpSaveOptions(opts_.blp_version, opts_.blp_encoding,
-                                       opts_.blp_dither, opts_.blp_dither_strength,
-                                       opts_.jpeg_quality);
-        coerceBlpFormat(tex_copy, opts_.blp_encoding, blp.encoding, pool);
+        auto blp = buildBlpSaveOptions(opts_.prefs.blp_version, opts_.prefs.blp_encoding,
+                                       opts_.prefs.blp_dither, opts_.prefs.blp_dither_strength,
+                                       opts_.prefs.jpeg_quality);
+        coerceBlpFormat(tex_copy, opts_.prefs.blp_encoding, blp.encoding, pool);
         ok = converter.save(tex_copy, opts_.save_path, blp);
         break;
     }
     case TFF::DDS: {
-        coerceDdsFormat(tex_copy, opts_.dds_format, opts_.dds_invert_y, pool);
+        coerceDdsFormat(tex_copy, opts_.prefs.dds_format, opts_.prefs.dds_invert_y, pool);
         ok = converter.save(tex_copy, opts_.save_path);
         break;
     }
     case TFF::JPEG:
-        ok = converter.save(tex_copy, opts_.save_path, opts_.jpeg_quality);
+        ok = converter.save(tex_copy, opts_.save_path, opts_.prefs.jpeg_quality);
         break;
     default:
         ok = converter.save(tex_copy, opts_.save_path);
