@@ -43,21 +43,21 @@ public:
     void draw(SDL_Renderer* renderer);
 
     // ── Accessors for mip selection (used by details panel) ────────────
-    int selectedMip() const {
+    i32 selectedMip() const {
         return selected_mip_;
     }
-    void selectMip(int mip);
-    int mipCount() const;
+    void selectMip(i32 mip);
+    i32 mipCount() const;
 
 private:
     /// Apply per-channel filter to RGBA8 pixel data.
-    static std::vector<u8> applyChannelFilter(const u8* data, int width, int height,
+    static std::vector<u8> applyChannelFilter(const u8* data, i32 width, i32 height,
                                               bool show_r, bool show_g, bool show_b,
                                               bool show_a);
 
     /// Upload RGBA8 pixel data into an SDL_Texture.
     static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
-                                               int width, int height);
+                                               i32 width, i32 height);
 
     /// Build an RGBA8 display copy (handles normal-map expansion).
     static whiteout::textures::Texture makeDisplayTexture(
@@ -84,9 +84,9 @@ private:
     std::optional<whiteout::textures::Texture> display_texture_;
     SDL_Texture* image_texture_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
-    int image_width_ = 0;
-    int image_height_ = 0;
-    int selected_mip_ = 0;
+    i32 image_width_ = 0;
+    i32 image_height_ = 0;
+    i32 selected_mip_ = 0;
 
     // Channel filter
     bool channel_r_ = true;
@@ -104,7 +104,7 @@ private:
 
     // Zoom / pan
     bool auto_fit_ = true;
-    float zoom_scale_ = 1.0f;
+    f32 zoom_scale_ = 1.0f;
     ImVec2 pan_offset_{0.0f, 0.0f};
 };
 

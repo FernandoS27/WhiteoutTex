@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "app.h"
+#include "common_types.h"
 #include "save_helpers.h"
 #include "thread_pool_manager.h"
 
@@ -20,7 +21,9 @@
 
 namespace {
 
-void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, int filter) {
+using whiteout::i32;
+
+void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, i32 filter) {
     if (!filelist || !filelist[0]) {
         return;
     }
@@ -29,6 +32,15 @@ void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, i
     state->pending_path = filelist[0];
     state->pending_filter = filter;
     state->has_pending.store(true);
+}
+
+/// Store the parent directory of @p path into @p out (with trailing separator).
+void rememberParentDir(const std::string& path, std::string& out) {
+    if (path.empty())
+        return;
+    auto parent = std::filesystem::path(path).parent_path().make_preferred();
+    if (!parent.empty())
+        out = (parent / "").string();
 }
 
 constexpr SDL_DialogFileFilter OPEN_FILTERS[] = {
@@ -42,11 +54,41 @@ constexpr SDL_DialogFileFilter OPEN_FILTERS[] = {
     {"TGA (Targa)", "tga"},
     {"All Files", "*"},
 };
-constexpr int OPEN_FILTER_COUNT = static_cast<int>(std::size(OPEN_FILTERS));
 
 namespace tex = whiteout::textures;
 using TFF = tex::TextureFileFormat;
 using TC = tex::TextureConverter;
+
+/// BSD 3-Clause license text shown in the About dialog.
+constexpr const char* kLicenseText =
+    "BSD 3-Clause License\n"
+    "\n"
+    "Copyright (c) 2026, Fernando Sahmkow\n"
+    "\n"
+    "Redistribution and use in source and binary forms, with or without\n"
+    "modification, are permitted provided that the following conditions are met:\n"
+    "\n"
+    "1. Redistributions of source code must retain the above copyright notice,\n"
+    "   this list of conditions and the following disclaimer.\n"
+    "\n"
+    "2. Redistributions in binary form must reproduce the above copyright notice,\n"
+    "   this list of conditions and the following disclaimer in the documentation\n"
+    "   and/or other materials provided with the distribution.\n"
+    "\n"
+    "3. Neither the name of the copyright holder nor the names of its contributors\n"
+    "   may be used to endorse or promote products derived from this software\n"
+    "   without specific prior written permission.\n"
+    "\n"
+    "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\n"
+    "AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n"
+    "IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\n"
+    "DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\n"
+    "FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\n"
+    "DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\n"
+    "SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\n"
+    "CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\n"
+    "OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n"
+    "OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.";
 
 /// UI color for success messages in result popups.
 constexpr ImVec4 kSuccessColor{0.4f, 1.0f, 0.4f, 1.0f};
@@ -79,11 +121,11 @@ bool App::initSDL() {
 }
 
 bool App::initWindow() {
-    const float main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
-    const int default_width = static_cast<int>(WINDOW_WIDTH * main_scale);
-    const int default_height = static_cast<int>(WINDOW_HEIGHT * main_scale);
-    int startup_width = default_width;
-    int startup_height = default_height;
+    const f32 main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+    const i32 default_width = static_cast<i32>(WINDOW_WIDTH * main_scale);
+    const i32 default_height = static_cast<i32>(WINDOW_HEIGHT * main_scale);
+    i32 startup_width = default_width;
+    i32 startup_height = default_height;
 
     const SavedHostWindowSize saved_host_size = load_saved_host_window_size(imgui_ini_path_);
     if (saved_host_size.has_size) {
@@ -93,7 +135,7 @@ bool App::initWindow() {
 
     const MainWindowIniRect ini_rect = load_main_window_ini_rect(imgui_ini_path_);
     if (!saved_host_size.has_size && ini_rect.has_size) {
-        const int extra_y = ini_rect.has_pos ? std::clamp(ini_rect.pos_y, 0, 200) : 0;
+        const i32 extra_y = ini_rect.has_pos ? std::clamp(ini_rect.pos_y, 0, 200) : 0;
         startup_width = std::max(MIN_WINDOW_WIDTH, ini_rect.width);
         startup_height = std::max(MIN_WINDOW_HEIGHT, ini_rect.height + extra_y);
     }
@@ -118,7 +160,7 @@ bool App::initWindow() {
 }
 
 void App::initImGui() {
-    const float main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+    const f32 main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -142,7 +184,7 @@ void App::shutdown() {
     ImGui::SaveIniSettingsToDisk(imgui_ini_path_.c_str());
     io.IniFilename = nullptr;
 
-    int final_w = 0, final_h = 0;
+    i32 final_w = 0, final_h = 0;
     SDL_GetWindowSize(window_, &final_w, &final_h);
     if (final_w > 0 && final_h > 0) {
         append_saved_host_window_size(imgui_ini_path_, final_w, final_h);
@@ -232,13 +274,7 @@ void App::processOpenResult() {
     }
 
     openFile(path);
-
-    // Remember the parent directory for next File > Open.
-    if (!path.empty()) {
-        auto parent = std::filesystem::path(path).parent_path().make_preferred();
-        if (!parent.empty())
-            save_prefs_.last_open_dir = (parent / "").string();
-    }
+    rememberParentDir(path, save_prefs_.last_open_dir);
 }
 
 void App::processSaveResult() {
@@ -246,7 +282,7 @@ void App::processSaveResult() {
         return;
 
     std::string path;
-    int filter_idx;
+    i32 filter_idx;
     {
         std::lock_guard lock(save_dialog_state_.mtx);
         path = std::move(save_dialog_state_.pending_path);
@@ -256,13 +292,7 @@ void App::processSaveResult() {
 
     save_dialog_.onFileChosen(path, filter_idx, save_prefs_,
                               loaded_texture_ ? &*loaded_texture_ : nullptr);
-
-    // Remember the parent directory for next File > Save As.
-    if (!path.empty()) {
-        auto parent = std::filesystem::path(path).parent_path().make_preferred();
-        if (!parent.empty())
-            save_prefs_.last_save_dir = (parent / "").string();
-    }
+    rememberParentDir(path, save_prefs_.last_save_dir);
 }
 
 // ============================================================================
@@ -279,7 +309,7 @@ void App::drawMenuBar() {
                                           ? nullptr
                                           : save_prefs_.last_open_dir.c_str();
             SDL_ShowOpenFileDialog(file_dialog_callback, &open_dialog_state_, window_, OPEN_FILTERS,
-                                   OPEN_FILTER_COUNT, default_dir, false);
+                                   static_cast<i32>(std::size(OPEN_FILTERS)), default_dir, false);
         }
         if (ImGui::BeginMenu("Open Recent", !recent_files_.paths.empty())) {
             std::string pending_recent_open;
@@ -329,7 +359,10 @@ void App::drawMenuBar() {
             auto model_dir = Upscaler::defaultModelDir();
             upscale_models_ = Upscaler::availableModels(model_dir);
             upscale_model_index_ = 0;
-            upscale_status_.clear();
+            {
+                std::lock_guard<std::mutex> lk(upscale_status_mtx_);
+                upscale_status_.clear();
+            }
             show_upscale_dialog_ = true;
         }
 #endif
@@ -416,6 +449,14 @@ void App::drawD4PayloadDialog() {
         ImGui::SetNextItemWidth(600.0f);
         ImGui::InputText("##d4_paylow", d4_paylow_path_buf_, sizeof(d4_paylow_path_buf_));
         ImGui::Spacing();
+
+        auto closeDialog = [&] {
+            pending_d4_meta_path_.clear();
+            d4_payload_path_buf_[0] = '\0';
+            d4_paylow_path_buf_[0] = '\0';
+            ImGui::CloseCurrentPopup();
+        };
+
         if (ImGui::Button("Load", ImVec2(120, 0))) {
             const std::string payload_path(d4_payload_path_buf_);
             const std::string paylow_path(d4_paylow_path_buf_);
@@ -435,17 +476,11 @@ void App::drawD4PayloadDialog() {
             } else {
                 status_message_ = "Payload file not found: " + payload_path;
             }
-            pending_d4_meta_path_.clear();
-            d4_payload_path_buf_[0] = '\0';
-            d4_paylow_path_buf_[0] = '\0';
-            ImGui::CloseCurrentPopup();
+            closeDialog();
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-            pending_d4_meta_path_.clear();
-            d4_payload_path_buf_[0] = '\0';
-            d4_paylow_path_buf_[0] = '\0';
-            ImGui::CloseCurrentPopup();
+            closeDialog();
         }
         ImGui::EndPopup();
     }
@@ -455,7 +490,10 @@ void App::drawD4PayloadDialog() {
 void App::startUpscaleThread(const UpscalerModel& model,
                              const tex::Texture& source, bool upscale_alpha) {
     upscale_in_progress_ = true;
-    upscale_status_ = "Initializing model...";
+    {
+        std::lock_guard<std::mutex> lk(upscale_status_mtx_);
+        upscale_status_ = "Initializing model...";
+    }
 
     auto model_dir = Upscaler::defaultModelDir();
     auto model_copy = model;
@@ -467,19 +505,31 @@ void App::startUpscaleThread(const UpscalerModel& model,
 
     upscale_thread_ = std::thread([app, model_dir, model_copy, texture_copy, upscale_alpha]() {
         if (!app->upscaler_.init(model_dir, model_copy)) {
-            app->upscale_status_ = "Failed to load model.";
+            {
+                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
+                app->upscale_status_ = "Failed to load model.";
+            }
             app->upscale_success_ = false;
             app->upscale_done_.store(true);
             return;
         }
-        app->upscale_status_ = "Upscaling...";
+        {
+            std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
+            app->upscale_status_ = "Upscaling...";
+        }
         auto result = app->upscaler_.process(*texture_copy, upscale_alpha);
         if (result) {
             app->upscale_result_ = std::move(*result);
-            app->upscale_status_ = "Upscale complete.";
+            {
+                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
+                app->upscale_status_ = "Upscale complete.";
+            }
             app->upscale_success_ = true;
         } else {
-            app->upscale_status_ = "Upscale failed.";
+            {
+                std::lock_guard<std::mutex> lk(app->upscale_status_mtx_);
+                app->upscale_status_ = "Upscale failed.";
+            }
             app->upscale_success_ = false;
         }
         app->upscale_done_.store(true);
@@ -523,7 +573,7 @@ void App::drawUpscaleDialog() {
         // Model selector
         if (ImGui::BeginCombo("Model",
                               upscale_models_[upscale_model_index_].display_name.c_str())) {
-            for (int i = 0; i < static_cast<int>(upscale_models_.size()); ++i) {
+            for (i32 i = 0; i < static_cast<i32>(upscale_models_.size()); ++i) {
                 bool selected = (i == upscale_model_index_);
                 std::string label = upscale_models_[i].label();
                 if (ImGui::Selectable(label.c_str(), selected)) {
@@ -535,16 +585,23 @@ void App::drawUpscaleDialog() {
 
         const auto& model = upscale_models_[upscale_model_index_];
         if (loaded_texture_) {
-            int outw = static_cast<int>(loaded_texture_->width()) * model.scale;
-            int outh = static_cast<int>(loaded_texture_->height()) * model.scale;
+            i32 outw = static_cast<i32>(loaded_texture_->width()) * model.scale;
+            i32 outh = static_cast<i32>(loaded_texture_->height()) * model.scale;
             ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
         }
 
         ImGui::Spacing();
 
-        if (!upscale_status_.empty()) {
-            ImGui::TextWrapped("%s", upscale_status_.c_str());
-            ImGui::Spacing();
+        {
+            std::string status_snapshot;
+            {
+                std::lock_guard<std::mutex> lk(upscale_status_mtx_);
+                status_snapshot = upscale_status_;
+            }
+            if (!status_snapshot.empty()) {
+                ImGui::TextWrapped("%s", status_snapshot.c_str());
+                ImGui::Spacing();
+            }
         }
 
         bool busy = upscale_in_progress_;
@@ -554,10 +611,7 @@ void App::drawUpscaleDialog() {
                 startUpscaleThread(model, *loaded_texture_, false);
             }
         }
-        if (busy) ImGui::EndDisabled();
-
         ImGui::SameLine();
-        if (busy) ImGui::BeginDisabled();
         if (ImGui::Button("Close", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
@@ -579,35 +633,7 @@ void App::drawAboutDialog() {
         ImGui::TextUnformatted("A texture viewer and converter for game assets.");
         ImGui::Spacing();
         ImGui::SeparatorText("License");
-        ImGui::TextUnformatted(
-            "BSD 3-Clause License\n"
-            "\n"
-            "Copyright (c) 2026, Fernando Sahmkow\n"
-            "\n"
-            "Redistribution and use in source and binary forms, with or without\n"
-            "modification, are permitted provided that the following conditions are met:\n"
-            "\n"
-            "1. Redistributions of source code must retain the above copyright notice,\n"
-            "   this list of conditions and the following disclaimer.\n"
-            "\n"
-            "2. Redistributions in binary form must reproduce the above copyright notice,\n"
-            "   this list of conditions and the following disclaimer in the documentation\n"
-            "   and/or other materials provided with the distribution.\n"
-            "\n"
-            "3. Neither the name of the copyright holder nor the names of its contributors\n"
-            "   may be used to endorse or promote products derived from this software\n"
-            "   without specific prior written permission.\n"
-            "\n"
-            "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\n"
-            "AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n"
-            "IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\n"
-            "DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\n"
-            "FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\n"
-            "DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\n"
-            "SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\n"
-            "CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\n"
-            "OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n"
-            "OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.");
+        ImGui::TextUnformatted(kLicenseText);
         ImGui::Spacing();
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 120.0f) * 0.5f +
                              ImGui::GetCursorPosX());
@@ -622,7 +648,7 @@ void App::drawAboutDialog() {
 // Main loop
 // ============================================================================
 
-int App::run(int argc, char** argv) {
+i32 App::run(i32 argc, char** argv) {
     if (!initSDL())
         return 1;
 
@@ -699,13 +725,13 @@ int App::run(int argc, char** argv) {
                          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                          ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        const float available_width = ImGui::GetContentRegionAvail().x;
-        const float available_height = ImGui::GetContentRegionAvail().y;
-        const float left_panel_width = available_width * 0.4f;
+        const f32 available_width = ImGui::GetContentRegionAvail().x;
+        const f32 available_height = ImGui::GetContentRegionAvail().y;
+        const f32 left_panel_width = available_width * 0.4f;
 
         const bool show_mip_list = loaded_texture_ && loaded_texture_->mipCount() > 1;
-        const float mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
-        const float details_height = available_height - mip_list_height;
+        const f32 mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
+        const f32 details_height = available_height - mip_list_height;
 
         // Left column
         ImGui::BeginGroup();
@@ -760,7 +786,7 @@ int App::run(int argc, char** argv) {
 #endif
         }
         if (show_mip_list) {
-            int new_mip = image_details_.drawMipList(
+            i32 new_mip = image_details_.drawMipList(
                 *loaded_texture_, viewer_.selectedMip(),
                 left_panel_width, mip_list_height);
             if (new_mip >= 0)

@@ -28,17 +28,17 @@
 namespace whiteout::gui {
 
 /// Application configuration constants.
-constexpr int WINDOW_WIDTH = 1280;
-constexpr int WINDOW_HEIGHT = 800;
-constexpr int MIN_WINDOW_WIDTH = 320;
-constexpr int MIN_WINDOW_HEIGHT = 240;
+constexpr i32 WINDOW_WIDTH = 1280;
+constexpr i32 WINDOW_HEIGHT = 800;
+constexpr i32 MIN_WINDOW_WIDTH = 320;
+constexpr i32 MIN_WINDOW_HEIGHT = 240;
 constexpr const char* WINDOW_TITLE = "WhiteoutTex";
 
 /// File dialog state shared between the OS callback and the main loop.
 struct FileDialogState {
     std::mutex mtx;
     std::string pending_path;
-    int pending_filter = -1;
+    i32 pending_filter = -1;
     std::atomic<bool> has_pending{false};
 };
 
@@ -53,7 +53,7 @@ public:
     App& operator=(const App&) = delete;
 
     /// Run the application.  Returns the process exit code.
-    int run(int argc = 0, char** argv = nullptr);
+    i32 run(i32 argc = 0, char** argv = nullptr);
 
 private:
     bool initSDL();
@@ -135,10 +135,11 @@ private:
     Upscaler upscaler_;
     bool show_upscale_dialog_ = false;
     bool upscale_in_progress_ = false;
-    int upscale_model_index_ = 0;
-    int upscale_gpu_id_ = 0;
+    i32 upscale_model_index_ = 0;
+    i32 upscale_gpu_id_ = 0;
     std::vector<UpscalerModel> upscale_models_;
     std::string upscale_status_;
+    mutable std::mutex upscale_status_mtx_; ///< Guards upscale_status_ across threads.
     std::atomic<bool> upscale_done_{false};
     bool upscale_success_ = false;
     std::optional<textures::Texture> upscale_result_;
@@ -147,7 +148,7 @@ private:
 };
 
 /// Convenience wrapper matching the old API.
-inline int run(int argc = 0, char** argv = nullptr) {
+inline i32 run(i32 argc = 0, char** argv = nullptr) {
     App app;
     return app.run(argc, argv);
 }

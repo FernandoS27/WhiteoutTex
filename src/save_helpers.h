@@ -20,34 +20,45 @@
 namespace whiteout::gui {
 
 // ============================================================================
+// Shared channel array
+// ============================================================================
+
+/// The four RGBA channels in order, used by Multikind iteration and
+/// per-channel upscaling.
+inline constexpr whiteout::textures::Channel kRGBAChannels[] = {
+    whiteout::textures::Channel::R,
+    whiteout::textures::Channel::G,
+    whiteout::textures::Channel::B,
+    whiteout::textures::Channel::A,
+};
+
+// ============================================================================
 // BLP encoding validation
 // ============================================================================
 
 /// Allowed encoding indices for BLP1 (Paletted=2, JPEG=3).
-inline constexpr int BLP1_ENCODINGS[]     = {2, 3};
-inline constexpr int BLP1_ENCODING_COUNT  = 2;
+inline constexpr i32 BLP1_ENCODINGS[]     = {2, 3};
 
 /// Allowed encoding indices for BLP2 (all seven).
-inline constexpr int BLP2_ENCODINGS[]     = {0, 1, 2, 3, 4, 5, 6};
-inline constexpr int BLP2_ENCODING_COUNT  = 7;
+inline constexpr i32 BLP2_ENCODINGS[]     = {0, 1, 2, 3, 4, 5, 6};
 
 /// Return the allowed encoding set for the given BLP version combo-box index.
-inline void blpAllowedEncodings(int blp_version, const int*& out_allowed, int& out_count) noexcept {
+inline void blpAllowedEncodings(i32 blp_version, const i32*& out_allowed, i32& out_count) noexcept {
     if (blp_version == 0) { // BLP1
         out_allowed = BLP1_ENCODINGS;
-        out_count   = BLP1_ENCODING_COUNT;
+        out_count   = static_cast<i32>(std::size(BLP1_ENCODINGS));
     } else {
         out_allowed = BLP2_ENCODINGS;
-        out_count   = BLP2_ENCODING_COUNT;
+        out_count   = static_cast<i32>(std::size(BLP2_ENCODINGS));
     }
 }
 
 /// Clamp @p encoding to the set valid for `blp_version`. Returns true if it was already valid.
-inline bool validateBlpEncoding(int blp_version, int& encoding) noexcept {
-    const int* allowed;
-    int count;
+inline bool validateBlpEncoding(i32 blp_version, i32& encoding) noexcept {
+    const i32* allowed;
+    i32 count;
     blpAllowedEncodings(blp_version, allowed, count);
-    for (int i = 0; i < count; ++i)
+    for (i32 i = 0; i < count; ++i)
         if (allowed[i] == encoding) return true;
     encoding = allowed[0];
     return false;
@@ -57,18 +68,14 @@ inline bool validateBlpEncoding(int blp_version, int& encoding) noexcept {
 // DDS format presets by texture-kind group
 // ============================================================================
 
-inline constexpr int DDS_PRESET_NORMAL[]       = {0, 5, 8};
-inline constexpr int DDS_PRESET_NORMAL_COUNT   = 3;
+inline constexpr i32 DDS_PRESET_NORMAL[]       = {0, 5, 8};
 
-inline constexpr int DDS_PRESET_CHANNEL[]      = {0, 4};
-inline constexpr int DDS_PRESET_CHANNEL_COUNT  = 2;
+inline constexpr i32 DDS_PRESET_CHANNEL[]      = {0, 4};
 
-inline constexpr int DDS_PRESET_OTHER[]        = {0, 1, 2, 3, 6, 7};
-inline constexpr int DDS_PRESET_OTHER_COUNT    = 6;
+inline constexpr i32 DDS_PRESET_OTHER[]        = {0, 1, 2, 3, 6, 7};
 
 /// All DDS format indices (used for batch convert "General" mode).
-inline constexpr int DDS_ALL[]       = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-inline constexpr int DDS_ALL_COUNT   = 9;
+inline constexpr i32 DDS_ALL[]       = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 
 /// Returns true for channel-map texture kinds (Roughness, Metalness, AO, Gloss).
 inline bool isChannelMapKind(whiteout::textures::TextureKind kind) noexcept {
@@ -80,25 +87,25 @@ inline bool isChannelMapKind(whiteout::textures::TextureKind kind) noexcept {
 
 /// Select the DDS format preset array for the given texture kind.
 inline void ddsPresetForKind(whiteout::textures::TextureKind kind,
-                             const int*& out_allowed, int& out_count) noexcept {
+                             const i32*& out_allowed, i32& out_count) noexcept {
     if (kind == whiteout::textures::TextureKind::Normal) {
         out_allowed = DDS_PRESET_NORMAL;
-        out_count   = DDS_PRESET_NORMAL_COUNT;
+        out_count   = static_cast<i32>(std::size(DDS_PRESET_NORMAL));
     } else if (isChannelMapKind(kind)) {
         out_allowed = DDS_PRESET_CHANNEL;
-        out_count   = DDS_PRESET_CHANNEL_COUNT;
+        out_count   = static_cast<i32>(std::size(DDS_PRESET_CHANNEL));
     } else {
         out_allowed = DDS_PRESET_OTHER;
-        out_count   = DDS_PRESET_OTHER_COUNT;
+        out_count   = static_cast<i32>(std::size(DDS_PRESET_OTHER));
     }
 }
 
 /// Clamp @p dds_format to the set valid for @p kind.  Returns true if it was already valid.
-inline bool validateDdsFormat(whiteout::textures::TextureKind kind, int& dds_format) noexcept {
-    const int* allowed;
-    int count;
+inline bool validateDdsFormat(whiteout::textures::TextureKind kind, i32& dds_format) noexcept {
+    const i32* allowed;
+    i32 count;
     ddsPresetForKind(kind, allowed, count);
-    for (int i = 0; i < count; ++i)
+    for (i32 i = 0; i < count; ++i)
         if (allowed[i] == dds_format) return true;
     dds_format = allowed[0];
     return false;
@@ -127,11 +134,11 @@ inline constexpr whiteout::textures::PixelFormat DDS_PIXEL_FORMATS[] = {
 /// Populate a BlpSaveOptions struct from GUI combo-box indices
 /// and coerce the texture to the required pixel format.
 whiteout::textures::blp::SaveOptions buildBlpSaveOptions(
-    int blp_version, int blp_encoding,
-    bool dither, float dither_strength, int jpeg_quality) noexcept;
+    i32 blp_version, i32 blp_encoding,
+    bool dither, f32 dither_strength, i32 jpeg_quality) noexcept;
 
 /// Coerce @p tex to the pixel format required by the chosen BLP encoding.
-void coerceBlpFormat(whiteout::textures::Texture& tex, int blp_encoding,
+void coerceBlpFormat(whiteout::textures::Texture& tex, i32 blp_encoding,
                      whiteout::textures::blp::BlpEncoding enc,
                      whiteout::interfaces::WorkerPool* pool = nullptr);
 
@@ -141,7 +148,7 @@ void coerceBlpFormat(whiteout::textures::Texture& tex, int blp_encoding,
 
 /// Apply DDS target-format conversion, including BC3N channel swapping and
 /// optional Y-channel inversion. Call after mipmap generation.
-void coerceDdsFormat(whiteout::textures::Texture& tex, int dds_format, bool invert_y,
+void coerceDdsFormat(whiteout::textures::Texture& tex, i32 dds_format, bool invert_y,
                      whiteout::interfaces::WorkerPool* pool = nullptr);
 
 // ============================================================================
@@ -149,8 +156,8 @@ void coerceDdsFormat(whiteout::textures::Texture& tex, int dds_format, bool inve
 // ============================================================================
 
 /// Clamp @p fmt to the given @p allowed set.  Used by drawDdsFormatCombo.
-inline void validateDdsFormatRaw(int& fmt, const int* allowed, int count) noexcept {
-    for (int i = 0; i < count; ++i)
+inline void validateDdsFormatRaw(i32& fmt, const i32* allowed, i32 count) noexcept {
+    for (i32 i = 0; i < count; ++i)
         if (allowed[i] == fmt) return;
     fmt = allowed[0];
 }
@@ -171,7 +178,7 @@ std::optional<whiteout::textures::Texture> loadD4TexWithFallback(
 
 /// Compute the effective mip count to pass to generateMipmaps().
 /// Returns 0 if no generation should happen (KeepOriginal mode).
-inline whiteout::u32 effectiveMipCount(MipmapMode mode, int customCount,
+inline whiteout::u32 effectiveMipCount(MipmapMode mode, i32 customCount,
                                        const whiteout::textures::Texture& tex) {
     using namespace whiteout::textures;
     switch (mode) {
@@ -179,12 +186,20 @@ inline whiteout::u32 effectiveMipCount(MipmapMode mode, int customCount,
         return computeMaxMipCount(tex.width(), tex.height());
     case MipmapMode::Custom: {
         const u32 maxMips = computeMaxMipCount(tex.width(), tex.height());
-        return static_cast<u32>(std::clamp(customCount, 1, static_cast<int>(maxMips)));
+        return static_cast<u32>(std::clamp(customCount, 1, static_cast<i32>(maxMips)));
     }
     default:
         return 0; // KeepOriginal
     }
 }
+
+// ============================================================================
+// Shared downscale options
+// ============================================================================
+
+/// Downscale factor labels for combo boxes in both image_details and batch_convert.
+inline constexpr const char* kDownscaleOptions[] = {"x2 (halve)", "x4 (quarter)"};
+inline constexpr i32 kDownscaleOptionCount = static_cast<i32>(std::size(kDownscaleOptions));
 
 // ============================================================================
 // Texture kind guessing helper
@@ -199,10 +214,8 @@ inline void applyGuessedKind(whiteout::textures::Texture& tex, const std::string
     tex.setKind(kind);
     if (kind == t::TextureKind::Multikind) {
         auto ch = t::TextureConverter::guessTextureMultiKind(path, tex.format());
-        tex.setChannelKind(t::Channel::R, ch[0]);
-        tex.setChannelKind(t::Channel::G, ch[1]);
-        tex.setChannelKind(t::Channel::B, ch[2]);
-        tex.setChannelKind(t::Channel::A, ch[3]);
+        for (i32 i = 0; i < 4; ++i)
+            tex.setChannelKind(kRGBAChannels[i], ch[i]);
     }
 }
 
@@ -212,20 +225,20 @@ inline void applyGuessedKind(whiteout::textures::Texture& tex, const std::string
 
 /// Draw the BLP options panel (version, encoding, dither, JPEG quality).
 /// Used by both SaveDialog and BatchConvert.
-inline void drawBlpOptionsUI(int& blp_version, int& blp_encoding,
-                             bool& blp_dither, float& blp_dither_strength,
-                             int& jpeg_quality) {
+inline void drawBlpOptionsUI(i32& blp_version, i32& blp_encoding,
+                             bool& blp_dither, f32& blp_dither_strength,
+                             i32& jpeg_quality) {
     ImGui::SeparatorText("BLP Options");
     ImGui::Combo("BLP Version", &blp_version,
                  "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
     {
-        const int* enc_allowed;
-        int enc_count;
+        const i32* enc_allowed;
+        i32 enc_count;
         blpAllowedEncodings(blp_version, enc_allowed, enc_count);
         validateBlpEncoding(blp_version, blp_encoding);
 
         if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[blp_encoding])) {
-            for (int i = 0; i < enc_count; ++i) {
+            for (i32 i = 0; i < enc_count; ++i) {
                 bool selected = (blp_encoding == enc_allowed[i]);
                 if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
                     blp_encoding = enc_allowed[i];
@@ -256,14 +269,8 @@ inline void copyKindMetadata(whiteout::textures::Texture& dst,
     dst.setKind(src.kind());
     dst.setSrgb(src.isSrgb());
     if (src.kind() == whiteout::textures::TextureKind::Multikind) {
-        dst.setChannelKind(whiteout::textures::Channel::R,
-                           src.channelKind(whiteout::textures::Channel::R));
-        dst.setChannelKind(whiteout::textures::Channel::G,
-                           src.channelKind(whiteout::textures::Channel::G));
-        dst.setChannelKind(whiteout::textures::Channel::B,
-                           src.channelKind(whiteout::textures::Channel::B));
-        dst.setChannelKind(whiteout::textures::Channel::A,
-                           src.channelKind(whiteout::textures::Channel::A));
+        for (auto ch : kRGBAChannels)
+            dst.setChannelKind(ch, src.channelKind(ch));
     }
 }
 

@@ -25,15 +25,15 @@ namespace whiteout::gui {
 // ============================================================================
 
 void SaveDialog::buildFilterOrder(const SavePrefs& prefs) {
-    const int preferred = std::clamp(prefs.last_filter, 0, SAVE_FILTER_COUNT - 1);
+    const i32 preferred = std::clamp(prefs.last_filter, 0, SAVE_FILTER_COUNT - 1);
     filter_map_[0] = preferred;
-    int slot = 1;
-    for (int i = 0; i < SAVE_FILTER_COUNT; ++i) {
+    i32 slot = 1;
+    for (i32 i = 0; i < SAVE_FILTER_COUNT; ++i) {
         if (i != preferred) {
             filter_map_[slot++] = i;
         }
     }
-    for (int i = 0; i < SAVE_FILTER_COUNT; ++i) {
+    for (i32 i = 0; i < SAVE_FILTER_COUNT; ++i) {
         active_filters_[i] = SAVE_FILTERS[filter_map_[i]];
     }
 }
@@ -42,7 +42,7 @@ void SaveDialog::buildFilterOrder(const SavePrefs& prefs) {
 // File chosen callback
 // ============================================================================
 
-void SaveDialog::onFileChosen(const std::string& path, int filter_idx, SavePrefs& prefs,
+void SaveDialog::onFileChosen(const std::string& path, i32 filter_idx, SavePrefs& prefs,
                               const tex::Texture* loaded_texture) {
     // Append extension if missing
     std::string final_path = path;
@@ -71,7 +71,7 @@ void SaveDialog::onFileChosen(const std::string& path, int filter_idx, SavePrefs
     // Restore last-used options
     opts_.applyPrefs(prefs);
     opts_.texture_kind =
-        static_cast<int>(loaded_texture ? loaded_texture->kind() : tex::TextureKind::Other);
+        static_cast<i32>(loaded_texture ? loaded_texture->kind() : tex::TextureKind::Other);
 }
 
 // ============================================================================
@@ -138,10 +138,10 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
             auto cur = static_cast<tex::TextureKind>(opts_.texture_kind);
             const char* preview = textureKindName(cur);
             if (ImGui::BeginCombo("Texture Kind", preview)) {
-                for (int i = 0; i < kSelectableKindCount; ++i) {
+                for (i32 i = 0; i < kSelectableKindCount; ++i) {
                     bool selected = (kSelectableKinds[i].kind == cur);
                     if (ImGui::Selectable(kSelectableKinds[i].name, selected))
-                        opts_.texture_kind = static_cast<int>(kSelectableKinds[i].kind);
+                        opts_.texture_kind = static_cast<i32>(kSelectableKinds[i].kind);
                     if (selected)
                         ImGui::SetItemDefaultFocus();
                 }
@@ -149,9 +149,9 @@ std::string SaveDialog::draw(TC& converter, const tex::Texture* loaded_texture, 
             }
         }
         {
-            int maxMips = 0;
+            i32 maxMips = 0;
             if (loaded_texture)
-                maxMips = static_cast<int>(
+                maxMips = static_cast<i32>(
                     tex::computeMaxMipCount(loaded_texture->width(), loaded_texture->height()));
             drawMipmapModeUI(opts_.prefs.generate_mipmaps, opts_.prefs.mipmap_mode,
                              opts_.prefs.mipmap_custom_count, maxMips);
@@ -188,16 +188,16 @@ void SaveDialog::drawDdsOptions() {
     ImGui::SeparatorText("DDS Options");
 
     const auto tk_kind = static_cast<tex::TextureKind>(opts_.texture_kind);
-    const int* allowed;
-    int allowed_count;
+    const i32* allowed;
+    i32 allowed_count;
     ddsPresetForKind(tk_kind, allowed, allowed_count);
     validateDdsFormat(tk_kind, opts_.prefs.dds_format);
 
     char preset_label[128];
     {
-        int n = std::snprintf(preset_label, sizeof(preset_label), "Preset: %s — ",
+        i32 n = std::snprintf(preset_label, sizeof(preset_label), "Preset: %s — ",
                               textureKindName(static_cast<tex::TextureKind>(opts_.texture_kind)));
-        for (int i = 0; i < allowed_count && n < (int)sizeof(preset_label) - 1; ++i) {
+        for (i32 i = 0; i < allowed_count && n < (i32)sizeof(preset_label) - 1; ++i) {
             if (i > 0)
                 n += std::snprintf(preset_label + n, sizeof(preset_label) - n, ", ");
             n += std::snprintf(preset_label + n, sizeof(preset_label) - n, "%s",
@@ -207,7 +207,7 @@ void SaveDialog::drawDdsOptions() {
     ImGui::TextDisabled("%s", preset_label);
 
     if (ImGui::BeginCombo("Pixel Format", DDS_FORMAT_NAMES[opts_.prefs.dds_format])) {
-        for (int i = 0; i < allowed_count; ++i) {
+        for (i32 i = 0; i < allowed_count; ++i) {
             bool selected = (opts_.prefs.dds_format == allowed[i]);
             if (ImGui::Selectable(DDS_FORMAT_NAMES[allowed[i]], selected))
                 opts_.prefs.dds_format = allowed[i];

@@ -32,7 +32,7 @@ struct ImageDetailsResult {
     bool result_success = false;
 #ifdef WHITEOUT_HAS_UPSCALER
     /// If >= 0, the user clicked Upscale with this model index.
-    int upscale_model_index = -1;
+    i32 upscale_model_index = -1;
     /// Whether to upscale alpha through the model.
     bool upscale_alpha = false;
 #endif
@@ -56,7 +56,7 @@ public:
         const std::string& path,
         whiteout::textures::TextureFileFormat file_format,
         whiteout::textures::PixelFormat source_fmt,
-        float width, float height);
+        f32 width, f32 height);
 
     /// Draw the mip list (selectable mip levels).
     /// @param texture      The currently loaded texture.
@@ -64,8 +64,8 @@ public:
     /// @param width        Panel width.
     /// @param height       Panel height.
     /// @return The newly selected mip index, or -1 if unchanged.
-    int drawMipList(const whiteout::textures::Texture& texture,
-                    int selected_mip, float width, float height);
+    i32 drawMipList(const whiteout::textures::Texture& texture,
+                    i32 selected_mip, f32 width, f32 height);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).
@@ -78,14 +78,14 @@ private:
     // Mipmap regeneration options
     bool generate_mips_ = true;
     MipmapMode mipmap_mode_ = MipmapMode::KeepOriginal;
-    int mipmap_custom_count_ = 1;
+    i32 mipmap_custom_count_ = 1;
 
     // Downscale options
-    int downscale_level_ = 0; // 0 = x2 (1 level), 1 = x4 (2 levels)
+    i32 downscale_level_ = 0; // 0 = x2 (1 level), 1 = x4 (2 levels)
 
 #ifdef WHITEOUT_HAS_UPSCALER
     std::vector<UpscalerModel> upscale_models_;
-    int upscale_model_index_ = 0;
+    i32 upscale_model_index_ = 0;
     bool upscale_in_progress_ = false;
     bool upscale_alpha_ = false;
 #endif

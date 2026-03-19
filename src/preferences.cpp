@@ -48,7 +48,7 @@ static void visitIniSection(const std::string& ini_path, const char* section, Vi
 MainWindowIniRect load_main_window_ini_rect(const std::string& ini_path) {
     MainWindowIniRect rect;
     visitIniSection(ini_path, "[Window][##MainWindow]", [&](const std::string& line) {
-        int a = 0, b = 0;
+        i32 a = 0, b = 0;
         if (std::sscanf(line.c_str(), "Pos=%d,%d", &a, &b) == 2) {
             rect.pos_x = a;
             rect.pos_y = b;
@@ -65,7 +65,7 @@ MainWindowIniRect load_main_window_ini_rect(const std::string& ini_path) {
 SavedHostWindowSize load_saved_host_window_size(const std::string& ini_path) {
     SavedHostWindowSize saved;
     visitIniSection(ini_path, "[WhiteoutTex][SDLWindow]", [&](const std::string& line) {
-        int w = 0, h = 0;
+        i32 w = 0, h = 0;
         if (std::sscanf(line.c_str(), "Size=%d,%d", &w, &h) == 2) {
             saved.width = w;
             saved.height = h;
@@ -75,7 +75,7 @@ SavedHostWindowSize load_saved_host_window_size(const std::string& ini_path) {
     return saved;
 }
 
-void append_saved_host_window_size(const std::string& ini_path, int width, int height) {
+void append_saved_host_window_size(const std::string& ini_path, i32 width, i32 height) {
     std::ofstream out(ini_path, std::ios::app);
     if (!out.is_open()) {
         return;
@@ -88,15 +88,15 @@ void append_saved_host_window_size(const std::string& ini_path, int width, int h
 SavePrefs load_save_prefs(const std::string& ini_path) {
     SavePrefs prefs;
     visitIniSection(ini_path, "[WhiteoutTex][SavePrefs]", [&](const std::string& line) {
-        int iv = 0;
-        float fv = 0.0f;
+        i32 iv = 0;
+        f32 fv = 0.0f;
         if (std::sscanf(line.c_str(), "LastFilter=%d", &iv) == 1)
             prefs.last_filter = iv;
-        else if (line.rfind("LastOpenDir=", 0) == 0)
+        else if (line.starts_with("LastOpenDir="))
             prefs.last_open_dir = line.substr(12);
-        else if (line.rfind("LastSaveDir=", 0) == 0)
+        else if (line.starts_with("LastSaveDir="))
             prefs.last_save_dir = line.substr(12);
-        else if (line.rfind("LastCascDir=", 0) == 0)
+        else if (line.starts_with("LastCascDir="))
             prefs.last_casc_dir = line.substr(12);
         else if (std::sscanf(line.c_str(), "BlpVersion=%d", &iv) == 1)
             prefs.blp_version = iv;
@@ -140,18 +140,18 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "DdsInvertY=" << (prefs.dds_invert_y ? 1 : 0) << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
-    out << "MipmapMode=" << static_cast<int>(prefs.mipmap_mode) << "\n";
+    out << "MipmapMode=" << static_cast<i32>(prefs.mipmap_mode) << "\n";
     out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
 }
 
 BatchPrefs load_batch_prefs(const std::string& ini_path) {
     BatchPrefs prefs;
     visitIniSection(ini_path, "[WhiteoutTex][BatchPrefs]", [&](const std::string& line) {
-        int iv = 0;
-        float fv = 0.0f;
-        if (line.rfind("LastInputDir=", 0) == 0)
+        i32 iv = 0;
+        f32 fv = 0.0f;
+        if (line.starts_with("LastInputDir="))
             prefs.last_input_dir = line.substr(13);
-        else if (line.rfind("LastOutputDir=", 0) == 0)
+        else if (line.starts_with("LastOutputDir="))
             prefs.last_output_dir = line.substr(14);
         else if (std::sscanf(line.c_str(), "FilterBlp=%d", &iv) == 1)
             prefs.filter_blp = iv != 0;
@@ -203,21 +203,21 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
             prefs.mipmap_mode = static_cast<MipmapMode>(std::clamp(iv, 0, 2));
         else if (std::sscanf(line.c_str(), "MipmapCustomCount=%d", &iv) == 1)
             prefs.mipmap_custom_count = std::max(1, iv);
-        else if (line.rfind("Transform=", 0) == 0) {
+        else if (line.starts_with("Transform=")) {
             TransformStep step;
             const char* p = line.c_str() + 10;
-            int type_int = 0;
-            int n = 0;
+            i32 type_int = 0;
+            i32 n = 0;
             if (std::sscanf(p, "%d%n", &type_int, &n) == 1) {
                 step.type = static_cast<TransformType>(std::clamp(type_int, 0, 1));
                 p += n;
                 if (*p == ',') ++p;
                 if (step.type == TransformType::Downscale) {
-                    int lvl = 1;
+                    i32 lvl = 1;
                     if (std::sscanf(p, "%d", &lvl) == 1)
                         step.downscale_levels = std::clamp(lvl, 1, 2);
                 } else {
-                    int mi = 0, ua = 0;
+                    i32 mi = 0, ua = 0;
                     if (std::sscanf(p, "%d,%d", &mi, &ua) >= 1) {
                         step.upscale_model_index = std::max(0, mi);
                         step.upscale_alpha = ua != 0;
@@ -261,10 +261,10 @@ void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
     out << "DdsFormatOther=" << prefs.dds_format_other << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
-    out << "MipmapMode=" << static_cast<int>(prefs.mipmap_mode) << "\n";
+    out << "MipmapMode=" << static_cast<i32>(prefs.mipmap_mode) << "\n";
     out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
     for (const auto& step : prefs.transform_pipeline) {
-        out << "Transform=" << static_cast<int>(step.type) << ",";
+        out << "Transform=" << static_cast<i32>(step.type) << ",";
         if (step.type == TransformType::Downscale) {
             out << step.downscale_levels;
         } else {
@@ -277,7 +277,7 @@ void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
 RecentFiles load_recent_files(const std::string& ini_path) {
     RecentFiles recent;
     visitIniSection(ini_path, "[WhiteoutTex][RecentFiles]", [&](const std::string& line) {
-        if (!line.empty() && static_cast<int>(recent.paths.size()) < MAX_RECENT_PATHS)
+        if (!line.empty() && static_cast<i32>(recent.paths.size()) < MAX_RECENT_PATHS)
             recent.paths.push_back(line);
     });
     return recent;
@@ -295,7 +295,7 @@ void append_recent_files(const std::string& ini_path, const RecentFiles& recent)
 RecentPaths load_recent_paths(const std::string& ini_path, const char* section) {
     RecentPaths recent;
     visitIniSection(ini_path, section, [&](const std::string& line) {
-        if (!line.empty() && static_cast<int>(recent.paths.size()) < MAX_RECENT_PATHS)
+        if (!line.empty() && static_cast<i32>(recent.paths.size()) < MAX_RECENT_PATHS)
             recent.paths.push_back(line);
     });
     return recent;

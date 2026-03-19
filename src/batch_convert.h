@@ -42,7 +42,7 @@ public:
 
 private:
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                              int filter);
+                                              i32 filter);
 
     void processFolderResults();
     std::string beginBatch();
@@ -76,12 +76,12 @@ private:
     std::vector<std::string> pending_files_;
     std::string batch_input_dir_;
     std::string batch_output_dir_;
-    std::atomic<int> batch_processed_{0};
-    std::atomic<int> batch_success_{0};
-    std::atomic<int> batch_fail_{0};
+    std::atomic<i32> batch_processed_{0};
+    std::atomic<i32> batch_success_{0};
+    std::atomic<i32> batch_fail_{0};
     std::atomic<bool> batch_done_{false};
     std::vector<std::thread> workers_;
-    std::atomic<int> work_index_{0};
+    std::atomic<i32> work_index_{0};
 
     FolderState input_folder_state_;
     FolderState output_folder_state_;

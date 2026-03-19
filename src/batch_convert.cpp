@@ -28,10 +28,11 @@ using whiteout::gui::DDS_FORMAT_NAMES;
 
 namespace {
 
+using whiteout::i32;
+
 // ── Output format table ────────────────────────────────────────────────
 
 constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG", "TGA"};
-constexpr int OUTPUT_FORMAT_COUNT = static_cast<int>(std::size(OUTPUT_FORMAT_NAMES));
 constexpr const char* OUTPUT_EXTENSIONS[] = {".blp", ".bmp", ".dds", ".jpg", ".png", ".tga"};
 
 // ── BLP / DDS name arrays live in save_dialog.h
@@ -49,10 +50,10 @@ static bool matchesFilter(const std::string& ext, const whiteout::gui::BatchPref
     return false;
 }
 
-static void drawDdsFormatCombo(const char* label, int& fmt, const int* allowed, int count) {
+static void drawDdsFormatCombo(const char* label, i32& fmt, const i32* allowed, i32 count) {
     whiteout::gui::validateDdsFormatRaw(fmt, allowed, count);
     if (ImGui::BeginCombo(label, DDS_FORMAT_NAMES[fmt])) {
-        for (int i = 0; i < count; ++i) {
+        for (i32 i = 0; i < count; ++i) {
             bool selected = (fmt == allowed[i]);
             if (ImGui::Selectable(DDS_FORMAT_NAMES[allowed[i]], selected))
                 fmt = allowed[i];
@@ -72,7 +73,7 @@ namespace whiteout::gui {
 // ============================================================================
 
 void SDLCALL BatchConvert::folderDialogCallback(void* userdata, const char* const* filelist,
-                                                  int /*filter*/) {
+                                                   i32 /*filter*/) {
     if (!filelist || !filelist[0])
         return;
     auto* state = static_cast<FolderState*>(userdata);
@@ -95,16 +96,8 @@ void BatchConvert::open(const BatchPrefs& prefs) {
 // ============================================================================
 
 void BatchConvert::processFolderResults() {
-    if (input_folder_state_.has_pending.load()) {
-        std::lock_guard lock(input_folder_state_.mtx);
-        copyToBuffer(input_dir_buf_, input_folder_state_.pending_path);
-        input_folder_state_.has_pending.store(false);
-    }
-    if (output_folder_state_.has_pending.load()) {
-        std::lock_guard lock(output_folder_state_.mtx);
-        copyToBuffer(output_dir_buf_, output_folder_state_.pending_path);
-        output_folder_state_.has_pending.store(false);
-    }
+    consumeFolderResult(input_folder_state_, input_dir_buf_);
+    consumeFolderResult(output_folder_state_, output_dir_buf_);
 }
 
 // ============================================================================
@@ -192,7 +185,8 @@ std::string BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs,
                                  output_dir_buf_[0] ? output_dir_buf_ : nullptr, false);
     }
 
-    ImGui::Combo("Format", &prefs_.output_format, OUTPUT_FORMAT_NAMES, OUTPUT_FORMAT_COUNT);
+    ImGui::Combo("Format", &prefs_.output_format, OUTPUT_FORMAT_NAMES,
+                 static_cast<i32>(std::size(OUTPUT_FORMAT_NAMES)));
 
     // ── Format-specific options ────────────────────────────────────────
 
@@ -274,13 +268,14 @@ void BatchConvert::drawDdsOptions() {
     ImGui::Spacing();
 
     if (prefs_.dds_mode == 0) {
-        drawDdsFormatCombo("Pixel Format", prefs_.dds_format_general, DDS_ALL, DDS_ALL_COUNT);
+        drawDdsFormatCombo("Pixel Format", prefs_.dds_format_general,
+                           DDS_ALL, static_cast<i32>(std::size(DDS_ALL)));
         ImGui::Checkbox("Invert Y Channel", &prefs_.dds_invert_y_general);
     } else {
         ImGui::TextDisabled("Normal Maps:");
         ImGui::Indent();
         drawDdsFormatCombo("Pixel Format##normal", prefs_.dds_format_normal,
-                           DDS_PRESET_NORMAL, DDS_PRESET_NORMAL_COUNT);
+                           DDS_PRESET_NORMAL, static_cast<i32>(std::size(DDS_PRESET_NORMAL)));
         ImGui::Checkbox("Invert Y Channel##normal", &prefs_.dds_invert_y_normal);
         ImGui::Unindent();
 
@@ -288,14 +283,14 @@ void BatchConvert::drawDdsOptions() {
         ImGui::TextDisabled("Channel Maps (Roughness, Metalness, AO, Gloss):");
         ImGui::Indent();
         drawDdsFormatCombo("Pixel Format##channel", prefs_.dds_format_channel,
-                           DDS_PRESET_CHANNEL, DDS_PRESET_CHANNEL_COUNT);
+                           DDS_PRESET_CHANNEL, static_cast<i32>(std::size(DDS_PRESET_CHANNEL)));
         ImGui::Unindent();
 
         ImGui::Spacing();
         ImGui::TextDisabled("Other:");
         ImGui::Indent();
         drawDdsFormatCombo("Pixel Format##other", prefs_.dds_format_other,
-                           DDS_PRESET_OTHER, DDS_PRESET_OTHER_COUNT);
+                           DDS_PRESET_OTHER, static_cast<i32>(std::size(DDS_PRESET_OTHER)));
         ImGui::Unindent();
     }
 }
@@ -309,11 +304,11 @@ void BatchConvert::drawTransformPipeline() {
     ImGui::TextDisabled("Steps are applied in order after loading each texture.");
 
     // Draw each step with controls
-    int remove_idx = -1;
-    int swap_up_idx = -1;
-    int swap_down_idx = -1;
+    i32 remove_idx = -1;
+    i32 swap_up_idx = -1;
+    i32 swap_down_idx = -1;
 
-    for (int i = 0; i < static_cast<int>(prefs_.transform_pipeline.size()); ++i) {
+    for (i32 i = 0; i < static_cast<i32>(prefs_.transform_pipeline.size()); ++i) {
         auto& step = prefs_.transform_pipeline[i];
         ImGui::PushID(i);
 
@@ -330,10 +325,10 @@ void BatchConvert::drawTransformPipeline() {
 
         ImGui::SameLine();
 
-        if (i == static_cast<int>(prefs_.transform_pipeline.size()) - 1) ImGui::BeginDisabled();
+        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1) ImGui::BeginDisabled();
         if (ImGui::SmallButton("Down"))
             swap_down_idx = i;
-        if (i == static_cast<int>(prefs_.transform_pipeline.size()) - 1) ImGui::EndDisabled();
+        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1) ImGui::EndDisabled();
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove"))
@@ -342,13 +337,13 @@ void BatchConvert::drawTransformPipeline() {
         ImGui::Indent();
 
         // Transform type selector
-        int type_int = static_cast<int>(step.type);
+        i32 type_int = static_cast<i32>(step.type);
         const char* type_names[] = {"Upscale", "Downscale"};
 
 #ifdef WHITEOUT_HAS_UPSCALER
-        const int type_count = 2;
+        const i32 type_count = 2;
 #else
-        const int type_count = 1; // Only Downscale available without upscaler
+        const i32 type_count = 1; // Only Downscale available without upscaler
         if (type_int == 0) type_int = 1; // Force to Downscale
 #endif
 
@@ -365,11 +360,10 @@ void BatchConvert::drawTransformPipeline() {
 
         // Type-specific options
         if (step.type == TransformType::Downscale) {
-            static const char* kDownscaleOptions[] = {"x2 (halve)", "x4 (quarter)"};
-            int lvl_idx = step.downscale_levels - 1;
+            i32 lvl_idx = step.downscale_levels - 1;
             ImGui::SetNextItemWidth(200.0f);
             if (ImGui::Combo("Scale", &lvl_idx, kDownscaleOptions,
-                             IM_ARRAYSIZE(kDownscaleOptions))) {
+                             kDownscaleOptionCount)) {
                 step.downscale_levels = lvl_idx + 1;
             }
         }
@@ -380,13 +374,13 @@ void BatchConvert::drawTransformPipeline() {
                 ImGui::TextWrapped("No upscaler models found. Place model files in the "
                                    "models/ directory next to the executable.");
             } else {
-                if (step.upscale_model_index >= static_cast<int>(upscale_models_.size()))
+                if (step.upscale_model_index >= static_cast<i32>(upscale_models_.size()))
                     step.upscale_model_index = 0;
                 ImGui::SetNextItemWidth(300.0f);
                 const auto& model = upscale_models_[step.upscale_model_index];
                 std::string combo_label = model.label();
                 if (ImGui::BeginCombo("Model", combo_label.c_str())) {
-                    for (int m = 0; m < static_cast<int>(upscale_models_.size()); ++m) {
+                    for (i32 m = 0; m < static_cast<i32>(upscale_models_.size()); ++m) {
                         bool selected = (m == step.upscale_model_index);
                         std::string ml = upscale_models_[m].label();
                         if (ImGui::Selectable(ml.c_str(), selected))
@@ -404,7 +398,7 @@ void BatchConvert::drawTransformPipeline() {
         ImGui::Unindent();
         ImGui::PopID();
 
-        if (i < static_cast<int>(prefs_.transform_pipeline.size()) - 1)
+        if (i < static_cast<i32>(prefs_.transform_pipeline.size()) - 1)
             ImGui::Spacing();
     }
 
@@ -414,7 +408,7 @@ void BatchConvert::drawTransformPipeline() {
     if (swap_up_idx > 0)
         std::swap(prefs_.transform_pipeline[swap_up_idx], prefs_.transform_pipeline[swap_up_idx - 1]);
     if (swap_down_idx >= 0 &&
-        swap_down_idx < static_cast<int>(prefs_.transform_pipeline.size()) - 1)
+        swap_down_idx < static_cast<i32>(prefs_.transform_pipeline.size()) - 1)
         std::swap(prefs_.transform_pipeline[swap_down_idx], prefs_.transform_pipeline[swap_down_idx + 1]);
 
     // Add step button
@@ -449,9 +443,9 @@ void BatchConvert::drawProgressDialog(std::string& status) {
                                 ImGuiWindowFlags_AlwaysAutoResize |
                                     ImGuiWindowFlags_NoTitleBar |
                                     ImGuiWindowFlags_NoResize)) {
-        const int total = static_cast<int>(pending_files_.size());
-        const int processed = batch_processed_.load(std::memory_order_relaxed);
-        const float fraction = total > 0 ? static_cast<float>(processed) / total : 0.0f;
+        const i32 total = static_cast<i32>(pending_files_.size());
+        const i32 processed = batch_processed_.load(std::memory_order_relaxed);
+        const f32 fraction = total > 0 ? static_cast<f32>(processed) / total : 0.0f;
 
         ImGui::Text("Converting... (%d / %d)", processed, total);
         ImGui::ProgressBar(fraction, ImVec2(-1, 0));
@@ -544,12 +538,12 @@ std::string BatchConvert::beginBatch() {
             break;
         }
     }
-    const int thread_count = has_upscale
+    const i32 thread_count = has_upscale
         ? 1
-        : std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+        : std::max(1, static_cast<i32>(std::thread::hardware_concurrency()));
     workers_.clear();
     workers_.reserve(thread_count);
-    for (int i = 0; i < thread_count; ++i) {
+    for (i32 i = 0; i < thread_count; ++i) {
         workers_.emplace_back([this]() { workerFunc(); });
     }
 
@@ -562,7 +556,7 @@ void BatchConvert::workerFunc() {
     // Each thread gets its own converter to avoid shared mutable state
     TC converter;
     auto* pool = threadPoolManager().get();
-    const int total = static_cast<int>(pending_files_.size());
+    const i32 total = static_cast<i32>(pending_files_.size());
 
     // Take a snapshot of the pipeline for this worker
     const auto pipeline = prefs_.transform_pipeline;
@@ -570,14 +564,14 @@ void BatchConvert::workerFunc() {
 #ifdef WHITEOUT_HAS_UPSCALER
     // Initialize one Upscaler per required model (lazily)
     // Map model_index -> initialized Upscaler
-    std::unordered_map<int, std::unique_ptr<Upscaler>> upscalers;
+    std::unordered_map<i32, std::unique_ptr<Upscaler>> upscalers;
     const auto model_dir = Upscaler::defaultModelDir();
 
-    auto getUpscaler = [&](int model_index) -> Upscaler* {
+    auto getUpscaler = [&](i32 model_index) -> Upscaler* {
         auto it = upscalers.find(model_index);
         if (it != upscalers.end())
             return it->second.get();
-        if (model_index >= static_cast<int>(upscale_models_.size()))
+        if (model_index >= static_cast<i32>(upscale_models_.size()))
             return nullptr;
         auto up = std::make_unique<Upscaler>();
         if (!up->init(model_dir, upscale_models_[model_index]))
@@ -597,7 +591,7 @@ void BatchConvert::workerFunc() {
     };
 
     while (true) {
-        const int idx = work_index_.fetch_add(1, std::memory_order_relaxed);
+        const i32 idx = work_index_.fetch_add(1, std::memory_order_relaxed);
         if (idx >= total)
             break;
 
@@ -648,14 +642,14 @@ void BatchConvert::workerFunc() {
                         pipeline_failed = true;
                         break;
                     }
+                    const auto prev = *loaded;
                     auto result = upscaler->process(*loaded, step.upscale_alpha);
                     if (!result) {
                         pipeline_failed = true;
                         break;
                     }
-                    const auto preserved_kind = loaded->kind();
                     *loaded = std::move(*result);
-                    loaded->setKind(preserved_kind);
+                    copyKindMetadata(*loaded, prev);
                 }
 #endif
             }
@@ -717,7 +711,7 @@ bool BatchConvert::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
     }
 
     case 2: { // DDS
-        int dds_fmt;
+        i32 dds_fmt;
         bool invert_y;
 
         if (prefs_.dds_mode == 1) {

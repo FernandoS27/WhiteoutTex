@@ -24,7 +24,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
     const std::string& path,
     tex::TextureFileFormat file_format,
     tex::PixelFormat source_fmt,
-    float width, float height) {
+    f32 width, f32 height) {
 
     ImageDetailsResult result;
 
@@ -50,7 +50,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
             auto cur_kind = t.kind();
             const char* preview = textureKindName(cur_kind);
             if (ImGui::BeginCombo("Kind", preview)) {
-                for (int i = 0; i < kSelectableKindCount; ++i) {
+                for (i32 i = 0; i < kSelectableKindCount; ++i) {
                     bool selected = (kSelectableKinds[i].kind == cur_kind);
                     if (ImGui::Selectable(kSelectableKinds[i].name, selected)) {
                         texture->setKind(kSelectableKinds[i].kind);
@@ -65,15 +65,13 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
 
         if (texture->kind() == tex::TextureKind::Multikind) {
             static const char* kChLabels[] = {"R Channel", "G Channel", "B Channel", "A Channel"};
-            static const tex::Channel kChannels[] = {
-                tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
-            for (int ci = 0; ci < 4; ++ci) {
-                auto ch = kChannels[ci];
+            for (i32 ci = 0; ci < 4; ++ci) {
+                auto ch = kRGBAChannels[ci];
                 auto ch_kind = texture->channelKind(ch);
                 const char* ch_preview = textureKindName(ch_kind);
                 ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
                 if (ImGui::BeginCombo(kChLabels[ci], ch_preview)) {
-                    for (int ki = 0; ki < kChannelKindCount; ++ki) {
+                    for (i32 ki = 0; ki < kChannelKindCount; ++ki) {
                         bool sel = (kChannelKinds[ki].kind == ch_kind);
                         if (ImGui::Selectable(kChannelKinds[ki].name, sel)) {
                             texture->setChannelKind(ch, kChannelKinds[ki].kind);
@@ -94,7 +92,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
         ImGui::Text("Layers: %u", t.layerCount());
 
         {
-            const int maxMips = static_cast<int>(
+            const i32 maxMips = static_cast<i32>(
                 tex::computeMaxMipCount(t.width(), t.height()));
             drawMipmapModeUI(generate_mips_, mipmap_mode_,
                              mipmap_custom_count_, maxMips);
@@ -128,10 +126,9 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
 
         ImGui::SeparatorText("Downscale");
         {
-            static const char* kDownscaleOptions[] = {"x2", "x4"};
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
             ImGui::Combo("##DownscaleLevel", &downscale_level_,
-                         kDownscaleOptions, IM_ARRAYSIZE(kDownscaleOptions));
+                         kDownscaleOptions, kDownscaleOptionCount);
             const u32 levels = static_cast<u32>(downscale_level_) + 1;
             const u32 new_w = t.width() >> levels;
             const u32 new_h = t.height() >> levels;
@@ -165,7 +162,7 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
             if (upscale_in_progress_) ImGui::BeginDisabled();
             if (ImGui::BeginCombo("##UpscaleModel",
                                   upscale_models_[upscale_model_index_].display_name.c_str())) {
-                for (int i = 0; i < static_cast<int>(upscale_models_.size()); ++i) {
+                for (i32 i = 0; i < static_cast<i32>(upscale_models_.size()); ++i) {
                     bool selected = (i == upscale_model_index_);
                     std::string label = upscale_models_[i].label();
                     if (ImGui::Selectable(label.c_str(), selected)) {
@@ -198,9 +195,9 @@ ImageDetailsResult ImageDetails::drawDetailsPanel(
 // Mip list
 // ============================================================================
 
-int ImageDetails::drawMipList(const tex::Texture& texture,
-                              int selected_mip, float width, float height) {
-    int new_selection = -1;
+i32 ImageDetails::drawMipList(const tex::Texture& texture,
+                              i32 selected_mip, f32 width, f32 height) {
+    i32 new_selection = -1;
 
     ImGui::BeginChild("##MipList", ImVec2(width, height), ImGuiChildFlags_Borders);
     ImGui::SeparatorText("Mip Levels");
@@ -208,8 +205,8 @@ int ImageDetails::drawMipList(const tex::Texture& texture,
         const auto& ml = texture.mipLevel(mip);
         char label[64];
         std::snprintf(label, sizeof(label), "Mip %u  (%u x %u)", mip, ml.width, ml.height);
-        if (ImGui::Selectable(label, selected_mip == static_cast<int>(mip))) {
-            new_selection = static_cast<int>(mip);
+        if (ImGui::Selectable(label, selected_mip == static_cast<i32>(mip))) {
+            new_selection = static_cast<i32>(mip);
         }
     }
     ImGui::EndChild();
@@ -220,7 +217,7 @@ int ImageDetails::drawMipList(const tex::Texture& texture,
 #ifdef WHITEOUT_HAS_UPSCALER
 void ImageDetails::setUpscalerModels(std::vector<UpscalerModel> models) {
     upscale_models_ = std::move(models);
-    if (upscale_model_index_ >= static_cast<int>(upscale_models_.size())) {
+    if (upscale_model_index_ >= static_cast<i32>(upscale_models_.size())) {
         upscale_model_index_ = 0;
     }
 }

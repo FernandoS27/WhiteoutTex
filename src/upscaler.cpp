@@ -55,7 +55,7 @@ static const UpscalerModel kBuiltinModels[] = {
 
 struct Upscaler::Impl {
     std::unique_ptr<RealESRGAN> esrgan;
-    int scale = 4;
+    i32 scale = 4;
 };
 
 // ============================================================================
@@ -97,17 +97,17 @@ std::vector<UpscalerModel> Upscaler::availableModels(
     return found;
 }
 
-int Upscaler::bestGpuIndex() {
+i32 Upscaler::bestGpuIndex() {
     ensureGpuInstance();
-    const int count = ncnn::get_gpu_count();
+    const i32 count = ncnn::get_gpu_count();
     if (count == 0) {
         return 0;
     }
 
-    int best = 0;
+    i32 best = 0;
     u64 best_score = 0;
 
-    for (int i = 0; i < count; ++i) {
+    for (i32 i = 0; i < count; ++i) {
         const auto& info = ncnn::get_gpu_info(i);
         // Prefer discrete GPUs (type 0) over integrated (1), virtual (2), cpu (3).
         u64 score = (info.type() == 0) ? 0x80000000u : 0u;
@@ -126,7 +126,7 @@ int Upscaler::bestGpuIndex() {
 
 bool Upscaler::init(const std::filesystem::path& model_dir,
                     const UpscalerModel& model,
-                    int gpu_id, int tile_size) {
+                    i32 gpu_id, i32 tile_size) {
     impl_->esrgan.reset();
     ensureGpuInstance();
 
@@ -160,9 +160,9 @@ bool Upscaler::init(const std::filesystem::path& model_dir,
     auto bin_path = model_dir / (model.file_stem + ".bin");
 
 #if _WIN32
-    int ret = esrgan->load(param_path.wstring(), bin_path.wstring());
+    i32 ret = esrgan->load(param_path.wstring(), bin_path.wstring());
 #else
-    int ret = esrgan->load(param_path.string(), bin_path.string());
+    i32 ret = esrgan->load(param_path.string(), bin_path.string());
 #endif
 
     if (ret != 0) {
@@ -189,12 +189,12 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
     const tex::Texture& work = needs_conversion ? *converted : input;
 
     const u32 mip_count = work.mipCount();
-    const int w = static_cast<int>(work.width());
-    const int h = static_cast<int>(work.height());
-    constexpr int c = 4; // RGBA
-    const int scale = impl_->scale;
-    const int outw = w * scale;
-    const int outh = h * scale;
+    const i32 w = static_cast<i32>(work.width());
+    const i32 h = static_cast<i32>(work.height());
+    constexpr i32 c = 4; // RGBA
+    const i32 scale = impl_->scale;
+    const i32 outw = w * scale;
+    const i32 outh = h * scale;
     const u32 out_mip_count = mip_count > 1 ? mip_count + static_cast<u32>(std::log2(scale)) : 1;
 
     // The RealESRGAN::process() reads the channel count from inimage.elempack.
@@ -210,10 +210,10 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
     // Helper: upscale a single channel by broadcasting it to grayscale RGB,
     // running through the model, and averaging the output RGB back.
     auto upscaleChannel = [&](const u8* src_rgba, size_t src_pixels,
-                              int src_w, int src_h,
-                              int dst_w, int dst_h,
+                              i32 src_w, i32 src_h,
+                              i32 dst_w, i32 dst_h,
                               size_t dst_pixels,
-                              int channel_index,
+                              i32 channel_index,
                               u8* dst_rgba) -> bool {
         std::vector<u8> ch_rgb(src_pixels * c);
         for (size_t px = 0; px < src_pixels; ++px) {
@@ -246,14 +246,11 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
         // Multikind: each channel has independent semantic meaning, so we
         // upscale every used channel independently through the model.
         // Unused channels are filled with their default value.
-        static constexpr tex::Channel kChannels[] = {
-            tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
-
-        for (int ch_idx = 0; ch_idx < 4; ++ch_idx) {
-            const tex::TextureKind ck = input.channelKind(kChannels[ch_idx]);
+        for (i32 ch_idx = 0; ch_idx < 4; ++ch_idx) {
+            const tex::TextureKind ck = input.channelKind(kRGBAChannels[ch_idx]);
             if (ck == tex::TextureKind::Unused) {
                 const u8 def = static_cast<u8>(std::clamp(
-                    input.channelDefault(kChannels[ch_idx]) * 255.0f + 0.5f,
+                    input.channelDefault(kRGBAChannels[ch_idx]) * 255.0f + 0.5f,
                     0.0f, 255.0f));
                 for (size_t px = 0; px < out_pixels; ++px) {
                     outbuf[px * 4 + ch_idx] = def;
@@ -273,7 +270,7 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
         ncnn::Mat outimage(outw, outh, static_cast<void*>(outbuf.data()),
                            static_cast<size_t>(c), c);
 
-        int ret = impl_->esrgan->process(inimage, outimage);
+        i32 ret = impl_->esrgan->process(inimage, outimage);
         if (ret != 0) {
             return std::nullopt;
         }

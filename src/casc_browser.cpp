@@ -75,7 +75,7 @@ static SnoGroup groupFromCombinedFileName(const std::string& path) {
     if (dash == std::string::npos)
         return SnoGroup::None;
     std::string groupStr = name.substr(0, dash);
-    for (int gid = 0; gid <= 180; ++gid) {
+    for (i32 gid = 0; gid <= 180; ++gid) {
         auto g = static_cast<SnoGroup>(gid);
         const char* gname = sno::snoGroupName(g);
         if (gname && groupStr == gname)
@@ -93,7 +93,7 @@ namespace whiteout::gui {
 // ============================================================================
 
 void SDLCALL CascBrowser::folderDialogCallback(void* userdata, const char* const* filelist,
-                                                 int /*filter*/) {
+                                                  i32 /*filter*/) {
     if (!filelist || !filelist[0])
         return;
     auto* state = static_cast<FolderState*>(userdata);
@@ -111,11 +111,7 @@ void CascBrowser::open() {
 }
 
 void CascBrowser::processFolderResult() {
-    if (!folder_state_.has_pending.load())
-        return;
-    std::lock_guard lock(folder_state_.mtx);
-    copyToBuffer(storage_path_buf_, folder_state_.pending_path);
-    folder_state_.has_pending.store(false);
+    consumeFolderResult(folder_state_, storage_path_buf_);
 }
 
 // ============================================================================

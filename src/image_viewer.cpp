@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "image_viewer.h"
+#include "save_helpers.h"
 #include "thread_pool_manager.h"
 
 #include <algorithm>
@@ -47,20 +48,20 @@ static const char* channelKindShortLabel(tex::TextureKind k) {
 
 /// Squared distance threshold below which a mouse-up is treated as a click
 /// rather than a drag (in pixels^2).
-static constexpr float kClickThresholdSq = 9.0f;
+static constexpr f32 kClickThresholdSq = 9.0f;
 
 /// Zoom multiplier per mouse wheel tick.
-static constexpr float kZoomFactor = 1.15f;
+static constexpr f32 kZoomFactor = 1.15f;
 
 /// Minimum and maximum zoom levels.
-static constexpr float kZoomMin = 0.01f;
-static constexpr float kZoomMax = 64.0f;
+static constexpr f32 kZoomMin = 0.01f;
+static constexpr f32 kZoomMax = 64.0f;
 
 /// Channel button size multiplier relative to frame height.
-static constexpr float kChannelBtnSizeMultiplier = 1.4f;
+static constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
 
 /// Gap between channel buttons in pixels.
-static constexpr float kChannelBtnGap = 4.0f;
+static constexpr f32 kChannelBtnGap = 4.0f;
 
 // ============================================================================
 // Lifetime
@@ -95,8 +96,8 @@ void ImageViewer::refreshDisplay(const tex::Texture& texture) {
     auto* pool = threadPoolManager().get();
     display_texture_ = makeDisplayTexture(texture, pool);
     if (display_texture_ && display_texture_->mipCount() > 0) {
-        if (selected_mip_ >= static_cast<int>(display_texture_->mipCount())) {
-            selected_mip_ = static_cast<int>(display_texture_->mipCount()) - 1;
+        if (selected_mip_ >= static_cast<i32>(display_texture_->mipCount())) {
+            selected_mip_ = static_cast<i32>(display_texture_->mipCount()) - 1;
         }
     }
     if (renderer_) {
@@ -104,15 +105,15 @@ void ImageViewer::refreshDisplay(const tex::Texture& texture) {
     }
 }
 
-void ImageViewer::selectMip(int mip) {
+void ImageViewer::selectMip(i32 mip) {
     selected_mip_ = mip;
     if (renderer_) {
         rebuildPreview(renderer_);
     }
 }
 
-int ImageViewer::mipCount() const {
-    return display_texture_ ? static_cast<int>(display_texture_->mipCount()) : 0;
+i32 ImageViewer::mipCount() const {
+    return display_texture_ ? static_cast<i32>(display_texture_->mipCount()) : 0;
 }
 
 // ============================================================================
@@ -168,19 +169,19 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     };
     constexpr ImVec4 k_off_col = kChannelColorOff;
 
-    int visible_count = 0;
-    for (int i = 0; i < 4; ++i)
+    i32 visible_count = 0;
+    for (i32 i = 0; i < 4; ++i)
         if (ch_defs[i].visible)
             ++visible_count;
-    const float btn_size = ImGui::GetFrameHeight() * kChannelBtnSizeMultiplier;
-    const float btn_gap = kChannelBtnGap;
-    const float total_btns_width = static_cast<float>(visible_count) * btn_size +
-                                   static_cast<float>(visible_count - 1) * btn_gap;
+    const f32 btn_size = ImGui::GetFrameHeight() * kChannelBtnSizeMultiplier;
+    const f32 btn_gap = kChannelBtnGap;
+    const f32 total_btns_width = static_cast<f32>(visible_count) * btn_size +
+                                   static_cast<f32>(visible_count - 1) * btn_gap;
     ImGui::SameLine(0.0f, 0.0f);
     ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_btns_width);
 
     bool first_visible = true;
-    for (int ci = 0; ci < 4; ++ci) {
+    for (i32 ci = 0; ci < 4; ++ci) {
         if (!ch_defs[ci].visible)
             continue;
         if (!first_visible)
@@ -192,8 +193,8 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
                               ImVec4(col.x + 0.15f, col.y + 0.15f, col.z + 0.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,
                               ImVec4(col.x - 0.10f, col.y - 0.10f, col.z - 0.10f, 1.0f));
-        char btn_id[8];
-        std::snprintf(btn_id, sizeof(btn_id), "%s##ch", ch_defs[ci].label);
+        char btn_id[16];
+        std::snprintf(btn_id, sizeof(btn_id), "%s##ch%d", ch_defs[ci].label, ci);
         if (ImGui::Button(btn_id, ImVec2(btn_size, btn_size))) {
             if (is_multikind_) {
                 channel_r_ = (ci == 0);
@@ -220,17 +221,17 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
 // ============================================================================
 
 void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
-    const float actual_w = ImGui::GetContentRegionAvail().x;
-    const float actual_h = ImGui::GetContentRegionAvail().y;
+    const f32 actual_w = ImGui::GetContentRegionAvail().x;
+    const f32 actual_h = ImGui::GetContentRegionAvail().y;
 
     if (auto_fit_) {
-        zoom_scale_ = std::min(actual_w / static_cast<float>(image_width_),
-                               actual_h / static_cast<float>(image_height_));
+        zoom_scale_ = std::min(actual_w / static_cast<f32>(image_width_),
+                               actual_h / static_cast<f32>(image_height_));
         pan_offset_ = ImVec2{0.0f, 0.0f};
     }
 
-    float disp_w = static_cast<float>(image_width_) * zoom_scale_;
-    float disp_h = static_cast<float>(image_height_) * zoom_scale_;
+    f32 disp_w = static_cast<f32>(image_width_) * zoom_scale_;
+    f32 disp_h = static_cast<f32>(image_height_) * zoom_scale_;
 
     const ImVec2 area_pos = ImGui::GetCursorScreenPos();
 
@@ -243,18 +244,18 @@ void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
 
         // Scroll wheel: zoom centred on mouse
         if (io_ref.MouseWheel != 0.0f) {
-            const float factor = (io_ref.MouseWheel > 0.0f) ? kZoomFactor : (1.0f / kZoomFactor);
-            const float new_zoom = std::clamp(zoom_scale_ * factor, kZoomMin, kZoomMax);
+            const f32 factor = (io_ref.MouseWheel > 0.0f) ? kZoomFactor : (1.0f / kZoomFactor);
+            const f32 new_zoom = std::clamp(zoom_scale_ * factor, kZoomMin, kZoomMax);
 
             const ImVec2 mouse_local{io_ref.MousePos.x - area_pos.x,
                                      io_ref.MousePos.y - area_pos.y};
-            const float ix = actual_w * 0.5f + pan_offset_.x - disp_w * 0.5f;
-            const float iy = actual_h * 0.5f + pan_offset_.y - disp_h * 0.5f;
-            const float uvx = (mouse_local.x - ix) / disp_w;
-            const float uvy = (mouse_local.y - iy) / disp_h;
+            const f32 ix = actual_w * 0.5f + pan_offset_.x - disp_w * 0.5f;
+            const f32 iy = actual_h * 0.5f + pan_offset_.y - disp_h * 0.5f;
+            const f32 uvx = (mouse_local.x - ix) / disp_w;
+            const f32 uvy = (mouse_local.y - iy) / disp_h;
 
-            const float new_dw = static_cast<float>(image_width_) * new_zoom;
-            const float new_dh = static_cast<float>(image_height_) * new_zoom;
+            const f32 new_dw = static_cast<f32>(image_width_) * new_zoom;
+            const f32 new_dh = static_cast<f32>(image_height_) * new_zoom;
             pan_offset_.x = mouse_local.x - uvx * new_dw - actual_w * 0.5f + new_dw * 0.5f;
             pan_offset_.y = mouse_local.y - uvy * new_dh - actual_h * 0.5f + new_dh * 0.5f;
             zoom_scale_ = new_zoom;
@@ -291,8 +292,8 @@ void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
     }
 
     // Draw the image clipped to the panel area
-    const float img_x = area_pos.x + actual_w * 0.5f + pan_offset_.x - disp_w * 0.5f;
-    const float img_y = area_pos.y + actual_h * 0.5f + pan_offset_.y - disp_h * 0.5f;
+    const f32 img_x = area_pos.x + actual_w * 0.5f + pan_offset_.x - disp_w * 0.5f;
+    const f32 img_y = area_pos.y + actual_h * 0.5f + pan_offset_.y - disp_h * 0.5f;
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(area_pos, ImVec2(area_pos.x + actual_w, area_pos.y + actual_h), true);
@@ -320,17 +321,15 @@ void ImageViewer::resetChannelVisibility() {
 void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
     is_multikind_ = (texture.kind() == tex::TextureKind::Multikind);
     if (is_multikind_) {
-        static const tex::Channel kChannels[] = {
-            tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
-        for (int i = 0; i < 4; ++i) {
-            auto ch_kind = texture.channelKind(kChannels[i]);
+        for (i32 i = 0; i < 4; ++i) {
+            auto ch_kind = texture.channelKind(kRGBAChannels[i]);
             channel_info_[i].visible = (ch_kind != tex::TextureKind::Unused);
             const char* lbl = channelKindShortLabel(ch_kind);
             std::snprintf(channel_info_[i].label, sizeof(channel_info_[i].label), "%s", lbl);
         }
     } else {
         static const char kDefaults[][2] = {"R", "G", "B", "A"};
-        for (int i = 0; i < 4; ++i) {
+        for (i32 i = 0; i < 4; ++i) {
             channel_info_[i].visible = true;
             channel_info_[i].label[0] = kDefaults[i][0];
             channel_info_[i].label[1] = '\0';
@@ -338,13 +337,13 @@ void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
     }
 }
 
-std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, int width, int height,
+std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, i32 width, i32 height,
                                                      bool show_r, bool show_g, bool show_b,
                                                      bool show_a) {
-    const int count = width * height;
+    const i32 count = width * height;
     std::vector<u8> out(static_cast<size_t>(count) * 4);
-    const int active = (show_r ? 1 : 0) + (show_g ? 1 : 0) + (show_b ? 1 : 0) + (show_a ? 1 : 0);
-    for (int i = 0; i < count; ++i) {
+    const i32 active = (show_r ? 1 : 0) + (show_g ? 1 : 0) + (show_b ? 1 : 0) + (show_a ? 1 : 0);
+    for (i32 i = 0; i < count; ++i) {
         const u8 r = data[i * 4 + 0];
         const u8 g = data[i * 4 + 1];
         const u8 b = data[i * 4 + 2];
@@ -366,7 +365,7 @@ std::vector<u8> ImageViewer::applyChannelFilter(const u8* data, int width, int h
 }
 
 SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
-                                                 int width, int height) {
+                                                 i32 width, i32 height) {
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
                                              SDL_TEXTUREACCESS_STATIC, width, height);
     if (!texture) {
@@ -405,8 +404,8 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
     }
     const auto mip_idx = static_cast<u32>(selected_mip_);
     const auto& dml = display_texture_->mipLevel(mip_idx);
-    image_width_ = static_cast<int>(dml.width);
-    image_height_ = static_cast<int>(dml.height);
+    image_width_ = static_cast<i32>(dml.width);
+    image_height_ = static_cast<i32>(dml.height);
     auto mip_data = display_texture_->mipData(mip_idx);
     if (channel_r_ && channel_g_ && channel_b_ && channel_a_) {
         image_texture_ =

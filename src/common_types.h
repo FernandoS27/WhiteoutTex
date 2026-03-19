@@ -74,6 +74,18 @@ struct FolderState {
     std::atomic<bool> has_pending{false};
 };
 
+/// Consume a pending folder-dialog result into a fixed-size char buffer.
+/// Returns true if a result was consumed.
+template <std::size_t N>
+inline bool consumeFolderResult(FolderState& state, char (&buf)[N]) {
+    if (!state.has_pending.load())
+        return false;
+    std::lock_guard lock(state.mtx);
+    copyToBuffer(buf, state.pending_path);
+    state.has_pending.store(false);
+    return true;
+}
+
 // ============================================================================
 // D4 path utilities
 // ============================================================================

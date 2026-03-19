@@ -5,7 +5,7 @@
 <h1 align="center">WhiteoutTex</h1>
 
 <p align="center">
-  A fast, lightweight texture viewer and converter for game assets.
+  A fast, lightweight texture viewer and converter for game assets — with optional AI upscaling.
 </p>
 
 <p align="center">
@@ -26,92 +26,51 @@
 
 ## Features
 
-### Supported Formats
+- **Open & save** textures: BLP, BMP, DDS, JPEG, PNG, TGA — plus read-only support for Blizzard TEX (Diablo III/IV).
+- **Image viewer** with zoom, pan, per-channel RGBA filtering, mip level selection, and auto-detection of normal maps and ORM textures.
+- **Texture details** — dimensions, pixel format, mip chain info, and automatic texture kind classification (Diffuse, Normal, ORM, etc.) with manual override.
+- **Mipmap generation** — one-click regeneration that respects texture kind (normal maps get renormalized, PBR textures keep correct properties).
+- **Batch conversion** — convert entire directories at once, multi-threaded, with per-format filters and per-kind DDS targeting.
+- **CASC browser** — open Blizzard game archives directly and browse/extract textures, including full Diablo IV TEX support.
+- **Save options** — format-specific settings (BLP encoding & dithering, DDS format, JPEG quality), mipmap generation on save, and preferences remembered across sessions.
 
-WhiteoutTex can **open** and **save** textures across a wide range of game and standard image formats:
+### AI Upscaling (Optional)
 
-| Format | Description | Open | Save |
-|--------|-------------|:----:|:----:|
-| **BLP** | Blizzard Picture (BLP1 / BLP2) | ✔ | ✔ |
-| **BMP** | Windows Bitmap (24/32-bit) | ✔ | ✔ |
-| **DDS** | DirectDraw Surface (legacy + DX10) | ✔ | ✔ |
-| **JPEG** | Baseline sequential DCT | ✔ | ✔ |
-| **PNG** | Portable Network Graphics | ✔ | ✔ |
-| **TEX** | Blizzard proprietary (Diablo III/IV) | ✔ | — |
-| **TGA** | Truevision TGA (uncompressed + RLE) | ✔ | ✔ |
+GPU-accelerated texture upscaling powered by **Real-ESRGAN** via Vulkan compute. Available models:
 
-### Image Viewer
+- **realesrgan-x4plus** — general-purpose 4× upscale
+- **realesrgan-x4plus-anime** — anime/stylized 4× upscale
+- **realesr-animevideov3** — 2×, 3×, or 4× upscale
 
-- **Zoomable & pannable** preview — scroll to zoom, click and drag to pan, or use the auto-fit mode.
-- **Per-channel filtering** — toggle individual R, G, B, and A channels on/off to inspect texture data.
-- **Mip level selection** — browse and preview every mip level in the chain via the sidebar mip list.
-- **Normal-map expansion** — compressed normal maps (e.g. BC5) are automatically expanded for correct display.
-- **ORM-aware display** — textures detected or marked as ORM (Occlusion/Roughness/Metalness) use a tailored channel display.
-
-### Texture Details Panel
-
-- Full metadata at a glance: file path, file format, dimensions, depth, pixel format, texture type, sRGB flag, mip count, layer count, and total data size.
-- **Texture Kind classification** — automatic heuristic detection (Diffuse, Normal, Specular, ORM, Albedo, Roughness, Metalness, Ambient Occlusion, Gloss, Emissive) based on file-name conventions and pixel format, with a manual override combo box.
-- **Mip level detail tree** — individual width, height, and byte size for every mip level.
-
-### Mipmap Generation
-
-- **Regenerate Mipmaps** with a single click — works on both uncompressed and BCn-compressed textures (automatically round-trips through a float working format).
-- **Kind-aware generation** — mipmap filtering takes the texture kind into account so that normal maps are renormalized and PBR textures (roughness, metalness, ORM, etc.) are downsampled in a way that preserves their correct physical properties across mip levels.
-
-### Batch Conversion
-
-- **Convert entire directories** of textures to a target format in one operation.
-- **Recursive processing** — optionally walk sub-directories and mirror the source folder layout in the output directory.
-- **Per-format input filters** — choose which source formats (BLP, BMP, DDS, JPEG, PNG, TEX, TGA) to include in each batch run.
-- **Format-specific output settings** — the same BLP, DDS, and JPEG options available in the single-file save dialog are also available for batch jobs.
-- **DDS per-kind targeting** — optionally override the DDS pixel format per texture kind (Normal, single-channel, general) so each texture lands in the best compression format automatically.
-- **Multi-threaded** — files are processed in parallel workers to make full use of available CPU cores.
-
-### CASC Browser
-
-- **Browse Blizzard CASC archives** — point the browser at any game's CASC storage directory to enumerate and preview texture assets directly from the archive.
-- **Automatic product detection** — displays the game product name and build number after opening.
-- **Diablo IV support** — reads the CoreTOC, resolves combined meta files, and reconstructs the full TEX triplet (meta + payload + paylow) for D4 textures.
-- **Filterable file tree** — type in the search box to narrow the tree to matching file names in real time.
-- **Double-click to open** — extract and load any supported texture into the image viewer with a double-click.
-
-### Save Options
-
-- **Format-specific settings** surfaced in a save-options dialog:
-  - **BLP:** version (BLP1/BLP2), encoding, optional dithering with adjustable strength.
-  - **DDS:** pixel format selection.
-  - **JPEG:** quality slider (1–100).
-- **Generate mipmaps** on save.
-- **Texture Kind override** before saving.
-- **Overwrite confirmation** when the target file already exists.
-- **Remembered preferences** — last-used format, BLP options, DDS format, JPEG quality, and mipmap toggle are persisted across sessions.
+Upscaling can be applied to individual textures or as part of a batch conversion pipeline. Requires building with `WHITEOUT_ENABLE_UPSCALER=ON` and a Vulkan SDK.
 
 ---
 
 ## Building
 
-WhiteoutTex is built with **CMake** and requires a **C++23** compiler.
+Requires **CMake** and a **C++23** compiler.
 
 ```bash
 cmake -S . -B build
 cmake --build build --config Release
 ```
 
-The resulting binary and required runtime files (SDL3 DLL, license files) are placed in the build output directory automatically.
+For AI upscaling support (optional):
+
+```bash
+cmake -S . -B build -DWHITEOUT_ENABLE_UPSCALER=ON
+cmake --build build --config Release
+```
+
+This requires the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Run `scripts/download_models.ps1` to fetch the model files.
 
 ---
 
 ## License
 
-WhiteoutTex is licensed under the **BSD 3-Clause License**.
-See [LICENSE.md](LICENSE.md) for the full text.
-
-An additional [AI-Derived Works Notice](LICENSE-AI.md) applies to code generated by automated systems or AI tools based on this software.
+**BSD 3-Clause** — see [LICENSE.md](LICENSE.md). An [AI-Derived Works Notice](LICENSE-AI.md) applies to AI-generated code based on this software.
 
 ## Third-Party Notices
-
-WhiteoutTex depends on the following third-party libraries:
 
 | Library | License |
 |---------|---------|
@@ -119,8 +78,9 @@ WhiteoutTex depends on the following third-party libraries:
 | [SDL3](https://github.com/libsdl-org/SDL) | zlib |
 | [WhiteoutLib](https://github.com/FernandoS27/WhiteoutLib) | See library license |
 | CascLib | MIT |
+| [Real-ESRGAN ncnn](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan) | MIT *(optional)* |
 
-Full third-party license texts are available in [THIRD_PARTY.md](THIRD_PARTY.md).
+Full texts in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Disclaimer
 

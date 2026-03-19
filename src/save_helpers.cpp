@@ -15,8 +15,8 @@ namespace texn = whiteout::textures;
 // ============================================================================
 
 blp::SaveOptions buildBlpSaveOptions(
-    int blp_version, int blp_encoding,
-    bool dither, float dither_strength, int jpeg_quality) noexcept {
+    i32 blp_version, i32 blp_encoding,
+    bool dither, f32 dither_strength, i32 jpeg_quality) noexcept {
     blp::SaveOptions opts;
     opts.version  = blp_version == 0 ? blp::BlpVersion::BLP1 : blp::BlpVersion::BLP2;
     opts.encoding = toBlpEncoding(blp_encoding);
@@ -32,7 +32,7 @@ blp::SaveOptions buildBlpSaveOptions(
     return opts;
 }
 
-void coerceBlpFormat(texn::Texture& tex, int blp_encoding,
+void coerceBlpFormat(texn::Texture& tex, i32 blp_encoding,
                      blp::BlpEncoding enc,
                      interfaces::WorkerPool* pool) {
     if (enc == blp::BlpEncoding::JPEG || enc == blp::BlpEncoding::Palettized ||
@@ -50,7 +50,7 @@ void coerceBlpFormat(texn::Texture& tex, int blp_encoding,
 // DDS save preparation
 // ============================================================================
 
-void coerceDdsFormat(texn::Texture& tex, int dds_format, bool invert_y,
+void coerceDdsFormat(texn::Texture& tex, i32 dds_format, bool invert_y,
                      interfaces::WorkerPool* pool) {
     const bool is_bc3n = (dds_format == DDS_FORMAT_BC3N);
     const auto target  = is_bc3n ? texn::PixelFormat::BC3 : DDS_PIXEL_FORMATS[dds_format];

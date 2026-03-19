@@ -26,8 +26,8 @@ namespace whiteout::gui {
 struct UpscalerModel {
     std::string display_name; ///< Human-readable name for the UI.
     std::string file_stem;    ///< File stem for .param / .bin files.
-    int scale;                ///< Upscale factor (2, 3, or 4).
-    int prepadding;           ///< Required tile prepadding.
+    i32 scale;                ///< Upscale factor (2, 3, or 4).
+    i32 prepadding;           ///< Required tile prepadding.
 
     /// Build the label used in combo boxes: "Display Name (Nx)".
     std::string label() const {
@@ -61,7 +61,7 @@ public:
         const std::filesystem::path& model_dir);
 
     /// Returns the index of the best available GPU (prefers discrete, most VRAM).
-    static int bestGpuIndex();
+    static i32 bestGpuIndex();
 
     /// Initialize the upscaler with the given model.
     /// @param model_dir Directory containing .param / .bin model files.
@@ -71,8 +71,8 @@ public:
     /// @return true on success.
     bool init(const std::filesystem::path& model_dir,
               const UpscalerModel& model,
-              int gpu_id = -1,
-              int tile_size = 0);
+              i32 gpu_id = -1,
+              i32 tile_size = 0);
 
     /// Upscale a texture.
     /// @param input Source texture (any uncompressed format; converted to RGBA8 internally).

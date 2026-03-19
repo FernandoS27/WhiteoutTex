@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common_types.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -14,7 +16,7 @@ namespace whiteout::gui {
 // ============================================================================
 
 /// Type of transformation step in the batch pipeline.
-enum class TransformType : int {
+enum class TransformType : i32 {
     Upscale   = 0, ///< AI upscale (Real-ESRGAN).
     Downscale = 1, ///< Halve dimensions by dropping mip levels.
 };
@@ -24,14 +26,14 @@ struct TransformStep {
     TransformType type = TransformType::Downscale;
 
     // Downscale options
-    int downscale_levels = 1; ///< 1 = x2, 2 = x4.
+    i32 downscale_levels = 1; ///< 1 = x2, 2 = x4.
 
     // Upscale options
-    int upscale_model_index = 0; ///< Index into the available upscaler models.
+    i32 upscale_model_index = 0; ///< Index into the available upscaler models.
     bool upscale_alpha = false;  ///< Upscale alpha channel through the model.
 };
 
-constexpr int MAX_RECENT_PATHS = 10;
+constexpr i32 MAX_RECENT_PATHS = 10;
 
 /// Generic recently-used path list (MRU).  Used for recently opened files,
 /// CASC storage paths, batch input/output directories, etc.
@@ -42,7 +44,7 @@ struct RecentPaths {
     void push(const std::string& path) {
         paths.erase(std::remove(paths.begin(), paths.end(), path), paths.end());
         paths.insert(paths.begin(), path);
-        if (static_cast<int>(paths.size()) > MAX_RECENT_PATHS)
+        if (static_cast<i32>(paths.size()) > MAX_RECENT_PATHS)
             paths.resize(MAX_RECENT_PATHS);
     }
 };
@@ -52,23 +54,23 @@ using RecentFiles = RecentPaths;
 
 /// Saved host (SDL) window size persisted in the INI file.
 struct SavedHostWindowSize {
-    int width = 0;
-    int height = 0;
+    i32 width = 0;
+    i32 height = 0;
     bool has_size = false;
 };
 
 /// ImGui main-window position/size read back from the INI file.
 struct MainWindowIniRect {
-    int pos_x = 0;
-    int pos_y = 0;
-    int width = 0;
-    int height = 0;
+    i32 pos_x = 0;
+    i32 pos_y = 0;
+    i32 width = 0;
+    i32 height = 0;
     bool has_pos = false;
     bool has_size = false;
 };
 
 /// Mipmap generation mode.
-enum class MipmapMode : int {
+enum class MipmapMode : i32 {
     KeepOriginal = 0, ///< Do not regenerate mipmaps.
     Maximum      = 1, ///< Generate the maximum possible mip chain.
     Custom       = 2, ///< Generate a user-specified number of mip levels.
@@ -76,20 +78,20 @@ enum class MipmapMode : int {
 
 /// Save preferences persisted in the [WhiteoutTex][SavePrefs] INI section.
 struct SavePrefs {
-    int last_filter = 0;
+    i32 last_filter = 0;
     std::string last_open_dir;
     std::string last_save_dir;
     std::string last_casc_dir;
-    int blp_version = 1;
-    int blp_encoding = 0;
+    i32 blp_version = 1;
+    i32 blp_encoding = 0;
     bool blp_dither = false;
-    float blp_dither_strength = 0.8f;
-    int dds_format = 0;
+    f32 blp_dither_strength = 0.8f;
+    i32 dds_format = 0;
     bool dds_invert_y = false;
-    int jpeg_quality = 75;
+    i32 jpeg_quality = 75;
     bool generate_mipmaps = false;
     MipmapMode mipmap_mode = MipmapMode::KeepOriginal;
-    int mipmap_custom_count = 1;
+    i32 mipmap_custom_count = 1;
 };
 
 /// Load the [Window][##MainWindow] section from an ImGui INI file.
@@ -99,7 +101,7 @@ MainWindowIniRect load_main_window_ini_rect(const std::string& ini_path);
 SavedHostWindowSize load_saved_host_window_size(const std::string& ini_path);
 
 /// Append the [WhiteoutTex][SDLWindow] section.
-void append_saved_host_window_size(const std::string& ini_path, int width, int height);
+void append_saved_host_window_size(const std::string& ini_path, i32 width, i32 height);
 
 /// Batch-convert preferences persisted in the [WhiteoutTex][BatchPrefs] INI section.
 struct BatchPrefs {
@@ -119,30 +121,30 @@ struct BatchPrefs {
     std::string last_output_dir;
 
     // Output
-    int output_format = 2; // DDS
+    i32 output_format = 2; // DDS
 
     // BLP options
-    int blp_version = 1;
-    int blp_encoding = 0;
+    i32 blp_version = 1;
+    i32 blp_encoding = 0;
     bool blp_dither = false;
-    float blp_dither_strength = 0.8f;
+    f32 blp_dither_strength = 0.8f;
 
     // DDS options
-    int dds_mode = 0;
-    int dds_format_general = 7;
+    i32 dds_mode = 0;
+    i32 dds_format_general = 7;
     bool dds_invert_y_general = false;
-    int dds_format_normal = 5;
+    i32 dds_format_normal = 5;
     bool dds_invert_y_normal = false;
-    int dds_format_channel = 4;
-    int dds_format_other = 7;
+    i32 dds_format_channel = 4;
+    i32 dds_format_other = 7;
 
     // JPEG quality
-    int jpeg_quality = 75;
+    i32 jpeg_quality = 75;
 
     // Common
     bool generate_mipmaps = false;
     MipmapMode mipmap_mode = MipmapMode::KeepOriginal;
-    int mipmap_custom_count = 1;
+    i32 mipmap_custom_count = 1;
 
     // Transformation pipeline
     std::vector<TransformStep> transform_pipeline;

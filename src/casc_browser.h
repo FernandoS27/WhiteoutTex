@@ -75,7 +75,7 @@ private:
     // ── Methods ────────────────────────────────────────────────────────
 
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                              int filter);
+                                              i32 filter);
 
     void processFolderResult();
     void openStorage();
