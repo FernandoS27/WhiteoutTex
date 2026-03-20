@@ -149,8 +149,10 @@ void App::shutdown() {
     append_batch_prefs(imgui_ini_path_, batch_prefs_);
     append_recent_files(imgui_ini_path_, recent_files_);
     append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentCascPaths]", recent_casc_paths_);
-    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]", recent_batch_input_dirs_);
-    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]", recent_batch_output_dirs_);
+    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]",
+                        recent_batch_input_dirs_);
+    append_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]",
+                        recent_batch_output_dirs_);
 
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -199,117 +201,111 @@ void App::applyLoadResult(const std::string& path, TextureLoadResult result) {
 
 void App::dispatchCommands(std::vector<AppCommand>& commands) {
     for (auto& cmd : commands) {
-        std::visit(Overloaded{
-            [&](OpenFileCmd& c) {
-                openFile(c.path);
-            },
-            [&](RefreshDisplayCmd&) {
-                if (tex_state_.texture)
-                    viewer_.refreshDisplay(*tex_state_.texture);
-            },
-            [&](RegenerateMipmapsCmd& c) {
-                if (!tex_state_.texture) return;
-                auto op = texture_service_.regenerateMipmaps(*tex_state_.texture, c.mip_count);
-                if (op.success) viewer_.setTexture(*tex_state_.texture);
-                ui_.result_popup_message = std::move(op.message);
-                ui_.result_popup_success = op.success;
-                ui_.show_result_popup = true;
-            },
-            [&](DownscaleCmd& c) {
-                if (!tex_state_.texture) return;
-                auto op = texture_service_.downscale(*tex_state_.texture, c.levels);
-                if (op.success) viewer_.setTexture(*tex_state_.texture);
-                ui_.result_popup_message = std::move(op.message);
-                ui_.result_popup_success = op.success;
-                ui_.show_result_popup = true;
-            },
-            [&](StartUpscaleCmd& c) {
+        std::visit(
+            Overloaded{
+                [&](OpenFileCmd& c) { openFile(c.path); },
+                [&](RefreshDisplayCmd&) {
+                    if (tex_state_.texture)
+                        viewer_.refreshDisplay(*tex_state_.texture);
+                },
+                [&](RegenerateMipmapsCmd& c) {
+                    if (!tex_state_.texture)
+                        return;
+                    auto op = texture_service_.regenerateMipmaps(*tex_state_.texture, c.mip_count);
+                    if (op.success)
+                        viewer_.setTexture(*tex_state_.texture);
+                    ui_.result_popup_message = std::move(op.message);
+                    ui_.result_popup_success = op.success;
+                    ui_.show_result_popup = true;
+                },
+                [&](DownscaleCmd& c) {
+                    if (!tex_state_.texture)
+                        return;
+                    auto op = texture_service_.downscale(*tex_state_.texture, c.levels);
+                    if (op.success)
+                        viewer_.setTexture(*tex_state_.texture);
+                    ui_.result_popup_message = std::move(op.message);
+                    ui_.result_popup_success = op.success;
+                    ui_.show_result_popup = true;
+                },
+                [&](StartUpscaleCmd& c) {
 #ifdef WHITEOUT_HAS_UPSCALER
-                if (tex_state_.texture && !upscaler_service_.isRunning()) {
-                    upscale_model_index_ = c.model_index;
-                    image_details_.setUpscaleInProgress(true);
-                    upscaler_service_.startAsync(
-                        upscale_models_[upscale_model_index_],
-                        *tex_state_.texture, c.upscale_alpha);
-                }
+                    if (tex_state_.texture && !upscaler_service_.isRunning()) {
+                        upscale_model_index_ = c.model_index;
+                        image_details_.setUpscaleInProgress(true);
+                        upscaler_service_.startAsync(upscale_models_[upscale_model_index_],
+                                                     *tex_state_.texture, c.upscale_alpha);
+                    }
 #else
-                (void)c;
+                    (void)c;
 #endif
-            },
-            [&](ShowResultPopupCmd& c) {
-                ui_.result_popup_message = std::move(c.message);
-                ui_.result_popup_success = c.success;
-                ui_.show_result_popup = true;
-            },
-            [&](SelectMipCmd& c) {
-                viewer_.selectMip(c.level);
-            },
-            [&](ShowOpenDialogCmd&) {
-                const char* default_dir = save_prefs_.last_open_dir.empty()
-                                              ? nullptr
-                                              : save_prefs_.last_open_dir.c_str();
-                SDL_ShowOpenFileDialog(file_dialog_callback, &open_dialog_state_, window_,
-                                       OPEN_FILTERS, static_cast<i32>(std::size(OPEN_FILTERS)),
-                                       default_dir, false);
-            },
-            [&](ShowSaveDialogCmd&) {
-                save_dialog_.buildFilterOrder(save_prefs_);
-                const char* save_default = save_prefs_.last_save_dir.empty()
-                                               ? nullptr
-                                               : save_prefs_.last_save_dir.c_str();
-                SDL_ShowSaveFileDialog(file_dialog_callback, &save_dialog_state_, window_,
-                                       save_dialog_.filterData(), save_dialog_.filterCount(),
-                                       save_default);
-            },
-            [&](OpenBatchConvertCmd&) {
+                },
+                [&](ShowResultPopupCmd& c) {
+                    ui_.result_popup_message = std::move(c.message);
+                    ui_.result_popup_success = c.success;
+                    ui_.show_result_popup = true;
+                },
+                [&](SelectMipCmd& c) { viewer_.selectMip(c.level); },
+                [&](ShowOpenDialogCmd&) {
+                    const char* default_dir = save_prefs_.last_open_dir.empty()
+                                                  ? nullptr
+                                                  : save_prefs_.last_open_dir.c_str();
+                    SDL_ShowOpenFileDialog(file_dialog_callback, &open_dialog_state_, window_,
+                                           OPEN_FILTERS, static_cast<i32>(std::size(OPEN_FILTERS)),
+                                           default_dir, false);
+                },
+                [&](ShowSaveDialogCmd&) {
+                    save_dialog_.buildFilterOrder(save_prefs_);
+                    const char* save_default = save_prefs_.last_save_dir.empty()
+                                                   ? nullptr
+                                                   : save_prefs_.last_save_dir.c_str();
+                    SDL_ShowSaveFileDialog(file_dialog_callback, &save_dialog_state_, window_,
+                                           save_dialog_.filterData(), save_dialog_.filterCount(),
+                                           save_default);
+                },
+                [&](OpenBatchConvertCmd&) {
 #ifdef WHITEOUT_HAS_UPSCALER
-                batch_convert_.setUpscalerModels(
-                    Upscaler::availableModels(Upscaler::defaultModelDir()));
+                    batch_convert_.setUpscalerModels(
+                        Upscaler::availableModels(Upscaler::defaultModelDir()));
 #endif
-                batch_convert_.open(batch_prefs_);
-            },
-            [&](OpenCascBrowserCmd&) {
-                casc_browser_.open();
-            },
-            [&](ShowUpscaleDialogCmd&) {
+                    batch_convert_.open(batch_prefs_);
+                },
+                [&](OpenCascBrowserCmd&) { casc_browser_.open(); },
+                [&](ShowUpscaleDialogCmd&) {
 #ifdef WHITEOUT_HAS_UPSCALER
-                upscale_models_ = UpscalerService::availableModels();
-                upscale_model_index_ = 0;
-                ui_.show_upscale_dialog = true;
+                    upscale_models_ = UpscalerService::availableModels();
+                    upscale_model_index_ = 0;
+                    ui_.show_upscale_dialog = true;
 #endif
+                },
+                [&](ShowAboutCmd&) { ui_.show_about = true; },
+                [&](ClearRecentFilesCmd&) { recent_files_.paths.clear(); },
+                [&](LoadCascTextureCmd& c) {
+                    TextureLoadResult load_result;
+                    if (c.is_d4_tex) {
+                        load_result =
+                            texture_service_.loadD4FromMemory(c.name, c.data, c.payload, c.paylow);
+                    } else {
+                        auto fmt = tex::TextureConverter::classifyPath(c.name);
+                        load_result = texture_service_.loadFromMemory(c.name, c.data, fmt);
+                    }
+                    applyLoadResult(c.name, std::move(load_result));
+                },
+                [&](ApplyBC3NSwapCmd&) {
+                    if (tex_state_.texture) {
+                        TextureService::applyBC3NSwap(*tex_state_.texture);
+                        viewer_.setTexture(*tex_state_.texture);
+                    }
+                },
+                [&](LoadD4PayloadCmd& c) {
+                    auto result = texture_service_.loadD4WithPayload(
+                        c.meta_path, c.payload_path,
+                        c.paylow_path.empty() ? std::string{} : c.paylow_path);
+                    applyLoadResult(c.meta_path, std::move(result));
+                },
+                [&](OpenCascCmd&) { /* reserved for future use */ },
             },
-            [&](ShowAboutCmd&) {
-                ui_.show_about = true;
-            },
-            [&](ClearRecentFilesCmd&) {
-                recent_files_.paths.clear();
-            },
-            [&](LoadCascTextureCmd& c) {
-                TextureLoadResult load_result;
-                if (c.is_d4_tex) {
-                    load_result = texture_service_.loadD4FromMemory(
-                        c.name, c.data, c.payload, c.paylow);
-                } else {
-                    auto fmt = tex::TextureConverter::classifyPath(c.name);
-                    load_result = texture_service_.loadFromMemory(
-                        c.name, c.data, fmt);
-                }
-                applyLoadResult(c.name, std::move(load_result));
-            },
-            [&](ApplyBC3NSwapCmd&) {
-                if (tex_state_.texture) {
-                    TextureService::applyBC3NSwap(*tex_state_.texture);
-                    viewer_.setTexture(*tex_state_.texture);
-                }
-            },
-            [&](LoadD4PayloadCmd& c) {
-                auto result = texture_service_.loadD4WithPayload(
-                    c.meta_path, c.payload_path,
-                    c.paylow_path.empty() ? std::string{} : c.paylow_path);
-                applyLoadResult(c.meta_path, std::move(result));
-            },
-            [&](OpenCascCmd&) { /* reserved for future use */ },
-        }, cmd);
+            cmd);
     }
 }
 
@@ -386,8 +382,10 @@ i32 App::run(i32 argc, char** argv) {
     batch_prefs_ = load_batch_prefs(imgui_ini_path_);
     recent_files_ = load_recent_files(imgui_ini_path_);
     recent_casc_paths_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentCascPaths]");
-    recent_batch_input_dirs_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]");
-    recent_batch_output_dirs_ = load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]");
+    recent_batch_input_dirs_ =
+        load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchInputDirs]");
+    recent_batch_output_dirs_ =
+        load_recent_paths(imgui_ini_path_, "[WhiteoutTex][RecentBatchOutputDirs]");
     save_dialog_.buildFilterOrder(save_prefs_);
 
 #ifdef WHITEOUT_HAS_UPSCALER
@@ -445,8 +443,8 @@ i32 App::run(i32 argc, char** argv) {
 #else
                 false;
 #endif
-            auto cmds = drawMenuBar(tex_state_.texture.has_value(),
-                                    recent_files_.paths, kHasUpscaler);
+            auto cmds =
+                drawMenuBar(tex_state_.texture.has_value(), recent_files_.paths, kHasUpscaler);
             dispatchCommands(cmds);
         }
 
@@ -471,9 +469,8 @@ i32 App::run(i32 argc, char** argv) {
         ImGui::BeginGroup();
         {
             auto cmds = image_details_.drawDetailsPanel(
-                tex_state_.texture ? &*tex_state_.texture : nullptr,
-                tex_state_.path, tex_state_.file_format, tex_state_.source_fmt,
-                left_panel_width, details_height);
+                tex_state_.texture ? &*tex_state_.texture : nullptr, tex_state_.path,
+                tex_state_.file_format, tex_state_.source_fmt, left_panel_width, details_height);
             dispatchCommands(cmds);
 
 #ifdef WHITEOUT_HAS_UPSCALER
@@ -481,9 +478,8 @@ i32 App::run(i32 argc, char** argv) {
 #endif
         }
         if (show_mip_list) {
-            auto cmds = image_details_.drawMipList(
-                *tex_state_.texture, viewer_.selectedMip(),
-                left_panel_width, mip_list_height);
+            auto cmds = image_details_.drawMipList(*tex_state_.texture, viewer_.selectedMip(),
+                                                   left_panel_width, mip_list_height);
             dispatchCommands(cmds);
         }
         ImGui::EndGroup();
@@ -512,8 +508,7 @@ i32 App::run(i32 argc, char** argv) {
             dispatchCommands(cmds);
         }
         {
-            auto cmds = batch_convert_.draw(window_, batch_prefs_,
-                                            recent_batch_input_dirs_,
+            auto cmds = batch_convert_.draw(window_, batch_prefs_, recent_batch_input_dirs_,
                                             recent_batch_output_dirs_);
             dispatchCommands(cmds);
         }
@@ -534,15 +529,12 @@ i32 App::run(i32 argc, char** argv) {
         }
 #ifdef WHITEOUT_HAS_UPSCALER
         {
-            const i32 tw = tex_state_.texture
-                               ? static_cast<i32>(tex_state_.texture->width()) : 0;
-            const i32 th = tex_state_.texture
-                               ? static_cast<i32>(tex_state_.texture->height()) : 0;
-            auto cmds = drawUpscaleDialog(
-                ui_.show_upscale_dialog, upscale_models_, upscale_model_index_,
-                UpscalerService::isGpuAvailable(), upscaler_service_.isRunning(),
-                upscaler_service_.status(), UpscalerService::defaultModelDir(),
-                tw, th);
+            const i32 tw = tex_state_.texture ? static_cast<i32>(tex_state_.texture->width()) : 0;
+            const i32 th = tex_state_.texture ? static_cast<i32>(tex_state_.texture->height()) : 0;
+            auto cmds = drawUpscaleDialog(ui_.show_upscale_dialog, upscale_models_,
+                                          upscale_model_index_, UpscalerService::isGpuAvailable(),
+                                          upscaler_service_.isRunning(), upscaler_service_.status(),
+                                          UpscalerService::defaultModelDir(), tw, th);
             dispatchCommands(cmds);
         }
 #endif

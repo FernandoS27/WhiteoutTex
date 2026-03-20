@@ -9,8 +9,7 @@
 
 namespace whiteout::gui {
 
-std::vector<AppCommand> drawMenuBar(bool has_texture,
-                                    const std::vector<std::string>& recent_paths,
+std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::string>& recent_paths,
                                     bool has_upscaler) {
     std::vector<AppCommand> commands;
 

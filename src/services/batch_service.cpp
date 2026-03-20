@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "services/batch_service.h"
-#include "views/save_helpers.h"
 #include "thread_pool_manager.h"
+#include "views/save_helpers.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -69,9 +69,8 @@ std::string BatchService::start(BatchJob job) {
             break;
         }
     }
-    const i32 thread_count = has_upscale
-        ? 1
-        : std::max(1, static_cast<i32>(std::thread::hardware_concurrency()));
+    const i32 thread_count =
+        has_upscale ? 1 : std::max(1, static_cast<i32>(std::thread::hardware_concurrency()));
     workers_.clear();
     workers_.reserve(thread_count);
     for (i32 i = 0; i < thread_count; ++i) {
@@ -171,15 +170,15 @@ void BatchService::workerFunc() {
             for (const auto& step : pipeline) {
                 if (step.type == TransformType::Downscale) {
                     tex::Texture out;
-                    if (auto err = withBcnRoundtrip(*loaded, pool, out,
-                            [&step](tex::Texture& work, interfaces::WorkerPool* p)
-                                -> std::optional<std::string> {
+                    if (auto err = withBcnRoundtrip(
+                            *loaded, pool, out,
+                            [&step](tex::Texture& work,
+                                    interfaces::WorkerPool* p) -> std::optional<std::string> {
                                 const u32 new_w = work.width() >> step.downscale_levels;
                                 const u32 new_h = work.height() >> step.downscale_levels;
                                 if (new_w < 1 || new_h < 1)
                                     return std::string("Image too small to downscale");
-                                return work.downscale(
-                                    static_cast<u32>(step.downscale_levels), p);
+                                return work.downscale(static_cast<u32>(step.downscale_levels), p);
                             })) {
                         pipeline_failed = true;
                         break;
@@ -241,8 +240,8 @@ void BatchService::workerFunc() {
 // Single-file save
 // ============================================================================
 
-bool BatchService::saveOne(TC& converter, tex::Texture tex_copy,
-                           const std::string& out_path, tex::TextureKind kind) {
+bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::string& out_path,
+                           tex::TextureKind kind) {
     auto* pool = threadPoolManager().get();
 
     if (job_.prefs.generate_mipmaps) {
@@ -256,10 +255,9 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy,
 
     switch (job_.prefs.output_format) {
     case 0: { // BLP
-        auto blp = buildBlpSaveOptions(
-            job_.prefs.blp_version, job_.prefs.blp_encoding,
-            job_.prefs.blp_dither, job_.prefs.blp_dither_strength,
-            job_.prefs.jpeg_quality);
+        auto blp = buildBlpSaveOptions(job_.prefs.blp_version, job_.prefs.blp_encoding,
+                                       job_.prefs.blp_dither, job_.prefs.blp_dither_strength,
+                                       job_.prefs.jpeg_quality);
         coerceBlpFormat(tex_copy, job_.prefs.blp_encoding, blp.encoding, pool);
         return converter.save(tex_copy, out_path, blp);
     }

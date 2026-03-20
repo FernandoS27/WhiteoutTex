@@ -42,15 +42,11 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui);
 /// @param model_dir         Path to the models directory (shown in UI).
 /// @param tex_width         Current texture width (0 if no texture loaded).
 /// @param tex_height        Current texture height (0 if no texture loaded).
-std::vector<AppCommand> drawUpscaleDialog(
-    bool& show,
-    const std::vector<UpscalerModel>& models,
-    i32& selected_index,
-    bool has_gpu,
-    bool is_running,
-    const std::string& status,
-    const std::filesystem::path& model_dir,
-    i32 tex_width, i32 tex_height);
+std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<UpscalerModel>& models,
+                                          i32& selected_index, bool has_gpu, bool is_running,
+                                          const std::string& status,
+                                          const std::filesystem::path& model_dir, i32 tex_width,
+                                          i32 tex_height);
 #endif
 
 } // namespace whiteout::gui

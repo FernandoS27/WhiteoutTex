@@ -51,8 +51,8 @@ public:
 
 private:
     /// Upload RGBA8 pixel data into an SDL_Texture.
-    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
-                                               i32 width, i32 height);
+    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data, i32 width,
+                                               i32 height);
 
     /// Extract per-channel info (labels, visibility) from a texture.
     void updateChannelInfo(const whiteout::textures::Texture& texture);

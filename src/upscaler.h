@@ -57,8 +57,7 @@ public:
     static std::filesystem::path defaultModelDir();
 
     /// Lists model presets whose .param and .bin files exist in @p model_dir.
-    static std::vector<UpscalerModel> availableModels(
-        const std::filesystem::path& model_dir);
+    static std::vector<UpscalerModel> availableModels(const std::filesystem::path& model_dir);
 
     /// Returns the index of the best available GPU (prefers discrete, most VRAM).
     static i32 bestGpuIndex();
@@ -69,9 +68,7 @@ public:
     /// @param gpu_id    Vulkan GPU device index (-1 = auto-select best GPU).
     /// @param tile_size Tile size for inference (0 = auto based on VRAM).
     /// @return true on success.
-    bool init(const std::filesystem::path& model_dir,
-              const UpscalerModel& model,
-              i32 gpu_id = -1,
+    bool init(const std::filesystem::path& model_dir, const UpscalerModel& model, i32 gpu_id = -1,
               i32 tile_size = 0);
 
     /// Upscale a texture.

@@ -43,8 +43,7 @@ struct TextureState {
     std::string status_message;
     whiteout::textures::TextureFileFormat file_format =
         whiteout::textures::TextureFileFormat::Unknown;
-    whiteout::textures::PixelFormat source_fmt =
-        whiteout::textures::PixelFormat::RGBA8;
+    whiteout::textures::PixelFormat source_fmt = whiteout::textures::PixelFormat::RGBA8;
 };
 
 // ============================================================================

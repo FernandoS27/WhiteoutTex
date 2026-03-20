@@ -39,9 +39,9 @@ private:
 
     /// A node in the virtual file-system tree built from CASC paths.
     struct TreeNode {
-        std::string name;           ///< Directory or file name segment.
-        std::string full_path;      ///< Full CASC path (files only).
-        i32 sno_id = -1;            ///< D4 SNO ID (-1 if not a D4 entry).
+        std::string name;      ///< Directory or file name segment.
+        std::string full_path; ///< Full CASC path (files only).
+        i32 sno_id = -1;       ///< D4 SNO ID (-1 if not a D4 entry).
         std::vector<TreeNode> children;
         bool is_file = false;
     };
@@ -49,7 +49,7 @@ private:
     // ── Methods ────────────────────────────────────────────────────────
 
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                              i32 filter);
+                                             i32 filter);
 
     void processFolderResult();
     void openStorage();

@@ -31,8 +31,7 @@ public:
     /// Draw the dialog.  Returns commands when conversion finishes
     /// (e.g. ShowResultPopupCmd).
     std::vector<AppCommand> draw(SDL_Window* window, BatchPrefs& prefs,
-                                RecentPaths& recent_input_dirs,
-                                RecentPaths& recent_output_dirs);
+                                 RecentPaths& recent_input_dirs, RecentPaths& recent_output_dirs);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models for the transformation pipeline.
@@ -41,7 +40,7 @@ public:
 
 private:
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                              i32 filter);
+                                             i32 filter);
 
     void processFolderResults();
     std::string beginBatch();

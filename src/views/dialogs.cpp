@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Fernando Sahmkow
 
-#include "views/dialogs.h"
 #include "save_dialog.h" // centerNextWindow()
+#include "views/dialogs.h"
 
 #include <filesystem>
 
@@ -171,15 +171,14 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
             const std::string payload_path(ui.d4_payload_path_buf);
             const std::string paylow_path(ui.d4_paylow_path_buf);
             if (!payload_path.empty() && std::filesystem::exists(payload_path)) {
-                commands.push_back(LoadD4PayloadCmd{
-                    ui.pending_d4_meta_path,
-                    payload_path,
-                    (!paylow_path.empty() && std::filesystem::exists(paylow_path))
-                        ? paylow_path
-                        : std::string{}});
+                commands.push_back(
+                    LoadD4PayloadCmd{ui.pending_d4_meta_path, payload_path,
+                                     (!paylow_path.empty() && std::filesystem::exists(paylow_path))
+                                         ? paylow_path
+                                         : std::string{}});
             } else {
-                commands.push_back(ShowResultPopupCmd{
-                    "Payload file not found: " + payload_path, false});
+                commands.push_back(
+                    ShowResultPopupCmd{"Payload file not found: " + payload_path, false});
             }
             closeDialog();
         }
@@ -199,15 +198,11 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
 
 #ifdef WHITEOUT_HAS_UPSCALER
 
-std::vector<AppCommand> drawUpscaleDialog(
-    bool& show,
-    const std::vector<UpscalerModel>& models,
-    i32& selected_index,
-    bool has_gpu,
-    bool is_running,
-    const std::string& status,
-    const std::filesystem::path& model_dir,
-    i32 tex_width, i32 tex_height) {
+std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<UpscalerModel>& models,
+                                          i32& selected_index, bool has_gpu, bool is_running,
+                                          const std::string& status,
+                                          const std::filesystem::path& model_dir, i32 tex_width,
+                                          i32 tex_height) {
 
     std::vector<AppCommand> commands;
 
@@ -270,7 +265,8 @@ std::vector<AppCommand> drawUpscaleDialog(
             ImGui::Spacing();
         }
 
-        if (is_running) ImGui::BeginDisabled();
+        if (is_running)
+            ImGui::BeginDisabled();
         if (ImGui::Button("Upscale", ImVec2(120, 0))) {
             if (tex_width > 0 && tex_height > 0) {
                 commands.push_back(StartUpscaleCmd{selected_index, false});
@@ -280,7 +276,8 @@ std::vector<AppCommand> drawUpscaleDialog(
         if (ImGui::Button("Close", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
-        if (is_running) ImGui::EndDisabled();
+        if (is_running)
+            ImGui::EndDisabled();
 
         ImGui::EndPopup();
     }

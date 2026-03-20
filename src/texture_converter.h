@@ -58,8 +58,10 @@ inline bool isBcn(PixelFormat fmt) noexcept {
 /// Returns the float working format appropriate for a BCn source texture.
 /// BC4 → R32F (single-channel), BC5 → RG32F (two-channel), all others → RGBA32F.
 inline PixelFormat workingFormatFor(PixelFormat fmt) noexcept {
-    if (fmt == PixelFormat::BC4) return PixelFormat::R32F;
-    if (fmt == PixelFormat::BC5) return PixelFormat::RG32F;
+    if (fmt == PixelFormat::BC4)
+        return PixelFormat::R32F;
+    if (fmt == PixelFormat::BC5)
+        return PixelFormat::RG32F;
     return PixelFormat::RGBA32F;
 }
 
@@ -99,8 +101,8 @@ public:
     /// When guessTextureKind() returns Multikind, call this to obtain the
     /// per-channel kinds (R, G, B, A).  Channels that carry no data are
     /// set to TextureKind::Unused.
-    static std::array<TextureKind, 4> guessTextureMultiKind(
-        const std::string& path, PixelFormat fmt);
+    static std::array<TextureKind, 4> guessTextureMultiKind(const std::string& path,
+                                                            PixelFormat fmt);
 
     /// Human-readable name for a TextureFileFormat value.
     static const char* fileFormatName(TextureFileFormat fmt);
@@ -128,22 +130,18 @@ public:
 
     /// Load a Diablo IV TEX file by providing both the metadata @p metaPath
     /// and the pixel-data @p payloadPath.  Returns std::nullopt on failure.
-    std::optional<Texture> loadTexD4(const std::string& metaPath,
-                                     const std::string& payloadPath);
+    std::optional<Texture> loadTexD4(const std::string& metaPath, const std::string& payloadPath);
 
     /// Load a Diablo IV TEX file with hi-res payload and low-res payload.
     /// @p paylowPath may be empty if no low-res payload is available.
-    std::optional<Texture> loadTexD4(const std::string& metaPath,
-                                     const std::string& payloadPath,
+    std::optional<Texture> loadTexD4(const std::string& metaPath, const std::string& payloadPath,
                                      const std::string& paylowPath);
 
     /// Load a Diablo IV TEX from in-memory buffers (meta + hi-res payload).
-    std::optional<Texture> loadTexD4(std::span<const u8> meta,
-                                     std::span<const u8> payload);
+    std::optional<Texture> loadTexD4(std::span<const u8> meta, std::span<const u8> payload);
 
     /// Load a Diablo IV TEX from in-memory buffers (meta + hi + low payload).
-    std::optional<Texture> loadTexD4(std::span<const u8> meta,
-                                     std::span<const u8> payload,
+    std::optional<Texture> loadTexD4(std::span<const u8> meta, std::span<const u8> payload,
                                      std::span<const u8> paylow);
 
     // ── Saving ─────────────────────────────────────────────────────────

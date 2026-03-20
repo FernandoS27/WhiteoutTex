@@ -15,7 +15,7 @@ namespace whiteout::gui {
 // ============================================================================
 
 void SDLCALL CascBrowser::folderDialogCallback(void* userdata, const char* const* filelist,
-                                                  i32 /*filter*/) {
+                                               i32 /*filter*/) {
     if (!filelist || !filelist[0])
         return;
     auto* state = static_cast<FolderState*>(userdata);
@@ -153,20 +153,19 @@ std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
                 CascBrowserResult file_result;
                 if (child.sno_id >= 0) {
                     file_result = casc_service_.readD4Tex(child.full_path, child.sno_id);
-                    status_ = file_result ? ("Loaded D4 TEX: " + child.full_path)
-                                          : ("Skipped (encrypted or unavailable): " + child.full_path);
+                    status_ = file_result
+                                  ? ("Loaded D4 TEX: " + child.full_path)
+                                  : ("Skipped (encrypted or unavailable): " + child.full_path);
                 } else {
                     file_result = casc_service_.readFile(child.full_path);
                     status_ = file_result ? ("Loaded: " + child.full_path)
                                           : ("Failed to read: " + child.full_path);
                 }
                 if (file_result) {
-                    commands.push_back(LoadCascTextureCmd{
-                        std::move(file_result.name),
-                        std::move(file_result.data),
-                        std::move(file_result.payload),
-                        std::move(file_result.paylow),
-                        file_result.is_d4_tex});
+                    commands.push_back(
+                        LoadCascTextureCmd{std::move(file_result.name), std::move(file_result.data),
+                                           std::move(file_result.payload),
+                                           std::move(file_result.paylow), file_result.is_d4_tex});
                 }
             }
             if (ImGui::IsItemHovered()) {
@@ -179,9 +178,8 @@ std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
         } else {
             if (ImGui::TreeNode(child.name.c_str())) {
                 auto child_cmds = drawTree(child);
-                commands.insert(commands.end(),
-                    std::make_move_iterator(child_cmds.begin()),
-                    std::make_move_iterator(child_cmds.end()));
+                commands.insert(commands.end(), std::make_move_iterator(child_cmds.begin()),
+                                std::make_move_iterator(child_cmds.end()));
                 ImGui::TreePop();
             }
         }
@@ -212,8 +210,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
         ImGui::Text("Storage Path:");
         ImGui::SameLine();
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 160.0f);
-        if (ImGui::BeginCombo("##casc_path", storage_path_buf_,
-                              ImGuiComboFlags_HeightLarge)) {
+        if (ImGui::BeginCombo("##casc_path", storage_path_buf_, ImGuiComboFlags_HeightLarge)) {
             for (const auto& p : recent_paths.paths) {
                 const bool selected = (p == storage_path_buf_);
                 if (ImGui::Selectable(p.c_str(), selected)) {
@@ -252,7 +249,8 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
         if (!product_name_.empty()) {
             ImGui::Text("Product: %s", product_name_.c_str());
         }
-        ImGui::Text("Textures: %zu", casc_service_.files().size() + casc_service_.d4Entries().size());
+        ImGui::Text("Textures: %zu",
+                    casc_service_.files().size() + casc_service_.d4Entries().size());
         if (casc_service_.isD4()) {
             ImGui::SameLine();
             ImGui::TextDisabled("(%zu D4 TEX)", casc_service_.d4Entries().size());
@@ -270,9 +268,8 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
         // ── File tree ──────────────────────────────────────────────────
         ImGui::BeginChild("##casc_tree", ImVec2(0, 0), ImGuiChildFlags_Borders);
         auto tree_cmds = drawTree(root_);
-        commands.insert(commands.end(),
-            std::make_move_iterator(tree_cmds.begin()),
-            std::make_move_iterator(tree_cmds.end()));
+        commands.insert(commands.end(), std::make_move_iterator(tree_cmds.begin()),
+                        std::make_move_iterator(tree_cmds.end()));
         ImGui::EndChild();
     }
     ImGui::End();

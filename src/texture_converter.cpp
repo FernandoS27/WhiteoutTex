@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Fernando Sahmkow
 
-#include "texture_converter.h"
 #include "common_types.h"
+#include "texture_converter.h"
 #include "thread_pool_manager.h"
 
 #include <whiteout/textures/blp/blp.h>
@@ -116,8 +116,7 @@ public:
 
     /// BLP writer accepts an optional WorkerPool for parallel quantization.
     bool saveBlp(const Texture& tex, const std::string& path, const blp::SaveOptions& opts) {
-        blp::Writer writer(blp::Writer::WriteMode::Lenient,
-                           gui::threadPoolManager().get());
+        blp::Writer writer(blp::Writer::WriteMode::Lenient, gui::threadPoolManager().get());
         writer.write(path, tex, opts);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
@@ -150,20 +149,20 @@ TextureConverter::~TextureConverter() = default;
 // ============================================================================
 
 TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
-    struct ExtMap { const char* ext; TextureFileFormat fmt; };
+    struct ExtMap {
+        const char* ext;
+        TextureFileFormat fmt;
+    };
     static constexpr ExtMap kTable[] = {
-        {".blp",  TextureFileFormat::BLP},
-        {".bmp",  TextureFileFormat::BMP},
-        {".dds",  TextureFileFormat::DDS},
-        {".jpg",  TextureFileFormat::JPEG},
-        {".jpeg", TextureFileFormat::JPEG},
-        {".png",  TextureFileFormat::PNG},
-        {".tex",  TextureFileFormat::TEX},
-        {".tga",  TextureFileFormat::TGA},
+        {".blp", TextureFileFormat::BLP},   {".bmp", TextureFileFormat::BMP},
+        {".dds", TextureFileFormat::DDS},   {".jpg", TextureFileFormat::JPEG},
+        {".jpeg", TextureFileFormat::JPEG}, {".png", TextureFileFormat::PNG},
+        {".tex", TextureFileFormat::TEX},   {".tga", TextureFileFormat::TGA},
     };
     auto ext = get_extension_lower(path);
     for (const auto& e : kTable)
-        if (ext == e.ext) return e.fmt;
+        if (ext == e.ext)
+            return e.fmt;
     return TextureFileFormat::Unknown;
 }
 
@@ -176,42 +175,46 @@ TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFor
     auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
 
     // Substring → kind lookup table, checked in priority order.
-    struct KindPattern { const char* substr; TextureKind kind; };
+    struct KindPattern {
+        const char* substr;
+        TextureKind kind;
+    };
     static constexpr KindPattern kTable[] = {
-        {"_diff",       TextureKind::Diffuse},
-        {"diffuse",     TextureKind::Diffuse},
-        {"_orm",        TextureKind::Multikind},
-        {"_tint",       TextureKind::Multikind},
-        {"_ao",         TextureKind::AmbientOcclusion},
-        {"occlusion",   TextureKind::AmbientOcclusion},
-        {"_roughness",  TextureKind::Roughness},
-        {"_rough",      TextureKind::Roughness},
-        {"_metal",      TextureKind::Metalness},
-        {"_gloss",      TextureKind::Gloss},
-        {"_smooth",     TextureKind::Gloss},
-        {"_spec",       TextureKind::Specular},
-        {"specular",    TextureKind::Specular},
-        {"_emis",       TextureKind::Emissive},
-        {"emissive",    TextureKind::Emissive},
-        {"_alpha",      TextureKind::AlphaMask},
-        {"_mask",       TextureKind::AlphaMask},
-        {"_opacity",    TextureKind::AlphaMask},
-        {"lightmap",    TextureKind::Lightmap},
-        {"_envpbr",     TextureKind::EnvironmentPBR},
-        {"_ibl",        TextureKind::EnvironmentPBR},
-        {"_envlegacy",  TextureKind::EnvironmentLegacy},
-        {"_envmap",     TextureKind::EnvironmentLegacy},
-        {"_env",        TextureKind::EnvironmentLegacy},
+        {"_diff", TextureKind::Diffuse},
+        {"diffuse", TextureKind::Diffuse},
+        {"_orm", TextureKind::Multikind},
+        {"_tint", TextureKind::Multikind},
+        {"_ao", TextureKind::AmbientOcclusion},
+        {"occlusion", TextureKind::AmbientOcclusion},
+        {"_roughness", TextureKind::Roughness},
+        {"_rough", TextureKind::Roughness},
+        {"_metal", TextureKind::Metalness},
+        {"_gloss", TextureKind::Gloss},
+        {"_smooth", TextureKind::Gloss},
+        {"_spec", TextureKind::Specular},
+        {"specular", TextureKind::Specular},
+        {"_emis", TextureKind::Emissive},
+        {"emissive", TextureKind::Emissive},
+        {"_alpha", TextureKind::AlphaMask},
+        {"_mask", TextureKind::AlphaMask},
+        {"_opacity", TextureKind::AlphaMask},
+        {"lightmap", TextureKind::Lightmap},
+        {"_envpbr", TextureKind::EnvironmentPBR},
+        {"_ibl", TextureKind::EnvironmentPBR},
+        {"_envlegacy", TextureKind::EnvironmentLegacy},
+        {"_envmap", TextureKind::EnvironmentLegacy},
+        {"_env", TextureKind::EnvironmentLegacy},
         {"_reflection", TextureKind::EnvironmentLegacy},
-        {"_albedo",     TextureKind::Albedo},
-        {"_basecolor",  TextureKind::Albedo},
-        {"normal",      TextureKind::Normal},
-        {"_nrm",        TextureKind::Normal},
-        {"_norm",       TextureKind::Normal},
+        {"_albedo", TextureKind::Albedo},
+        {"_basecolor", TextureKind::Albedo},
+        {"normal", TextureKind::Normal},
+        {"_nrm", TextureKind::Normal},
+        {"_norm", TextureKind::Normal},
     };
 
     for (const auto& p : kTable)
-        if (stem.find(p.substr) != std::string::npos) return p.kind;
+        if (stem.find(p.substr) != std::string::npos)
+            return p.kind;
 
     // Heuristic: BC5 / dual-channel → normal map.
     if (fmt == PixelFormat::BC5 || fmt == PixelFormat::RG8 || fmt == PixelFormat::RG16 ||
@@ -226,23 +229,22 @@ TextureKind TextureConverter::guessTextureKind(const std::string& path, PixelFor
     return TextureKind::Diffuse;
 }
 
-std::array<TextureKind, 4> TextureConverter::guessTextureMultiKind(
-    const std::string& path, PixelFormat /*fmt*/) {
+std::array<TextureKind, 4> TextureConverter::guessTextureMultiKind(const std::string& path,
+                                                                   PixelFormat /*fmt*/) {
     auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
 
     // ORM: R=AmbientOcclusion, G=Roughness, B=Metalness, A=Unused
     if (stem.find("_orm") != std::string::npos) {
-        return {TextureKind::AmbientOcclusion, TextureKind::Roughness,
-                TextureKind::Metalness, TextureKind::Unused};
+        return {TextureKind::AmbientOcclusion, TextureKind::Roughness, TextureKind::Metalness,
+                TextureKind::Unused};
     }
     if (stem.find("_tint") != std::string::npos) {
-        return {TextureKind::AlphaMask, TextureKind::AlphaMask,
-                TextureKind::AlphaMask, TextureKind::Unused};
+        return {TextureKind::AlphaMask, TextureKind::AlphaMask, TextureKind::AlphaMask,
+                TextureKind::Unused};
     }
 
     // Fallback: all channels unknown
-    return {TextureKind::Other, TextureKind::Other,
-            TextureKind::Other, TextureKind::Other};
+    return {TextureKind::Other, TextureKind::Other, TextureKind::Other, TextureKind::Other};
 }
 
 const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {
@@ -363,13 +365,20 @@ std::optional<Texture> TextureConverter::load(const std::string& path) {
 std::optional<Texture> TextureConverter::load(const std::string& path, TextureFileFormat fmt) {
     pImpl->clearIssues();
     switch (fmt) {
-    case TextureFileFormat::BLP:  return pImpl->loadFile<blp::Parser>(path, "BLP");
-    case TextureFileFormat::BMP:  return pImpl->loadFile<bmp::Parser>(path, "BMP");
-    case TextureFileFormat::DDS:  return pImpl->loadFileStrict<dds::Parser>(path);
-    case TextureFileFormat::JPEG: return pImpl->loadFile<jpeg::Parser>(path, "JPEG");
-    case TextureFileFormat::PNG:  return pImpl->loadFile<png::Parser>(path, "PNG");
-    case TextureFileFormat::TEX:  return pImpl->loadFileStrict<tex::Parser>(path);
-    case TextureFileFormat::TGA:  return pImpl->loadFile<tga::Parser>(path, "TGA");
+    case TextureFileFormat::BLP:
+        return pImpl->loadFile<blp::Parser>(path, "BLP");
+    case TextureFileFormat::BMP:
+        return pImpl->loadFile<bmp::Parser>(path, "BMP");
+    case TextureFileFormat::DDS:
+        return pImpl->loadFileStrict<dds::Parser>(path);
+    case TextureFileFormat::JPEG:
+        return pImpl->loadFile<jpeg::Parser>(path, "JPEG");
+    case TextureFileFormat::PNG:
+        return pImpl->loadFile<png::Parser>(path, "PNG");
+    case TextureFileFormat::TEX:
+        return pImpl->loadFileStrict<tex::Parser>(path);
+    case TextureFileFormat::TGA:
+        return pImpl->loadFile<tga::Parser>(path, "TGA");
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -377,14 +386,14 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
 }
 
 std::optional<Texture> TextureConverter::loadTexD4(const std::string& metaPath,
-                                                    const std::string& payloadPath) {
+                                                   const std::string& payloadPath) {
     pImpl->clearIssues();
     return pImpl->loadTexD4(metaPath, payloadPath);
 }
 
 std::optional<Texture> TextureConverter::loadTexD4(const std::string& metaPath,
-                                                    const std::string& payloadPath,
-                                                    const std::string& paylowPath) {
+                                                   const std::string& payloadPath,
+                                                   const std::string& paylowPath) {
     pImpl->clearIssues();
     return pImpl->loadTexD4(metaPath, payloadPath, paylowPath);
 }
@@ -413,14 +422,14 @@ std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureF
 }
 
 std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,
-                                                    std::span<const u8> payload) {
+                                                   std::span<const u8> payload) {
     pImpl->clearIssues();
     return pImpl->loadTexD4(meta, payload);
 }
 
 std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,
-                                                    std::span<const u8> payload,
-                                                    std::span<const u8> paylow) {
+                                                   std::span<const u8> payload,
+                                                   std::span<const u8> paylow) {
     pImpl->clearIssues();
     if (paylow.empty())
         return pImpl->loadTexD4(meta, payload);
@@ -440,13 +449,20 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
     pImpl->clearIssues();
     auto fmt = classifyPath(path);
     switch (fmt) {
-    case TextureFileFormat::BLP:  return pImpl->saveBlp(tex, path, blpOpts);
-    case TextureFileFormat::BMP:  return pImpl->saveFile<bmp::Writer>(path, tex);
-    case TextureFileFormat::DDS:  return pImpl->saveFile<dds::Writer>(path, tex);
-    case TextureFileFormat::JPEG: return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);
-    case TextureFileFormat::PNG:  return pImpl->saveFile<png::Writer>(path, tex);
-    case TextureFileFormat::TEX:  return pImpl->saveFile<tex::Writer>(path, tex);
-    case TextureFileFormat::TGA:  return pImpl->saveFile<tga::Writer>(path, tex);
+    case TextureFileFormat::BLP:
+        return pImpl->saveBlp(tex, path, blpOpts);
+    case TextureFileFormat::BMP:
+        return pImpl->saveFile<bmp::Writer>(path, tex);
+    case TextureFileFormat::DDS:
+        return pImpl->saveFile<dds::Writer>(path, tex);
+    case TextureFileFormat::JPEG:
+        return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);
+    case TextureFileFormat::PNG:
+        return pImpl->saveFile<png::Writer>(path, tex);
+    case TextureFileFormat::TEX:
+        return pImpl->saveFile<tex::Writer>(path, tex);
+    case TextureFileFormat::TGA:
+        return pImpl->saveFile<tga::Writer>(path, tex);
     default:
         pImpl->issues.push_back("Unsupported output format");
         return false;

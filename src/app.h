@@ -5,13 +5,13 @@
 
 #include "models/app_state.h"
 #include "preferences.h"
+#include "services/texture_service.h"
+#include "texture_converter.h"
 #include "views/batch_convert.h"
 #include "views/casc_browser.h"
 #include "views/image_details.h"
 #include "views/image_viewer.h"
 #include "views/save_dialog.h"
-#include "services/texture_service.h"
-#include "texture_converter.h"
 
 #ifdef WHITEOUT_HAS_UPSCALER
 #include "services/upscaler_service.h"

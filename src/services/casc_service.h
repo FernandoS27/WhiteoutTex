@@ -22,13 +22,15 @@ namespace whiteout::gui {
 
 /// Result returned when extracting a file from CASC storage.
 struct CascFileResult {
-    std::string name;                ///< Display name (e.g. CASC path or D4 tex name).
-    std::vector<u8> data;            ///< File data (non-D4) or D4 meta data.
-    std::vector<u8> payload;         ///< D4 hi-res payload (empty for non-D4).
-    std::vector<u8> paylow;          ///< D4 low-res payload (optional).
-    bool is_d4_tex = false;          ///< True when the result is a D4 TEX triplet.
+    std::string name;        ///< Display name (e.g. CASC path or D4 tex name).
+    std::vector<u8> data;    ///< File data (non-D4) or D4 meta data.
+    std::vector<u8> payload; ///< D4 hi-res payload (empty for non-D4).
+    std::vector<u8> paylow;  ///< D4 low-res payload (optional).
+    bool is_d4_tex = false;  ///< True when the result is a D4 TEX triplet.
 
-    explicit operator bool() const { return !data.empty(); }
+    explicit operator bool() const {
+        return !data.empty();
+    }
 };
 
 /// Lightweight D4 TOC texture entry (name + SNO ID).
@@ -59,10 +61,14 @@ public:
     void close();
 
     /// Returns true if a storage is currently open.
-    bool isOpen() const { return storage_open_; }
+    bool isOpen() const {
+        return storage_open_;
+    }
 
     /// Returns true if the current storage is a Diablo IV archive.
-    bool isD4() const { return is_d4_; }
+    bool isD4() const {
+        return is_d4_;
+    }
 
     /// Read a regular (non-D4) file from the open storage.
     CascFileResult readFile(const std::string& casc_path);
@@ -71,10 +77,14 @@ public:
     CascFileResult readD4Tex(const std::string& name, i32 sno_id);
 
     /// Enumerated regular files (sorted).
-    const std::vector<std::string>& files() const { return all_files_; }
+    const std::vector<std::string>& files() const {
+        return all_files_;
+    }
 
     /// Enumerated D4 texture entries (sorted by name).
-    const std::vector<CascD4TexEntry>& d4Entries() const { return d4_tex_entries_; }
+    const std::vector<CascD4TexEntry>& d4Entries() const {
+        return d4_tex_entries_;
+    }
 
 private:
     /// Combined meta cache entry for a single SNO.

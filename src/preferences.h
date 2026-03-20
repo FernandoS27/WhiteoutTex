@@ -17,7 +17,7 @@ namespace whiteout::gui {
 
 /// Type of transformation step in the batch pipeline.
 enum class TransformType : i32 {
-    Upscale   = 0, ///< AI upscale (Real-ESRGAN).
+    Upscale = 0,   ///< AI upscale (Real-ESRGAN).
     Downscale = 1, ///< Halve dimensions by dropping mip levels.
 };
 
@@ -72,8 +72,8 @@ struct MainWindowIniRect {
 /// Mipmap generation mode.
 enum class MipmapMode : i32 {
     KeepOriginal = 0, ///< Do not regenerate mipmaps.
-    Maximum      = 1, ///< Generate the maximum possible mip chain.
-    Custom       = 2, ///< Generate a user-specified number of mip levels.
+    Maximum = 1,      ///< Generate the maximum possible mip chain.
+    Custom = 2,       ///< Generate a user-specified number of mip levels.
 };
 
 /// Save preferences persisted in the [WhiteoutTex][SavePrefs] INI section.
@@ -172,6 +172,7 @@ void append_recent_files(const std::string& ini_path, const RecentFiles& recent)
 RecentPaths load_recent_paths(const std::string& ini_path, const char* section);
 
 /// Append a RecentPaths list under the given INI section header.
-void append_recent_paths(const std::string& ini_path, const char* section, const RecentPaths& recent);
+void append_recent_paths(const std::string& ini_path, const char* section,
+                         const RecentPaths& recent);
 
 } // namespace whiteout::gui

@@ -211,7 +211,8 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
             if (std::sscanf(p, "%d%n", &type_int, &n) == 1) {
                 step.type = static_cast<TransformType>(std::clamp(type_int, 0, 1));
                 p += n;
-                if (*p == ',') ++p;
+                if (*p == ',')
+                    ++p;
                 if (step.type == TransformType::Downscale) {
                     i32 lvl = 1;
                     if (std::sscanf(p, "%d", &lvl) == 1)
@@ -301,7 +302,8 @@ RecentPaths load_recent_paths(const std::string& ini_path, const char* section) 
     return recent;
 }
 
-void append_recent_paths(const std::string& ini_path, const char* section, const RecentPaths& recent) {
+void append_recent_paths(const std::string& ini_path, const char* section,
+                         const RecentPaths& recent) {
     std::ofstream out(ini_path, std::ios::app);
     if (!out.is_open())
         return;

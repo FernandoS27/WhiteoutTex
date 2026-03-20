@@ -65,13 +65,14 @@ public:
     void joinWorkers();
 
     /// Returns true while a batch is in progress.
-    bool isRunning() const { return converting_; }
+    bool isRunning() const {
+        return converting_;
+    }
 
 private:
     void workerFunc();
     bool saveOne(whiteout::textures::TextureConverter& converter,
-                 whiteout::textures::Texture tex_copy,
-                 const std::string& out_path,
+                 whiteout::textures::Texture tex_copy, const std::string& out_path,
                  whiteout::textures::TextureKind kind);
 
     BatchJob job_;

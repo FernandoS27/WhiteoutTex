@@ -25,8 +25,7 @@ struct TextureLoadResult {
     std::optional<whiteout::textures::Texture> texture;
     whiteout::textures::TextureFileFormat file_format =
         whiteout::textures::TextureFileFormat::Unknown;
-    whiteout::textures::PixelFormat source_fmt =
-        whiteout::textures::PixelFormat::RGBA8;
+    whiteout::textures::PixelFormat source_fmt = whiteout::textures::PixelFormat::RGBA8;
     std::string error_message;
 
     /// True if the texture is BC3 Normal and may need BC3N channel swap.
@@ -59,13 +58,11 @@ public:
                                         const std::string& paylow_path = {});
 
     /// Load a texture from an in-memory buffer with an explicit format.
-    TextureLoadResult loadFromMemory(const std::string& name,
-                                     std::span<const u8> data,
+    TextureLoadResult loadFromMemory(const std::string& name, std::span<const u8> data,
                                      whiteout::textures::TextureFileFormat fmt);
 
     /// Load a D4 TEX from in-memory buffers (meta + payload + optional paylow).
-    TextureLoadResult loadD4FromMemory(const std::string& name,
-                                       std::span<const u8> meta,
+    TextureLoadResult loadD4FromMemory(const std::string& name, std::span<const u8> meta,
                                        std::span<const u8> payload,
                                        std::span<const u8> paylow = {});
 
@@ -84,14 +81,12 @@ public:
         whiteout::interfaces::WorkerPool* pool = nullptr);
 
     /// Apply per-channel visibility filter to RGBA8 pixel data.
-    static std::vector<u8> applyChannelFilter(
-        const u8* data, i32 width, i32 height,
-        bool show_r, bool show_g, bool show_b, bool show_a);
+    static std::vector<u8> applyChannelFilter(const u8* data, i32 width, i32 height, bool show_r,
+                                              bool show_g, bool show_b, bool show_a);
 
 private:
     /// Apply kind guessing, BCn decompression, and source format tracking.
-    TextureLoadResult prepare(const std::string& path,
-                              whiteout::textures::Texture texture);
+    TextureLoadResult prepare(const std::string& path, whiteout::textures::Texture texture);
 
     whiteout::textures::TextureConverter& converter_;
 };

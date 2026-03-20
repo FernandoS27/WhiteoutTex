@@ -20,8 +20,7 @@ UpscalerService::~UpscalerService() {
 // Async entry point
 // ============================================================================
 
-void UpscalerService::startAsync(const UpscalerModel& model,
-                                 const tex::Texture& source,
+void UpscalerService::startAsync(const UpscalerModel& model, const tex::Texture& source,
                                  bool upscale_alpha) {
     if (thread_.joinable())
         thread_.join();

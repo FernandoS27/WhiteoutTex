@@ -9,8 +9,8 @@
 
 #include <whiteout/common_types.h>
 
-#include <realesrgan.h>
 #include <gpu.h>
+#include <realesrgan.h>
 
 #include <SDL3/SDL.h>
 
@@ -39,14 +39,14 @@ static void ensureGpuInstance() {
 // ============================================================================
 
 static const UpscalerModel kBuiltinModels[] = {
-    {"Real-ESRGAN x4+",            "realesrgan-x4plus",        4, 10},
-    {"Real-ESRGAN x4+ Anime",      "realesrgan-x4plus-anime",  4, 10},
-    {"Real-ESRGAN x2+",            "RealESRGAN_x2plus",        2, 10},
+    {"Real-ESRGAN x4+", "realesrgan-x4plus", 4, 10},
+    {"Real-ESRGAN x4+ Anime", "realesrgan-x4plus-anime", 4, 10},
+    {"Real-ESRGAN x2+", "RealESRGAN_x2plus", 2, 10},
     {"Real-ESRGAN General WDN x4", "realesr-general-wdn-x4v3", 4, 10},
-    {"Real-ESRGAN AnimVideo v3 x4", "realesr-animevideov3-x4",  4, 10},
-    {"Real-ESRGAN AnimVideo v3 x3", "realesr-animevideov3-x3",  3, 10},
-    {"Real-ESRGAN AnimVideo v3 x2", "realesr-animevideov3-x2",  2, 10},
-    {"Real-ESRNet x4+",            "realesrnet-x4plus",        4, 10},
+    {"Real-ESRGAN AnimVideo v3 x4", "realesr-animevideov3-x4", 4, 10},
+    {"Real-ESRGAN AnimVideo v3 x3", "realesr-animevideov3-x3", 3, 10},
+    {"Real-ESRGAN AnimVideo v3 x2", "realesr-animevideov3-x2", 2, 10},
+    {"Real-ESRNet x4+", "realesrnet-x4plus", 4, 10},
 };
 
 // ============================================================================
@@ -81,8 +81,7 @@ std::filesystem::path Upscaler::defaultModelDir() {
     return "models";
 }
 
-std::vector<UpscalerModel> Upscaler::availableModels(
-    const std::filesystem::path& model_dir) {
+std::vector<UpscalerModel> Upscaler::availableModels(const std::filesystem::path& model_dir) {
     std::vector<UpscalerModel> found;
     if (!std::filesystem::is_directory(model_dir)) {
         return found;
@@ -124,9 +123,8 @@ i32 Upscaler::bestGpuIndex() {
     return best;
 }
 
-bool Upscaler::init(const std::filesystem::path& model_dir,
-                    const UpscalerModel& model,
-                    i32 gpu_id, i32 tile_size) {
+bool Upscaler::init(const std::filesystem::path& model_dir, const UpscalerModel& model, i32 gpu_id,
+                    i32 tile_size) {
     impl_->esrgan.reset();
     ensureGpuInstance();
 
@@ -174,8 +172,7 @@ bool Upscaler::init(const std::filesystem::path& model_dir,
     return true;
 }
 
-std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
-                                              bool upscale_alpha) {
+std::optional<tex::Texture> Upscaler::process(const tex::Texture& input, bool upscale_alpha) {
     if (!impl_->esrgan) {
         return std::nullopt;
     }
@@ -209,11 +206,8 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
 
     // Helper: upscale a single channel by broadcasting it to grayscale RGB,
     // running through the model, and averaging the output RGB back.
-    auto upscaleChannel = [&](const u8* src_rgba, size_t src_pixels,
-                              i32 src_w, i32 src_h,
-                              i32 dst_w, i32 dst_h,
-                              size_t dst_pixels,
-                              i32 channel_index,
+    auto upscaleChannel = [&](const u8* src_rgba, size_t src_pixels, i32 src_w, i32 src_h,
+                              i32 dst_w, i32 dst_h, size_t dst_pixels, i32 channel_index,
                               u8* dst_rgba) -> bool {
         std::vector<u8> ch_rgb(src_pixels * c);
         for (size_t px = 0; px < src_pixels; ++px) {
@@ -223,8 +217,7 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
             ch_rgb[px * 4 + 2] = val;
             ch_rgb[px * 4 + 3] = 255;
         }
-        ncnn::Mat ch_in(src_w, src_h, static_cast<void*>(ch_rgb.data()),
-                        static_cast<size_t>(c), c);
+        ncnn::Mat ch_in(src_w, src_h, static_cast<void*>(ch_rgb.data()), static_cast<size_t>(c), c);
         std::vector<u8> ch_out(dst_pixels * c);
         ncnn::Mat ch_out_mat(dst_w, dst_h, static_cast<void*>(ch_out.data()),
                              static_cast<size_t>(c), c);
@@ -234,8 +227,8 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
             const u8 r = ch_out[px * 4 + 0];
             const u8 g = ch_out[px * 4 + 1];
             const u8 b = ch_out[px * 4 + 2];
-            dst_rgba[px * 4 + channel_index] = static_cast<u8>(
-                (static_cast<unsigned>(r) + g + b + 1) / 3);
+            dst_rgba[px * 4 + channel_index] =
+                static_cast<u8>((static_cast<unsigned>(r) + g + b + 1) / 3);
         }
         return true;
     };
@@ -250,25 +243,23 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
             const tex::TextureKind ck = input.channelKind(kRGBAChannels[ch_idx]);
             if (ck == tex::TextureKind::Unused) {
                 const u8 def = static_cast<u8>(std::clamp(
-                    input.channelDefault(kRGBAChannels[ch_idx]) * 255.0f + 0.5f,
-                    0.0f, 255.0f));
+                    input.channelDefault(kRGBAChannels[ch_idx]) * 255.0f + 0.5f, 0.0f, 255.0f));
                 for (size_t px = 0; px < out_pixels; ++px) {
                     outbuf[px * 4 + ch_idx] = def;
                 }
                 continue;
             }
 
-            if (!upscaleChannel(inbuf.data(), in_pixels, w, h,
-                                outw, outh, out_pixels, ch_idx, outbuf.data())) {
+            if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, ch_idx,
+                                outbuf.data())) {
                 return std::nullopt;
             }
         }
     } else {
         // Non-multikind: run the model on the full RGB image.
-        ncnn::Mat inimage(w, h, static_cast<void*>(inbuf.data()),
-                          static_cast<size_t>(c), c);
-        ncnn::Mat outimage(outw, outh, static_cast<void*>(outbuf.data()),
-                           static_cast<size_t>(c), c);
+        ncnn::Mat inimage(w, h, static_cast<void*>(inbuf.data()), static_cast<size_t>(c), c);
+        ncnn::Mat outimage(outw, outh, static_cast<void*>(outbuf.data()), static_cast<size_t>(c),
+                           c);
 
         i32 ret = impl_->esrgan->process(inimage, outimage);
         if (ret != 0) {
@@ -277,8 +268,8 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
 
         if (upscale_alpha) {
             // Upscale the alpha channel through the model as grayscale.
-            if (!upscaleChannel(inbuf.data(), in_pixels, w, h,
-                                outw, outh, out_pixels, 3, outbuf.data())) {
+            if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, 3,
+                                outbuf.data())) {
                 // Fall back to opaque if alpha upscale fails.
                 for (size_t i = 3; i < outbuf.size(); i += 4) {
                     outbuf[i] = 255;
@@ -293,12 +284,10 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input,
     }
 
     // Build the result texture.
-    auto result = tex::Texture::create2D(
-        tex::PixelFormat::RGBA8,
-        static_cast<u32>(outw), static_cast<u32>(outh), 1);
+    auto result = tex::Texture::create2D(tex::PixelFormat::RGBA8, static_cast<u32>(outw),
+                                         static_cast<u32>(outh), 1);
     auto dst = result.mipData(0);
-    std::memcpy(dst.data(), outbuf.data(),
-                std::min(dst.size(), outbuf.size()));
+    std::memcpy(dst.data(), outbuf.data(), std::min(dst.size(), outbuf.size()));
 
     copyKindMetadata(result, input);
 

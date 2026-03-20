@@ -19,12 +19,12 @@ namespace whiteout::gui {
 // Rust-style type aliases (mirrors whiteout::)
 // ============================================================================
 
-using u8  = whiteout::u8;
+using u8 = whiteout::u8;
 using u16 = whiteout::u16;
 using u32 = whiteout::u32;
 using u64 = whiteout::u64;
 
-using i8  = whiteout::i8;
+using i8 = whiteout::i8;
 using i16 = whiteout::i16;
 using i32 = whiteout::i32;
 using i64 = whiteout::i64;
@@ -95,7 +95,8 @@ inline bool consumeFolderResult(FolderState& state, char (&buf)[N]) {
 inline std::string replaceMetaSegment(const std::string& path, const char* seg) {
     constexpr std::string_view kMeta = "meta";
     auto pos = path.find(kMeta);
-    if (pos == std::string::npos) return {};
+    if (pos == std::string::npos)
+        return {};
     std::string result = path;
     result.replace(pos, kMeta.size(), seg);
     return result;

@@ -11,8 +11,8 @@
 namespace {
 
 using namespace whiteout;
-using sno::SnoGroup;
 using sno::kSnoMagic;
+using sno::SnoGroup;
 
 /// Supported texture extensions (lowercase, with dot).
 constexpr const char* kSupportedExtensions[] = {
@@ -139,8 +139,7 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
         if (auto toc_data = storage_.readFile(toc_path)) {
             if (toc.parse(*toc_data)) {
                 auto fmt = toc.format();
-                is_d4_ = (fmt == sno::CoreTocFormat::D4Old ||
-                           fmt == sno::CoreTocFormat::D4New);
+                is_d4_ = (fmt == sno::CoreTocFormat::D4Old || fmt == sno::CoreTocFormat::D4New);
             }
             break;
         }
@@ -160,9 +159,7 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
                 d4_tex_entries_.push_back({entry.name, entry.snoId});
         }
         std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),
-                  [](const CascD4TexEntry& a, const CascD4TexEntry& b) {
-                      return a.name < b.name;
-                  });
+                  [](const CascD4TexEntry& a, const CascD4TexEntry& b) { return a.name < b.name; });
 
         loadD4Textures(toc);
     }
@@ -206,11 +203,10 @@ void CascService::loadD4Textures(sno::CoreToc& toc) {
     for (const char* pattern : {"*.dat", "base:*.dat", "base\\*.dat"}) {
         if (!dat_files.empty())
             break;
-        storage_.enumerate(pattern, "",
-                           [&](const std::string& name) -> bool {
-                               dat_files.push_back(name);
-                               return true;
-                           });
+        storage_.enumerate(pattern, "", [&](const std::string& name) -> bool {
+            dat_files.push_back(name);
+            return true;
+        });
     }
 
     std::vector<std::string> tex_combined;
@@ -244,7 +240,10 @@ void CascService::loadD4Textures(sno::CoreToc& toc) {
         if (index_end > buf.size())
             continue;
 
-        struct IndexEntry { i32 sno_id; u32 size; };
+        struct IndexEntry {
+            i32 sno_id;
+            u32 size;
+        };
         std::vector<IndexEntry> index(entry_count);
         for (u32 i = 0; i < entry_count; ++i) {
             const size_t off = 8 + static_cast<size_t>(i) * 8;
@@ -305,8 +304,7 @@ CascFileResult CascService::readD4Tex(const std::string& name, i32 sno_id) {
         if (it != combined_cache_.end()) {
             auto& ce = it->second;
             meta = buildSyntheticSnoHeader(d4_tex_format_hash_,
-                                           ce.file_data->data() + ce.data_offset,
-                                           ce.data_size);
+                                           ce.file_data->data() + ce.data_offset, ce.data_size);
         }
     }
 

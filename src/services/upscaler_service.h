@@ -42,8 +42,7 @@ public:
     UpscalerService& operator=(const UpscalerService&) = delete;
 
     /// Launch an upscale on a background thread.
-    void startAsync(const UpscalerModel& model,
-                    const whiteout::textures::Texture& source,
+    void startAsync(const UpscalerModel& model, const whiteout::textures::Texture& source,
                     bool upscale_alpha);
 
     /// Poll for a completed result.  Returns the result exactly once
@@ -54,7 +53,9 @@ public:
     std::string status() const;
 
     /// Returns true while an upscale is in progress.
-    bool isRunning() const { return in_progress_; }
+    bool isRunning() const {
+        return in_progress_;
+    }
 
     /// Discover available models in the default model directory.
     static std::vector<UpscalerModel> availableModels();

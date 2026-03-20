@@ -114,6 +114,7 @@ struct Overloaded : Ts... {
 };
 
 using AppCommand = std::variant<
+    // clang-format off
     OpenFileCmd,
     RefreshDisplayCmd,
     RegenerateMipmapsCmd,
@@ -132,6 +133,7 @@ using AppCommand = std::variant<
     LoadCascTextureCmd,
     ApplyBC3NSwapCmd,
     LoadD4PayloadCmd
->;
+    // clang-format on
+    >;
 
 } // namespace whiteout::gui
