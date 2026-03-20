@@ -24,6 +24,9 @@
 ///   --jpeg_quality=<1..100>
 ///       JPEG encoder quality level (default 75).
 ///
+///   --jpeg_progressive
+///       Use progressive (SOF2) JPEG encoding.
+///
 ///   --generate_mipmaps[=<maximum|custom>]
 ///       Regenerate mip levels.
 ///         maximum (default) — full mip chain.
@@ -121,14 +124,22 @@ static std::string replace_extension(const std::string& path, const std::string&
 
 static std::string default_output_extension(TFF input_fmt) {
     switch (input_fmt) {
-    case TFF::BLP:  return ".dds";
-    case TFF::BMP:  return ".dds";
-    case TFF::DDS:  return ".blp";
-    case TFF::JPEG: return ".png";
-    case TFF::PNG:  return ".jpg";
-    case TFF::TEX:  return ".dds";
-    case TFF::TGA:  return ".dds";
-    default:        return ".dds";
+    case TFF::BLP:
+        return ".dds";
+    case TFF::BMP:
+        return ".dds";
+    case TFF::DDS:
+        return ".blp";
+    case TFF::JPEG:
+        return ".png";
+    case TFF::PNG:
+        return ".jpg";
+    case TFF::TEX:
+        return ".dds";
+    case TFF::TGA:
+        return ".dds";
+    default:
+        return ".dds";
     }
 }
 
@@ -161,35 +172,46 @@ static std::filesystem::path executable_dir() {
 // ============================================================================
 
 static constexpr tex::PixelFormat kDdsPixelFormats[] = {
-    tex::PixelFormat::RGBA8,  // 0: true_color
-    tex::PixelFormat::BC1,    // 1: bc1
-    tex::PixelFormat::BC2,    // 2: bc2
-    tex::PixelFormat::BC3,    // 3: bc3
-    tex::PixelFormat::BC4,    // 4: bc4
-    tex::PixelFormat::BC5,    // 5: bc5
-    tex::PixelFormat::BC6H,   // 6: bc6
-    tex::PixelFormat::BC7,    // 7: bc7
+    tex::PixelFormat::RGBA8, // 0: true_color
+    tex::PixelFormat::BC1,   // 1: bc1
+    tex::PixelFormat::BC2,   // 2: bc2
+    tex::PixelFormat::BC3,   // 3: bc3
+    tex::PixelFormat::BC4,   // 4: bc4
+    tex::PixelFormat::BC5,   // 5: bc5
+    tex::PixelFormat::BC6H,  // 6: bc6
+    tex::PixelFormat::BC7,   // 7: bc7
 };
 
-static tex::blp::SaveOptions build_blp_options(int blp_version, int blp_encoding_idx,
-                                               bool dither, float dither_strength,
-                                               int jpeg_quality) {
+static tex::blp::SaveOptions build_blp_options(int blp_version, int blp_encoding_idx, bool dither,
+                                               float dither_strength, int jpeg_quality,
+                                               bool jpeg_progressive) {
     using namespace tex::blp;
     SaveOptions opts;
     opts.version = blp_version == 0 ? BlpVersion::BLP1 : BlpVersion::BLP2;
 
     // Encoding indices: 0=Infer, 1=BGRA, 2=Palettized, 3=JPEG, 4=BC1, 5=BC2, 6=BC3
     switch (blp_encoding_idx) {
-    case 0:  opts.encoding = BlpEncoding::Infer;      break;
-    case 1:  opts.encoding = BlpEncoding::BGRA;       break;
-    case 2:  opts.encoding = BlpEncoding::Palettized;  break;
-    case 3:  opts.encoding = BlpEncoding::JPEG;        break;
-    default: opts.encoding = BlpEncoding::DXT;         break;
+    case 0:
+        opts.encoding = BlpEncoding::Infer;
+        break;
+    case 1:
+        opts.encoding = BlpEncoding::BGRA;
+        break;
+    case 2:
+        opts.encoding = BlpEncoding::Palettized;
+        break;
+    case 3:
+        opts.encoding = BlpEncoding::JPEG;
+        break;
+    default:
+        opts.encoding = BlpEncoding::DXT;
+        break;
     }
 
     opts.dither = dither;
     opts.ditherStrength = dither_strength;
     opts.jpegQuality = jpeg_quality;
+    opts.jpegProgressive = jpeg_progressive;
 
     // Force BLP1 for encodings that require it.
     if (opts.encoding == BlpEncoding::JPEG || opts.encoding == BlpEncoding::Palettized)
@@ -198,8 +220,7 @@ static tex::blp::SaveOptions build_blp_options(int blp_version, int blp_encoding
     return opts;
 }
 
-static void coerce_blp_format(tex::Texture& t, int blp_encoding_idx,
-                              tex::blp::BlpEncoding enc,
+static void coerce_blp_format(tex::Texture& t, int blp_encoding_idx, tex::blp::BlpEncoding enc,
                               whiteout::interfaces::WorkerPool* pool) {
     if (enc == tex::blp::BlpEncoding::JPEG || enc == tex::blp::BlpEncoding::Palettized ||
         enc == tex::blp::BlpEncoding::BGRA || enc == tex::blp::BlpEncoding::Infer) {
@@ -207,8 +228,8 @@ static void coerce_blp_format(tex::Texture& t, int blp_encoding_idx,
             t = t.copyAsFormat(tex::PixelFormat::RGBA8, pool);
     } else {
         // DXT subtype: 4→BC1, 5→BC2, 6→BC3
-        constexpr tex::PixelFormat kDxt[] = {
-            tex::PixelFormat::BC1, tex::PixelFormat::BC2, tex::PixelFormat::BC3};
+        constexpr tex::PixelFormat kDxt[] = {tex::PixelFormat::BC1, tex::PixelFormat::BC2,
+                                             tex::PixelFormat::BC3};
         auto fmt = kDxt[blp_encoding_idx - 4];
         if (t.format() != fmt)
             t = t.copyAsFormat(fmt, pool);
@@ -244,25 +265,25 @@ struct KindMapping {
 };
 
 static constexpr KindMapping kKindMappings[] = {
-    {"diffuse",            tex::TextureKind::Diffuse},
-    {"normal",             tex::TextureKind::Normal},
-    {"specular",           tex::TextureKind::Specular},
-    {"orm",                tex::TextureKind::ORM},
-    {"albedo",             tex::TextureKind::Albedo},
-    {"roughness",          tex::TextureKind::Roughness},
-    {"metalness",          tex::TextureKind::Metalness},
-    {"ao",                 tex::TextureKind::AmbientOcclusion},
-    {"gloss",              tex::TextureKind::Gloss},
-    {"emissive",           tex::TextureKind::Emissive},
-    {"alpha_mask",         tex::TextureKind::AlphaMask},
-    {"binary_mask",        tex::TextureKind::BinaryMask},
-    {"transparency_mask",  tex::TextureKind::TransparencyMask},
-    {"blend_mask",         tex::TextureKind::BlendMask},
-    {"lightmap",           tex::TextureKind::Lightmap},
-    {"env_pbr",            tex::TextureKind::EnvironmentPBR},
-    {"env_legacy",         tex::TextureKind::EnvironmentLegacy},
-    {"multikind",          tex::TextureKind::Multikind},
-    {"other",              tex::TextureKind::Other},
+    {"diffuse", tex::TextureKind::Diffuse},
+    {"normal", tex::TextureKind::Normal},
+    {"specular", tex::TextureKind::Specular},
+    {"orm", tex::TextureKind::ORM},
+    {"albedo", tex::TextureKind::Albedo},
+    {"roughness", tex::TextureKind::Roughness},
+    {"metalness", tex::TextureKind::Metalness},
+    {"ao", tex::TextureKind::AmbientOcclusion},
+    {"gloss", tex::TextureKind::Gloss},
+    {"emissive", tex::TextureKind::Emissive},
+    {"alpha_mask", tex::TextureKind::AlphaMask},
+    {"binary_mask", tex::TextureKind::BinaryMask},
+    {"transparency_mask", tex::TextureKind::TransparencyMask},
+    {"blend_mask", tex::TextureKind::BlendMask},
+    {"lightmap", tex::TextureKind::Lightmap},
+    {"env_pbr", tex::TextureKind::EnvironmentPBR},
+    {"env_legacy", tex::TextureKind::EnvironmentLegacy},
+    {"multikind", tex::TextureKind::Multikind},
+    {"other", tex::TextureKind::Other},
 };
 
 // ============================================================================
@@ -270,38 +291,38 @@ static constexpr KindMapping kKindMappings[] = {
 // ============================================================================
 
 static void print_usage(const char* program) {
-    std::cout
-        << "WhiteoutTex CLI — texture converter with AI upscaling & downscaling\n\n"
-        << "Usage: " << program << " <input> [output] [options...]\n\n"
-        << "If no output path is given, the extension is replaced automatically:\n"
-        << "  .blp -> .dds    .bmp -> .dds    .tex -> .dds\n"
-        << "  .dds -> .blp    .tga -> .dds\n"
-        << "  .jpg -> .png    .png -> .jpg\n\n"
-        << "Conversion options:\n"
-        << "  --blp_type=<1|2>           BLP container version (default: 2)\n"
-        << "  --blp_compression=<type>   BLP encoding: true_color|paletted|jpeg|bc1|bc2|bc3\n"
-        << "  --dds_format=<type>        DDS format: true_color|bc1-bc7|bc3n\n"
-        << "  --jpeg_quality=<1..100>    JPEG quality level (default: 75)\n"
-        << "  --generate_mipmaps[=mode]  Regenerate mipmaps: maximum (default) or custom\n"
-        << "  --mipmap_count=<N>         Mip count for --generate_mipmaps=custom\n"
-        << "  --texture_kind=<kind>      Set texture kind (see below)\n"
-        << "  --dds_invert_y             Invert DDS green channel (normal maps)\n"
-        << "  --blp_dither[=<strength>]  Dither for paletted BLP (strength 0.0-1.0)\n\n"
-        << "Transform options (applied in order before save):\n"
-        << "  --downscale=<x2|x4>        Downscale by 2x or 4x\n"
+    std::cout << "WhiteoutTex CLI — texture converter with AI upscaling & downscaling\n\n"
+              << "Usage: " << program << " <input> [output] [options...]\n\n"
+              << "If no output path is given, the extension is replaced automatically:\n"
+              << "  .blp -> .dds    .bmp -> .dds    .tex -> .dds\n"
+              << "  .dds -> .blp    .tga -> .dds\n"
+              << "  .jpg -> .png    .png -> .jpg\n\n"
+              << "Conversion options:\n"
+              << "  --blp_type=<1|2>           BLP container version (default: 2)\n"
+              << "  --blp_compression=<type>   BLP encoding: true_color|paletted|jpeg|bc1|bc2|bc3\n"
+              << "  --dds_format=<type>        DDS format: true_color|bc1-bc7|bc3n\n"
+              << "  --jpeg_quality=<1..100>    JPEG quality level (default: 75)\n"
+              << "  --jpeg_progressive         Use progressive JPEG encoding\n"
+              << "  --generate_mipmaps[=mode]  Regenerate mipmaps: maximum (default) or custom\n"
+              << "  --mipmap_count=<N>         Mip count for --generate_mipmaps=custom\n"
+              << "  --texture_kind=<kind>      Set texture kind (see below)\n"
+              << "  --dds_invert_y             Invert DDS green channel (normal maps)\n"
+              << "  --blp_dither[=<strength>]  Dither for paletted BLP (strength 0.0-1.0)\n\n"
+              << "Transform options (applied in order before save):\n"
+              << "  --downscale=<x2|x4>        Downscale by 2x or 4x\n"
 #ifdef WHITEOUT_HAS_UPSCALER
-        << "  --upscale=<model_name>     AI upscale with named Real-ESRGAN model\n"
-        << "  --upscale_alpha            Upscale alpha via AI model\n"
-        << "  --model_dir=<path>         Model directory (default: models/ next to exe)\n"
-        << "  --gpu=<id>                 Vulkan GPU index (-1 = auto)\n"
-        << "  --tile_size=<N>            Inference tile size (0 = auto)\n"
-        << "  --list_models              List available AI models and exit\n"
+              << "  --upscale=<model_name>     AI upscale with named Real-ESRGAN model\n"
+              << "  --upscale_alpha            Upscale alpha via AI model\n"
+              << "  --model_dir=<path>         Model directory (default: models/ next to exe)\n"
+              << "  --gpu=<id>                 Vulkan GPU index (-1 = auto)\n"
+              << "  --tile_size=<N>            Inference tile size (0 = auto)\n"
+              << "  --list_models              List available AI models and exit\n"
 #endif
-        << "\n"
-        << "Texture kinds:\n"
-        << "  diffuse, normal, specular, orm, albedo, roughness, metalness, ao,\n"
-        << "  gloss, emissive, alpha_mask, binary_mask, transparency_mask,\n"
-        << "  blend_mask, lightmap, env_pbr, env_legacy, multikind, other\n";
+              << "\n"
+              << "Texture kinds:\n"
+              << "  diffuse, normal, specular, orm, albedo, roughness, metalness, ao,\n"
+              << "  gloss, emissive, alpha_mask, binary_mask, transparency_mask,\n"
+              << "  blend_mask, lightmap, env_pbr, env_legacy, multikind, other\n";
 }
 
 // ============================================================================
@@ -320,21 +341,22 @@ int main(int argc, char* argv[]) {
     std::string opt_blp_compression;
     std::string opt_dds_format;
     std::string opt_jpeg_quality;
+    bool opt_jpeg_progressive = false;
     std::string opt_texture_kind;
-    std::string opt_generate_mipmaps;        // "" | "maximum" | "custom"
+    std::string opt_generate_mipmaps; // "" | "maximum" | "custom"
     std::string opt_mipmap_count;
     std::string opt_downscale;
-    bool        opt_dds_invert_y = false;
-    bool        opt_blp_dither = false;
-    float       opt_blp_dither_strength = 0.8f;
+    bool opt_dds_invert_y = false;
+    bool opt_blp_dither = false;
+    float opt_blp_dither_strength = 0.8f;
 
     // Upscaler options
     std::string opt_upscale_model;
-    bool        opt_upscale_alpha = false;
+    bool opt_upscale_alpha = false;
     std::string opt_model_dir;
     std::string opt_gpu;
     std::string opt_tile_size;
-    bool        opt_list_models = false;
+    bool opt_list_models = false;
 
     for (int i = 1; i < argc; ++i) {
         const char* arg = argv[i];
@@ -353,6 +375,8 @@ int main(int argc, char* argv[]) {
             opt_dds_format = to_lower(v);
         } else if ((v = get_option_value(arg, "--jpeg_quality=")).size()) {
             opt_jpeg_quality = v;
+        } else if (std::strcmp(arg, "--jpeg_progressive") == 0) {
+            opt_jpeg_progressive = true;
         } else if ((v = get_option_value(arg, "--texture_kind=")).size()) {
             opt_texture_kind = to_lower(v);
         } else if ((v = get_option_value(arg, "--generate_mipmaps=")).size()) {
@@ -412,8 +436,8 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Available AI upscaler models (in " << model_dir.string() << "):\n";
         for (const auto& m : models) {
-            std::cout << "  " << m.file_stem << "  — " << m.display_name
-                      << " (" << m.scale << "x)\n";
+            std::cout << "  " << m.file_stem << "  — " << m.display_name << " (" << m.scale
+                      << "x)\n";
         }
         return 0;
     }
@@ -465,8 +489,10 @@ int main(int argc, char* argv[]) {
     int blp_encoding_idx = 0; // default Infer
 
     if (!opt_blp_type.empty()) {
-        if (opt_blp_type == "1")      blp_version_idx = 0;
-        else if (opt_blp_type == "2") blp_version_idx = 1;
+        if (opt_blp_type == "1")
+            blp_version_idx = 0;
+        else if (opt_blp_type == "2")
+            blp_version_idx = 1;
         else {
             std::cerr << "Invalid --blp_type '" << opt_blp_type << "'. Expected 1 or 2.\n";
             return 1;
@@ -474,12 +500,18 @@ int main(int argc, char* argv[]) {
     }
 
     if (!opt_blp_compression.empty()) {
-        if      (opt_blp_compression == "true_color") blp_encoding_idx = 1;
-        else if (opt_blp_compression == "paletted")   blp_encoding_idx = 2;
-        else if (opt_blp_compression == "jpeg")       blp_encoding_idx = 3;
-        else if (opt_blp_compression == "bc1")        blp_encoding_idx = 4;
-        else if (opt_blp_compression == "bc2")        blp_encoding_idx = 5;
-        else if (opt_blp_compression == "bc3")        blp_encoding_idx = 6;
+        if (opt_blp_compression == "true_color")
+            blp_encoding_idx = 1;
+        else if (opt_blp_compression == "paletted")
+            blp_encoding_idx = 2;
+        else if (opt_blp_compression == "jpeg")
+            blp_encoding_idx = 3;
+        else if (opt_blp_compression == "bc1")
+            blp_encoding_idx = 4;
+        else if (opt_blp_compression == "bc2")
+            blp_encoding_idx = 5;
+        else if (opt_blp_compression == "bc3")
+            blp_encoding_idx = 6;
         else {
             std::cerr << "Invalid --blp_compression '" << opt_blp_compression
                       << "'. Expected true_color, paletted, jpeg, bc1, bc2, or bc3.\n";
@@ -492,16 +524,26 @@ int main(int argc, char* argv[]) {
     bool dds_bc3n = false;
 
     if (!opt_dds_format.empty()) {
-        if      (opt_dds_format == "true_color") dds_format_idx = 0;
-        else if (opt_dds_format == "bc1")        dds_format_idx = 1;
-        else if (opt_dds_format == "bc2")        dds_format_idx = 2;
-        else if (opt_dds_format == "bc3")        dds_format_idx = 3;
-        else if (opt_dds_format == "bc4")        dds_format_idx = 4;
-        else if (opt_dds_format == "bc5")        dds_format_idx = 5;
-        else if (opt_dds_format == "bc6")        dds_format_idx = 6;
-        else if (opt_dds_format == "bc7")        dds_format_idx = 7;
-        else if (opt_dds_format == "bc3n")       { dds_format_idx = 3; dds_bc3n = true; }
-        else {
+        if (opt_dds_format == "true_color")
+            dds_format_idx = 0;
+        else if (opt_dds_format == "bc1")
+            dds_format_idx = 1;
+        else if (opt_dds_format == "bc2")
+            dds_format_idx = 2;
+        else if (opt_dds_format == "bc3")
+            dds_format_idx = 3;
+        else if (opt_dds_format == "bc4")
+            dds_format_idx = 4;
+        else if (opt_dds_format == "bc5")
+            dds_format_idx = 5;
+        else if (opt_dds_format == "bc6")
+            dds_format_idx = 6;
+        else if (opt_dds_format == "bc7")
+            dds_format_idx = 7;
+        else if (opt_dds_format == "bc3n") {
+            dds_format_idx = 3;
+            dds_bc3n = true;
+        } else {
             std::cerr << "Invalid --dds_format '" << opt_dds_format
                       << "'. Expected true_color, bc1-bc7, or bc3n.\n";
             return 1;
@@ -513,8 +555,7 @@ int main(int argc, char* argv[]) {
     if (!opt_jpeg_quality.empty()) {
         int q = std::atoi(opt_jpeg_quality.c_str());
         if (q < 1 || q > 100) {
-            std::cerr << "Invalid --jpeg_quality '" << opt_jpeg_quality
-                      << "'. Expected 1..100.\n";
+            std::cerr << "Invalid --jpeg_quality '" << opt_jpeg_quality << "'. Expected 1..100.\n";
             return 1;
         }
         jpeg_quality = q;
@@ -555,8 +596,10 @@ int main(int argc, char* argv[]) {
     // -- Resolve downscale -------------------------------------------------
     int downscale_levels = 0;
     if (!opt_downscale.empty()) {
-        if      (opt_downscale == "x2") downscale_levels = 1;
-        else if (opt_downscale == "x4") downscale_levels = 2;
+        if (opt_downscale == "x2")
+            downscale_levels = 1;
+        else if (opt_downscale == "x4")
+            downscale_levels = 2;
         else {
             std::cerr << "Invalid --downscale '" << opt_downscale << "'. Expected x2 or x4.\n";
             return 1;
@@ -573,7 +616,8 @@ int main(int argc, char* argv[]) {
             mipmap_mode = MipmapMode::Custom;
             if (!opt_mipmap_count.empty()) {
                 mipmap_custom_count = std::atoi(opt_mipmap_count.c_str());
-                if (mipmap_custom_count < 1) mipmap_custom_count = 1;
+                if (mipmap_custom_count < 1)
+                    mipmap_custom_count = 1;
             }
         } else {
             std::cerr << "Invalid --generate_mipmaps mode '" << opt_generate_mipmaps
@@ -630,8 +674,8 @@ int main(int argc, char* argv[]) {
         if (*explicit_kind == tex::TextureKind::Multikind) {
             auto ch = TC::guessTextureMultiKind(input_path, texture->format());
             for (int i = 0; i < 4; ++i) {
-                constexpr tex::Channel kChannels[] = {
-                    tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
+                constexpr tex::Channel kChannels[] = {tex::Channel::R, tex::Channel::G,
+                                                      tex::Channel::B, tex::Channel::A};
                 texture->setChannelKind(kChannels[i], ch[i]);
             }
         }
@@ -641,8 +685,8 @@ int main(int argc, char* argv[]) {
         texture->setKind(kind);
         if (kind == tex::TextureKind::Multikind) {
             auto ch = TC::guessTextureMultiKind(input_path, texture->format());
-            constexpr tex::Channel kChannels[] = {
-                tex::Channel::R, tex::Channel::G, tex::Channel::B, tex::Channel::A};
+            constexpr tex::Channel kChannels[] = {tex::Channel::R, tex::Channel::G, tex::Channel::B,
+                                                  tex::Channel::A};
             for (int i = 0; i < 4; ++i)
                 texture->setChannelKind(kChannels[i], ch[i]);
         }
@@ -705,8 +749,8 @@ int main(int argc, char* argv[]) {
             tile_size = std::atoi(opt_tile_size.c_str());
 
         tool::Upscaler upscaler;
-        std::cout << "  Initializing AI upscaler (" << chosen->display_name
-                  << " " << chosen->scale << "x)...\n";
+        std::cout << "  Initializing AI upscaler (" << chosen->display_name << " " << chosen->scale
+                  << "x)...\n";
 
         if (!upscaler.init(model_dir, *chosen, gpu_id, tile_size)) {
             std::cerr << "Failed to initialize upscaler.\n";
@@ -753,9 +797,9 @@ int main(int argc, char* argv[]) {
     // -- Pre-save format conversion -----------------------------------------
     switch (output_fmt) {
     case TFF::BLP: {
-        auto blp_opts = build_blp_options(blp_version_idx, blp_encoding_idx,
-                                          opt_blp_dither, opt_blp_dither_strength,
-                                          jpeg_quality);
+        auto blp_opts =
+            build_blp_options(blp_version_idx, blp_encoding_idx, opt_blp_dither,
+                              opt_blp_dither_strength, jpeg_quality, opt_jpeg_progressive);
         coerce_blp_format(*texture, blp_encoding_idx, blp_opts.encoding, pool);
         break;
     }
@@ -776,12 +820,12 @@ int main(int argc, char* argv[]) {
     // -- Save ---------------------------------------------------------------
     bool ok = false;
     if (output_fmt == TFF::BLP) {
-        auto blp_opts = build_blp_options(blp_version_idx, blp_encoding_idx,
-                                          opt_blp_dither, opt_blp_dither_strength,
-                                          jpeg_quality);
+        auto blp_opts =
+            build_blp_options(blp_version_idx, blp_encoding_idx, opt_blp_dither,
+                              opt_blp_dither_strength, jpeg_quality, opt_jpeg_progressive);
         ok = converter.save(*texture, output_path, blp_opts);
     } else if (output_fmt == TFF::JPEG) {
-        ok = converter.save(*texture, output_path, jpeg_quality);
+        ok = converter.save(*texture, output_path, jpeg_quality, opt_jpeg_progressive);
     } else {
         ok = converter.save(*texture, output_path);
     }

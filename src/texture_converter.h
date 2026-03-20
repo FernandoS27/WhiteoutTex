@@ -157,8 +157,10 @@ public:
 
     /// Save a texture to disk as JPEG with explicit quality.
     /// @param quality JPEG quality level (1–100, default 75).
+    /// @param progressive Use progressive (SOF2) JPEG encoding.
     /// @return true on success.
-    bool save(const Texture& tex, const std::string& path, i32 jpegQuality);
+    bool save(const Texture& tex, const std::string& path, i32 jpegQuality,
+              bool jpegProgressive = false);
 
     // ── Issue reporting ────────────────────────────────────────────────
 

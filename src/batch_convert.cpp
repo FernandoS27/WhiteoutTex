@@ -30,13 +30,20 @@ constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG
 // ── Helpers ────────────────────────────────────────────────────────────
 
 static bool matchesFilter(const std::string& ext, const whiteout::textool::BatchPrefs& p) {
-    if (ext == ".blp") return p.filter_blp;
-    if (ext == ".bmp") return p.filter_bmp;
-    if (ext == ".dds") return p.filter_dds;
-    if (ext == ".jpg" || ext == ".jpeg") return p.filter_jpeg;
-    if (ext == ".png") return p.filter_png;
-    if (ext == ".tex") return p.filter_tex;
-    if (ext == ".tga") return p.filter_tga;
+    if (ext == ".blp")
+        return p.filter_blp;
+    if (ext == ".bmp")
+        return p.filter_bmp;
+    if (ext == ".dds")
+        return p.filter_dds;
+    if (ext == ".jpg" || ext == ".jpeg")
+        return p.filter_jpeg;
+    if (ext == ".png")
+        return p.filter_png;
+    if (ext == ".tex")
+        return p.filter_tex;
+    if (ext == ".tga")
+        return p.filter_tga;
     return false;
 }
 
@@ -63,7 +70,7 @@ namespace whiteout::textool {
 // ============================================================================
 
 void SDLCALL BatchConvert::folderDialogCallback(void* userdata, const char* const* filelist,
-                                                   i32 /*filter*/) {
+                                                i32 /*filter*/) {
     if (!filelist || !filelist[0])
         return;
     auto* state = static_cast<FolderState*>(userdata);
@@ -106,7 +113,7 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
     }
     centerNextWindow();
     if (!ImGui::BeginPopupModal("Batch Convert", &show_dialog_,
-                                 ImGuiWindowFlags_AlwaysAutoResize)) {
+                                ImGuiWindowFlags_AlwaysAutoResize)) {
         drawProgressDialog(commands);
         return commands;
     }
@@ -117,8 +124,7 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
 
     ImGui::Text("Directory:");
     ImGui::SetNextItemWidth(500.0f);
-    if (ImGui::BeginCombo("##input_dir", input_dir_buf_,
-                          ImGuiComboFlags_HeightLarge)) {
+    if (ImGui::BeginCombo("##input_dir", input_dir_buf_, ImGuiComboFlags_HeightLarge)) {
         for (const auto& p : recent_input_dirs.paths) {
             const bool selected = (p == input_dir_buf_);
             if (ImGui::Selectable(p.c_str(), selected))
@@ -158,8 +164,7 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
 
     ImGui::Text("Directory:");
     ImGui::SetNextItemWidth(500.0f);
-    if (ImGui::BeginCombo("##output_dir", output_dir_buf_,
-                          ImGuiComboFlags_HeightLarge)) {
+    if (ImGui::BeginCombo("##output_dir", output_dir_buf_, ImGuiComboFlags_HeightLarge)) {
         for (const auto& p : recent_output_dirs.paths) {
             const bool selected = (p == output_dir_buf_);
             if (ImGui::Selectable(p.c_str(), selected))
@@ -245,9 +250,8 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
 // ============================================================================
 
 void BatchConvert::drawBlpOptions() {
-    drawBlpOptionsUI(prefs_.blp_version, prefs_.blp_encoding,
-                     prefs_.blp_dither, prefs_.blp_dither_strength,
-                     prefs_.jpeg_quality);
+    drawBlpOptionsUI(prefs_.blp_version, prefs_.blp_encoding, prefs_.blp_dither,
+                     prefs_.blp_dither_strength, prefs_.jpeg_quality);
 }
 
 void BatchConvert::drawDdsOptions() {
@@ -258,29 +262,29 @@ void BatchConvert::drawDdsOptions() {
     ImGui::Spacing();
 
     if (prefs_.dds_mode == 0) {
-        drawDdsFormatCombo("Pixel Format", prefs_.dds_format_general,
-                           DDS_ALL, static_cast<i32>(std::size(DDS_ALL)));
+        drawDdsFormatCombo("Pixel Format", prefs_.dds_format_general, DDS_ALL,
+                           static_cast<i32>(std::size(DDS_ALL)));
         ImGui::Checkbox("Invert Y Channel", &prefs_.dds_invert_y_general);
     } else {
         ImGui::TextDisabled("Normal Maps:");
         ImGui::Indent();
-        drawDdsFormatCombo("Pixel Format##normal", prefs_.dds_format_normal,
-                           DDS_PRESET_NORMAL, static_cast<i32>(std::size(DDS_PRESET_NORMAL)));
+        drawDdsFormatCombo("Pixel Format##normal", prefs_.dds_format_normal, DDS_PRESET_NORMAL,
+                           static_cast<i32>(std::size(DDS_PRESET_NORMAL)));
         ImGui::Checkbox("Invert Y Channel##normal", &prefs_.dds_invert_y_normal);
         ImGui::Unindent();
 
         ImGui::Spacing();
         ImGui::TextDisabled("Channel Maps (Roughness, Metalness, AO, Gloss):");
         ImGui::Indent();
-        drawDdsFormatCombo("Pixel Format##channel", prefs_.dds_format_channel,
-                           DDS_PRESET_CHANNEL, static_cast<i32>(std::size(DDS_PRESET_CHANNEL)));
+        drawDdsFormatCombo("Pixel Format##channel", prefs_.dds_format_channel, DDS_PRESET_CHANNEL,
+                           static_cast<i32>(std::size(DDS_PRESET_CHANNEL)));
         ImGui::Unindent();
 
         ImGui::Spacing();
         ImGui::TextDisabled("Other:");
         ImGui::Indent();
-        drawDdsFormatCombo("Pixel Format##other", prefs_.dds_format_other,
-                           DDS_PRESET_OTHER, static_cast<i32>(std::size(DDS_PRESET_OTHER)));
+        drawDdsFormatCombo("Pixel Format##other", prefs_.dds_format_other, DDS_PRESET_OTHER,
+                           static_cast<i32>(std::size(DDS_PRESET_OTHER)));
         ImGui::Unindent();
     }
 }
@@ -308,17 +312,21 @@ void BatchConvert::drawTransformPipeline() {
         ImGui::Text("%s:", label);
         ImGui::SameLine();
 
-        if (i == 0) ImGui::BeginDisabled();
+        if (i == 0)
+            ImGui::BeginDisabled();
         if (ImGui::SmallButton("Up"))
             swap_up_idx = i;
-        if (i == 0) ImGui::EndDisabled();
+        if (i == 0)
+            ImGui::EndDisabled();
 
         ImGui::SameLine();
 
-        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1) ImGui::BeginDisabled();
+        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1)
+            ImGui::BeginDisabled();
         if (ImGui::SmallButton("Down"))
             swap_down_idx = i;
-        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1) ImGui::EndDisabled();
+        if (i == static_cast<i32>(prefs_.transform_pipeline.size()) - 1)
+            ImGui::EndDisabled();
 
         ImGui::SameLine();
         if (ImGui::SmallButton("Remove"))
@@ -334,7 +342,8 @@ void BatchConvert::drawTransformPipeline() {
         const i32 type_count = 2;
 #else
         const i32 type_count = 1; // Only Downscale available without upscaler
-        if (type_int == 0) type_int = 1; // Force to Downscale
+        if (type_int == 0)
+            type_int = 1; // Force to Downscale
 #endif
 
         ImGui::SetNextItemWidth(200.0f);
@@ -352,8 +361,7 @@ void BatchConvert::drawTransformPipeline() {
         if (step.type == TransformType::Downscale) {
             i32 lvl_idx = step.downscale_levels - 1;
             ImGui::SetNextItemWidth(200.0f);
-            if (ImGui::Combo("Scale", &lvl_idx, kDownscaleOptions,
-                             kDownscaleOptionCount)) {
+            if (ImGui::Combo("Scale", &lvl_idx, kDownscaleOptions, kDownscaleOptionCount)) {
                 step.downscale_levels = lvl_idx + 1;
             }
         }
@@ -396,10 +404,12 @@ void BatchConvert::drawTransformPipeline() {
     if (remove_idx >= 0)
         prefs_.transform_pipeline.erase(prefs_.transform_pipeline.begin() + remove_idx);
     if (swap_up_idx > 0)
-        std::swap(prefs_.transform_pipeline[swap_up_idx], prefs_.transform_pipeline[swap_up_idx - 1]);
+        std::swap(prefs_.transform_pipeline[swap_up_idx],
+                  prefs_.transform_pipeline[swap_up_idx - 1]);
     if (swap_down_idx >= 0 &&
         swap_down_idx < static_cast<i32>(prefs_.transform_pipeline.size()) - 1)
-        std::swap(prefs_.transform_pipeline[swap_down_idx], prefs_.transform_pipeline[swap_down_idx + 1]);
+        std::swap(prefs_.transform_pipeline[swap_down_idx],
+                  prefs_.transform_pipeline[swap_down_idx + 1]);
 
     // Add step button
     if (ImGui::Button("+ Add Transformation")) {
@@ -430,9 +440,8 @@ void BatchConvert::drawProgressDialog(std::vector<AppCommand>& commands) {
     centerNextWindow();
     ImGui::SetNextWindowSize(ImVec2(500, 0));
     if (ImGui::BeginPopupModal("##BatchProgress", nullptr,
-                                ImGuiWindowFlags_AlwaysAutoResize |
-                                    ImGuiWindowFlags_NoTitleBar |
-                                    ImGuiWindowFlags_NoResize)) {
+                               ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar |
+                                   ImGuiWindowFlags_NoResize)) {
         const auto prog = batch_service_.progress();
         const f32 fraction = prog.total > 0 ? static_cast<f32>(prog.processed) / prog.total : 0.0f;
 
@@ -444,8 +453,8 @@ void BatchConvert::drawProgressDialog(std::vector<AppCommand>& commands) {
 
             char msg[256];
             std::snprintf(msg, sizeof(msg),
-                          "Batch complete: %d succeeded, %d failed out of %d files.",
-                          prog.success, prog.fail, prog.total);
+                          "Batch complete: %d succeeded, %d failed out of %d files.", prog.success,
+                          prog.fail, prog.total);
             commands.push_back(ShowResultPopupCmd{msg, prog.fail == 0});
             ImGui::CloseCurrentPopup();
         }

@@ -115,6 +115,8 @@ SavePrefs load_save_prefs(const std::string& ini_path) {
             prefs.dds_invert_y = iv != 0;
         else if (std::sscanf(line.c_str(), "JpegQuality=%d", &iv) == 1)
             prefs.jpeg_quality = iv;
+        else if (std::sscanf(line.c_str(), "JpegProgressive=%d", &iv) == 1)
+            prefs.jpeg_progressive = iv != 0;
         else if (std::sscanf(line.c_str(), "GenerateMipmaps=%d", &iv) == 1)
             prefs.generate_mipmaps = iv != 0;
         else if (std::sscanf(line.c_str(), "MipmapMode=%d", &iv) == 1)
@@ -142,6 +144,7 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "DdsFormat=" << prefs.dds_format << "\n";
     out << "DdsInvertY=" << (prefs.dds_invert_y ? 1 : 0) << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
+    out << "JpegProgressive=" << (prefs.jpeg_progressive ? 1 : 0) << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
     out << "MipmapMode=" << static_cast<i32>(prefs.mipmap_mode) << "\n";
     out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
@@ -200,6 +203,8 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
             prefs.dds_format_other = iv;
         else if (std::sscanf(line.c_str(), "JpegQuality=%d", &iv) == 1)
             prefs.jpeg_quality = iv;
+        else if (std::sscanf(line.c_str(), "JpegProgressive=%d", &iv) == 1)
+            prefs.jpeg_progressive = iv != 0;
         else if (std::sscanf(line.c_str(), "GenerateMipmaps=%d", &iv) == 1)
             prefs.generate_mipmaps = iv != 0;
         else if (std::sscanf(line.c_str(), "MipmapMode=%d", &iv) == 1)
@@ -264,6 +269,7 @@ void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
     out << "DdsFormatChannel=" << prefs.dds_format_channel << "\n";
     out << "DdsFormatOther=" << prefs.dds_format_other << "\n";
     out << "JpegQuality=" << prefs.jpeg_quality << "\n";
+    out << "JpegProgressive=" << (prefs.jpeg_progressive ? 1 : 0) << "\n";
     out << "GenerateMipmaps=" << (prefs.generate_mipmaps ? 1 : 0) << "\n";
     out << "MipmapMode=" << static_cast<i32>(prefs.mipmap_mode) << "\n";
     out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";

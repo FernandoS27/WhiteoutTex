@@ -129,6 +129,7 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
         case TFF::JPEG:
             ImGui::SeparatorText("JPEG Options");
             ImGui::SliderInt("Quality", &opts_.prefs.jpeg_quality, 1, 100);
+            ImGui::Checkbox("Progressive", &opts_.prefs.jpeg_progressive);
             break;
 
         default:
@@ -187,7 +188,8 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
 
 void SaveDialog::drawBlpOptions() {
     drawBlpOptionsUI(opts_.prefs.blp_version, opts_.prefs.blp_encoding, opts_.prefs.blp_dither,
-                     opts_.prefs.blp_dither_strength, opts_.prefs.jpeg_quality);
+                     opts_.prefs.blp_dither_strength, opts_.prefs.jpeg_quality,
+                     opts_.prefs.jpeg_progressive);
 }
 
 void SaveDialog::drawDdsOptions() {
@@ -251,7 +253,7 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
     case TFF::BLP: {
         auto blp = buildBlpSaveOptions(opts_.prefs.blp_version, opts_.prefs.blp_encoding,
                                        opts_.prefs.blp_dither, opts_.prefs.blp_dither_strength,
-                                       opts_.prefs.jpeg_quality);
+                                       opts_.prefs.jpeg_quality, opts_.prefs.jpeg_progressive);
         coerceBlpFormat(tex_copy, opts_.prefs.blp_encoding, blp.encoding, pool);
         ok = converter.save(tex_copy, opts_.save_path, blp);
         break;
@@ -262,7 +264,8 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
         break;
     }
     case TFF::JPEG:
-        ok = converter.save(tex_copy, opts_.save_path, opts_.prefs.jpeg_quality);
+        ok = converter.save(tex_copy, opts_.save_path, opts_.prefs.jpeg_quality,
+                            opts_.prefs.jpeg_progressive);
         break;
     default:
         ok = converter.save(tex_copy, opts_.save_path);

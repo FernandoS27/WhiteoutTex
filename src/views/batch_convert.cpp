@@ -200,6 +200,7 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
     case 3: // JPEG
         ImGui::SeparatorText("JPEG Options");
         ImGui::SliderInt("Quality", &prefs_.jpeg_quality, 1, 100);
+        ImGui::Checkbox("Progressive", &prefs_.jpeg_progressive);
         break;
 
     default:
@@ -254,7 +255,7 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
 
 void BatchConvert::drawBlpOptions() {
     drawBlpOptionsUI(prefs_.blp_version, prefs_.blp_encoding, prefs_.blp_dither,
-                     prefs_.blp_dither_strength, prefs_.jpeg_quality);
+                     prefs_.blp_dither_strength, prefs_.jpeg_quality, prefs_.jpeg_progressive);
 }
 
 void BatchConvert::drawDdsOptions() {

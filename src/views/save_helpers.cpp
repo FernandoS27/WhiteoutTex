@@ -15,13 +15,15 @@ namespace texn = whiteout::textures;
 // ============================================================================
 
 blp::SaveOptions buildBlpSaveOptions(i32 blp_version, i32 blp_encoding, bool dither,
-                                     f32 dither_strength, i32 jpeg_quality) noexcept {
+                                     f32 dither_strength, i32 jpeg_quality,
+                                     bool jpeg_progressive) noexcept {
     blp::SaveOptions opts;
     opts.version = blp_version == 0 ? blp::BlpVersion::BLP1 : blp::BlpVersion::BLP2;
     opts.encoding = toBlpEncoding(blp_encoding);
     opts.dither = dither;
     opts.ditherStrength = dither_strength;
     opts.jpegQuality = jpeg_quality;
+    opts.jpegProgressive = jpeg_progressive;
 
     // Force BLP1 for encodings that require it.
     if (opts.encoding == blp::BlpEncoding::JPEG || opts.encoding == blp::BlpEncoding::Palettized)

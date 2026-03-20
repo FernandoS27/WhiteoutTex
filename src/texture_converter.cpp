@@ -132,8 +132,8 @@ public:
     }
 
     /// JPEG writer requires quality in its constructor.
-    bool saveJpeg(const Texture& tex, const std::string& path, i32 quality) {
-        jpeg::Writer writer(quality);
+    bool saveJpeg(const Texture& tex, const std::string& path, i32 quality, bool progressive) {
+        jpeg::Writer writer(quality, jpeg::Writer::WriteMode::Lenient, nullptr, progressive);
         writer.write(path, tex);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
@@ -462,7 +462,7 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
     case TextureFileFormat::DDS:
         return pImpl->saveFile<dds::Writer>(path, tex);
     case TextureFileFormat::JPEG:
-        return pImpl->saveJpeg(tex, path, kDefaultJpegQuality);
+        return pImpl->saveJpeg(tex, path, kDefaultJpegQuality, false);
     case TextureFileFormat::PNG:
         return pImpl->saveFile<png::Writer>(path, tex);
     case TextureFileFormat::TEX:
@@ -475,14 +475,15 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
     }
 }
 
-bool TextureConverter::save(const Texture& tex, const std::string& path, i32 jpegQuality) {
+bool TextureConverter::save(const Texture& tex, const std::string& path, i32 jpegQuality,
+                            bool jpegProgressive) {
     pImpl->clearIssues();
     auto fmt = classifyPath(path);
     if (fmt != TextureFileFormat::JPEG) {
         pImpl->issues.push_back("JPEG quality option only applies to JPEG output");
         return false;
     }
-    return pImpl->saveJpeg(tex, path, jpegQuality);
+    return pImpl->saveJpeg(tex, path, jpegQuality, jpegProgressive);
 }
 
 // ============================================================================

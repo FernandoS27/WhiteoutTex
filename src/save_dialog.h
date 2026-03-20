@@ -39,67 +39,69 @@ struct KindEntry {
 
 /// Kinds selectable in the top-level Kind combo (excludes deprecated ORM and internal Unused).
 inline constexpr KindEntry kSelectableKinds[] = {
-    {"Other",              whiteout::textures::TextureKind::Other},
-    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
-    {"Normal",             whiteout::textures::TextureKind::Normal},
-    {"Specular",           whiteout::textures::TextureKind::Specular},
-    {"Albedo",             whiteout::textures::TextureKind::Albedo},
-    {"Roughness",          whiteout::textures::TextureKind::Roughness},
-    {"Metalness",          whiteout::textures::TextureKind::Metalness},
-    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
-    {"Gloss",              whiteout::textures::TextureKind::Gloss},
-    {"Emissive",           whiteout::textures::TextureKind::Emissive},
-    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
-    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
-    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
-    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
-    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
-    {"Environment (PBR)",  whiteout::textures::TextureKind::EnvironmentPBR},
+    {"Other", whiteout::textures::TextureKind::Other},
+    {"Diffuse", whiteout::textures::TextureKind::Diffuse},
+    {"Normal", whiteout::textures::TextureKind::Normal},
+    {"Specular", whiteout::textures::TextureKind::Specular},
+    {"Albedo", whiteout::textures::TextureKind::Albedo},
+    {"Roughness", whiteout::textures::TextureKind::Roughness},
+    {"Metalness", whiteout::textures::TextureKind::Metalness},
+    {"Ambient Occlusion", whiteout::textures::TextureKind::AmbientOcclusion},
+    {"Gloss", whiteout::textures::TextureKind::Gloss},
+    {"Emissive", whiteout::textures::TextureKind::Emissive},
+    {"Alpha Mask", whiteout::textures::TextureKind::AlphaMask},
+    {"Binary Mask", whiteout::textures::TextureKind::BinaryMask},
+    {"Transparency Mask", whiteout::textures::TextureKind::TransparencyMask},
+    {"Blend Mask", whiteout::textures::TextureKind::BlendMask},
+    {"Lightmap", whiteout::textures::TextureKind::Lightmap},
+    {"Environment (PBR)", whiteout::textures::TextureKind::EnvironmentPBR},
     {"Environment (Legacy)", whiteout::textures::TextureKind::EnvironmentLegacy},
-    {"Multi-Kind",         whiteout::textures::TextureKind::Multikind},
+    {"Multi-Kind", whiteout::textures::TextureKind::Multikind},
 };
 inline constexpr i32 kSelectableKindCount = static_cast<i32>(std::size(kSelectableKinds));
 
 /// Kinds selectable per-channel inside a Multikind texture.
 inline constexpr KindEntry kChannelKinds[] = {
-    {"Unused",             whiteout::textures::TextureKind::Unused},
-    {"Roughness",          whiteout::textures::TextureKind::Roughness},
-    {"Metalness",          whiteout::textures::TextureKind::Metalness},
-    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
-    {"Gloss",              whiteout::textures::TextureKind::Gloss},
-    {"Albedo",             whiteout::textures::TextureKind::Albedo},
-    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
-    {"Normal",             whiteout::textures::TextureKind::Normal},
-    {"Specular",           whiteout::textures::TextureKind::Specular},
-    {"Emissive",           whiteout::textures::TextureKind::Emissive},
-    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
-    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
-    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
-    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
-    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
+    {"Unused", whiteout::textures::TextureKind::Unused},
+    {"Roughness", whiteout::textures::TextureKind::Roughness},
+    {"Metalness", whiteout::textures::TextureKind::Metalness},
+    {"Ambient Occlusion", whiteout::textures::TextureKind::AmbientOcclusion},
+    {"Gloss", whiteout::textures::TextureKind::Gloss},
+    {"Albedo", whiteout::textures::TextureKind::Albedo},
+    {"Diffuse", whiteout::textures::TextureKind::Diffuse},
+    {"Normal", whiteout::textures::TextureKind::Normal},
+    {"Specular", whiteout::textures::TextureKind::Specular},
+    {"Emissive", whiteout::textures::TextureKind::Emissive},
+    {"Alpha Mask", whiteout::textures::TextureKind::AlphaMask},
+    {"Binary Mask", whiteout::textures::TextureKind::BinaryMask},
+    {"Transparency Mask", whiteout::textures::TextureKind::TransparencyMask},
+    {"Blend Mask", whiteout::textures::TextureKind::BlendMask},
+    {"Lightmap", whiteout::textures::TextureKind::Lightmap},
 };
 inline constexpr i32 kChannelKindCount = static_cast<i32>(std::size(kChannelKinds));
 
 /// Look up the display name for any TextureKind value.
 inline const char* textureKindName(whiteout::textures::TextureKind k) {
     for (const auto& e : kSelectableKinds)
-        if (e.kind == k) return e.name;
-    if (k == whiteout::textures::TextureKind::Unused) return "Unused";
-    if (k == whiteout::textures::TextureKind::ORM) return "ORM (Legacy)";
+        if (e.kind == k)
+            return e.name;
+    if (k == whiteout::textures::TextureKind::Unused)
+        return "Unused";
+    if (k == whiteout::textures::TextureKind::ORM)
+        return "ORM (Legacy)";
     return "Unknown";
 }
 
 /// Human-readable names for BLP encoding indices (0–6).
 constexpr const char* BLP_ENCODING_NAMES[] = {
-    "Infer (Auto)", "True Color (BGRA)", "Paletted (256 colors)", "JPEG",
-    "BC1 (DXT1)",   "BC2 (DXT3)",        "BC3 (DXT5)"};
+    "Infer (Auto)", "True Color (BGRA)", "Paletted (256 colors)", "JPEG", "BC1 (DXT1)",
+    "BC2 (DXT3)",   "BC3 (DXT5)"};
 constexpr i32 BLP_ENCODING_COUNT = static_cast<i32>(std::size(BLP_ENCODING_NAMES));
 
 /// Human-readable names for DDS pixel-format indices (0–8).
-constexpr const char* DDS_FORMAT_NAMES[] = {
-    "True Color (RGBA8)", "BC1 (DXT1)",      "BC2 (DXT3)",        "BC3 (DXT5)",
-    "BC4 (RGTC1)",        "BC5 (RGTC2)",     "BC6H (BPTC Float)", "BC7 (BPTC)",
-    "BC3N (DXT5nm)"};
+constexpr const char* DDS_FORMAT_NAMES[] = {"True Color (RGBA8)", "BC1 (DXT1)",  "BC2 (DXT3)",
+                                            "BC3 (DXT5)",         "BC4 (RGTC1)", "BC5 (RGTC2)",
+                                            "BC6H (BPTC Float)",  "BC7 (BPTC)",  "BC3N (DXT5nm)"};
 constexpr i32 DDS_FORMAT_COUNT = static_cast<i32>(std::size(DDS_FORMAT_NAMES));
 /// BC3N (DXT5nm) is stored as index 8 in the DDS format list.
 constexpr i32 DDS_FORMAT_BC3N = 8;
@@ -114,11 +116,16 @@ inline void centerNextWindow() {
 inline whiteout::textures::blp::BlpEncoding toBlpEncoding(i32 index) noexcept {
     using E = whiteout::textures::blp::BlpEncoding;
     switch (index) {
-    case 0:  return E::Infer;
-    case 1:  return E::BGRA;
-    case 2:  return E::Palettized;
-    case 3:  return E::JPEG;
-    default: return E::DXT; // indices 4 (BC1), 5 (BC2), 6 (BC3)
+    case 0:
+        return E::Infer;
+    case 1:
+        return E::BGRA;
+    case 2:
+        return E::Palettized;
+    case 3:
+        return E::JPEG;
+    default:
+        return E::DXT; // indices 4 (BC1), 5 (BC2), 6 (BC3)
     }
 }
 
@@ -139,8 +146,7 @@ inline whiteout::textures::PixelFormat blpDxtPixelFormat(i32 index) noexcept {
 /// @p customCount  User-specified count (only used when mode == Custom).
 /// @p maxMips   Maximum possible mip count for the current texture
 ///              (pass 0 if unknown, e.g. batch mode without a loaded texture).
-inline void drawMipmapModeUI(bool& generate, MipmapMode& mode, i32& customCount,
-                             i32 maxMips = 0) {
+inline void drawMipmapModeUI(bool& generate, MipmapMode& mode, i32& customCount, i32 maxMips = 0) {
     ImGui::Checkbox("Generate Mipmaps", &generate);
     if (!generate)
         return;
@@ -187,8 +193,8 @@ public:
     /// Draw the overwrite-confirmation popup and save-options popup.
     /// Returns commands (e.g. ShowResultPopupCmd after a save attempt).
     std::vector<AppCommand> draw(whiteout::textures::TextureConverter& converter,
-                                const whiteout::textures::Texture* loaded_texture,
-                                SavePrefs& prefs);
+                                 const whiteout::textures::Texture* loaded_texture,
+                                 SavePrefs& prefs);
 
 private:
     /// Per-format save options edited in the options dialog.

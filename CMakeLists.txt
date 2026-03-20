@@ -49,14 +49,6 @@ if(WHITEOUT_ENABLE_UPSCALER)
     target_link_libraries(WhiteoutTex PRIVATE realesrgan_lib)
 endif()
 
-if(WIN32)
-    add_custom_command(TARGET WhiteoutTex POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:SDL3::SDL3>
-            $<TARGET_FILE_DIR:WhiteoutTex>
-    )
-endif()
-
 add_custom_command(TARGET WhiteoutTex POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/LICENSE.md"
@@ -89,16 +81,13 @@ if(WHITEOUT_BUILD_CLI)
     target_include_directories(WhiteoutTexCLI PRIVATE src)
     target_link_libraries(WhiteoutTexCLI PRIVATE whiteout_casc)
 
+    if(WIN32)
+        target_sources(WhiteoutTexCLI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.rc")
+    endif()
+
     if(WHITEOUT_ENABLE_UPSCALER)
         target_link_libraries(WhiteoutTexCLI PRIVATE realesrgan_lib SDL3::SDL3)
     endif()
 
-    if(WHITEOUT_ENABLE_UPSCALER AND WIN32)
-        add_custom_command(TARGET WhiteoutTexCLI POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:SDL3::SDL3>
-                $<TARGET_FILE_DIR:WhiteoutTexCLI>
-        )
-    endif()
 endif()
 

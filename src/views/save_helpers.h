@@ -133,7 +133,8 @@ inline constexpr whiteout::textures::PixelFormat DDS_PIXEL_FORMATS[] = {
 /// and coerce the texture to the required pixel format.
 whiteout::textures::blp::SaveOptions buildBlpSaveOptions(i32 blp_version, i32 blp_encoding,
                                                          bool dither, f32 dither_strength,
-                                                         i32 jpeg_quality) noexcept;
+                                                         i32 jpeg_quality,
+                                                         bool jpeg_progressive) noexcept;
 
 /// Coerce @p tex to the pixel format required by the chosen BLP encoding.
 void coerceBlpFormat(whiteout::textures::Texture& tex, i32 blp_encoding,
@@ -225,10 +226,10 @@ inline void applyGuessedKind(whiteout::textures::Texture& tex, const std::string
 // Shared BLP options UI
 // ============================================================================
 
-/// Draw the BLP options panel (version, encoding, dither, JPEG quality).
+/// Draw the BLP options panel (version, encoding, dither, JPEG quality/progressive).
 /// Used by both SaveDialog and BatchConvert.
 inline void drawBlpOptionsUI(i32& blp_version, i32& blp_encoding, bool& blp_dither,
-                             f32& blp_dither_strength, i32& jpeg_quality) {
+                             f32& blp_dither_strength, i32& jpeg_quality, bool& jpeg_progressive) {
     ImGui::SeparatorText("BLP Options");
     ImGui::Combo("BLP Version", &blp_version, "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
     {
@@ -255,6 +256,7 @@ inline void drawBlpOptionsUI(i32& blp_version, i32& blp_encoding, bool& blp_dith
     }
     if (blp_encoding == 3) {
         ImGui::SliderInt("JPEG Quality", &jpeg_quality, 1, 100);
+        ImGui::Checkbox("JPEG Progressive", &jpeg_progressive);
     }
 }
 

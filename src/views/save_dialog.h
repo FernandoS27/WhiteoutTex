@@ -201,8 +201,8 @@ public:
     /// Draw the overwrite-confirmation popup and save-options popup.
     /// Returns commands (e.g. ShowResultPopupCmd after a save attempt).
     std::vector<models::AppCommand> draw(whiteout::textures::TextureConverter& converter,
-                                 const whiteout::textures::Texture* loaded_texture,
-                                 SavePrefs& prefs);
+                                         const whiteout::textures::Texture* loaded_texture,
+                                         SavePrefs& prefs);
 
 private:
     /// Per-format save options edited in the options dialog.

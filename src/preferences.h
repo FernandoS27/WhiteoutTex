@@ -89,6 +89,7 @@ struct SavePrefs {
     i32 dds_format = 0;
     bool dds_invert_y = false;
     i32 jpeg_quality = 75;
+    bool jpeg_progressive = false;
     bool generate_mipmaps = false;
     MipmapMode mipmap_mode = MipmapMode::KeepOriginal;
     i32 mipmap_custom_count = 1;
@@ -138,8 +139,9 @@ struct BatchPrefs {
     i32 dds_format_channel = 4;
     i32 dds_format_other = 7;
 
-    // JPEG quality
+    // JPEG options
     i32 jpeg_quality = 75;
+    bool jpeg_progressive = false;
 
     // Common
     bool generate_mipmaps = false;

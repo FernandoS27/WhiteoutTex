@@ -200,7 +200,8 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
 
 #ifdef WHITEOUT_HAS_UPSCALER
 
-std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<UpscalerModel>& upscaler_models,
+std::vector<AppCommand> drawUpscaleDialog(bool& show,
+                                          const std::vector<UpscalerModel>& upscaler_models,
                                           i32& selected_index, bool has_gpu, bool is_running,
                                           const std::string& status,
                                           const std::filesystem::path& model_dir, i32 tex_width,

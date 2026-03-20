@@ -184,9 +184,8 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
 // ============================================================================
 
 void SaveDialog::drawBlpOptions() {
-    drawBlpOptionsUI(opts_.prefs.blp_version, opts_.prefs.blp_encoding,
-                     opts_.prefs.blp_dither, opts_.prefs.blp_dither_strength,
-                     opts_.prefs.jpeg_quality);
+    drawBlpOptionsUI(opts_.prefs.blp_version, opts_.prefs.blp_encoding, opts_.prefs.blp_dither,
+                     opts_.prefs.blp_dither_strength, opts_.prefs.jpeg_quality);
 }
 
 void SaveDialog::drawDdsOptions() {
@@ -239,8 +238,8 @@ std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, S
     if (opts_.prefs.generate_mipmaps) {
         if (tex::isBcn(tex_copy.format()))
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
-        const auto mipCount = effectiveMipCount(opts_.prefs.mipmap_mode,
-                                                opts_.prefs.mipmap_custom_count, tex_copy);
+        const auto mipCount =
+            effectiveMipCount(opts_.prefs.mipmap_mode, opts_.prefs.mipmap_custom_count, tex_copy);
         if (auto err = tex_copy.generateMipmaps(mipCount, pool))
             return "Mipmap generation failed: " + *err;
     }
