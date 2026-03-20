@@ -9,6 +9,7 @@ if(MSVC)
 endif()
 
 option(WHITEOUT_ENABLE_UPSCALER "Enable AI upscaling via Real-ESRGAN / ncnn / Vulkan" OFF)
+option(WHITEOUT_BUILD_CLI "Build WhiteoutTexCLI command-line tool" OFF)
 
 add_subdirectory(externals)
 
@@ -64,4 +65,40 @@ add_custom_command(TARGET WhiteoutTex POST_BUILD
         "${CMAKE_SOURCE_DIR}/THIRD_PARTY.md"
         $<TARGET_FILE_DIR:WhiteoutTex>
 )
+
+# ============================================================================
+# WhiteoutTexCLI — optional command-line tool
+# ============================================================================
+
+if(WHITEOUT_BUILD_CLI)
+    add_executable(WhiteoutTexCLI
+        src/cli_main.cpp
+        src/texture_converter.cpp
+        src/thread_pool_manager.cpp
+    )
+
+    if(WHITEOUT_ENABLE_UPSCALER)
+        target_sources(WhiteoutTexCLI PRIVATE src/upscaler.cpp)
+        target_compile_definitions(WhiteoutTexCLI PRIVATE WHITEOUT_HAS_UPSCALER)
+        # upscaler.cpp transitively includes views/save_helpers.h → save_dialog.h → imgui.h
+        target_include_directories(WhiteoutTexCLI PRIVATE
+            ${CMAKE_SOURCE_DIR}/externals/DearImgui
+            ${CMAKE_SOURCE_DIR}/externals/DearImgui/backends)
+    endif()
+
+    target_include_directories(WhiteoutTexCLI PRIVATE src)
+    target_link_libraries(WhiteoutTexCLI PRIVATE whiteout_casc)
+
+    if(WHITEOUT_ENABLE_UPSCALER)
+        target_link_libraries(WhiteoutTexCLI PRIVATE realesrgan_lib SDL3::SDL3)
+    endif()
+
+    if(WHITEOUT_ENABLE_UPSCALER AND WIN32)
+        add_custom_command(TARGET WhiteoutTexCLI POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:SDL3::SDL3>
+                $<TARGET_FILE_DIR:WhiteoutTexCLI>
+        )
+    endif()
+endif()
 
