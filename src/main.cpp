@@ -6,5 +6,5 @@
 #include <SDL3/SDL_main.h>
 
 int main(int argc, char* argv[]) {
-    return whiteout::gui::run(argc, argv);
+    return whiteout::textool::run(argc, argv);
 }

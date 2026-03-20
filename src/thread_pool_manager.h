@@ -7,7 +7,7 @@
 
 #include <whiteout/interfaces.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 /// Owns a single thread pool with as many threads as hardware cores.
 ///
@@ -32,4 +32,4 @@ private:
 /// Global thread pool manager instance.
 ThreadPoolManager& threadPoolManager();
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

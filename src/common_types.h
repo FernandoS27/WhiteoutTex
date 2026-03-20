@@ -13,7 +13,7 @@
 
 #include <whiteout/common_types.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 // ============================================================================
 // Rust-style type aliases (mirrors whiteout::)
@@ -102,4 +102,4 @@ inline std::string replaceMetaSegment(const std::string& path, const char* seg) 
     return result;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

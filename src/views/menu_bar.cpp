@@ -7,7 +7,9 @@
 
 #include <imgui.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool::views {
+
+using namespace models;
 
 std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::string>& recent_paths,
                                     bool has_upscaler) {
@@ -67,4 +69,4 @@ std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::str
     return commands;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::views

@@ -18,7 +18,7 @@
 #include <whiteout/interfaces.h>
 #include <whiteout/textures/texture.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 /// Result of a texture load operation.
 struct TextureLoadResult {
@@ -91,4 +91,4 @@ private:
     whiteout::textures::TextureConverter& converter_;
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services

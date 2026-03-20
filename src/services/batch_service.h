@@ -22,7 +22,7 @@
 
 #include <whiteout/textures/texture.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 /// Immutable snapshot of all parameters needed for a batch conversion run.
 struct BatchJob {
@@ -85,4 +85,4 @@ private:
     std::atomic<i32> work_index_{0};
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services

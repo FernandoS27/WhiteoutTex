@@ -19,6 +19,9 @@
 #include <string>
 
 namespace whiteout::textures {
+
+namespace gui = whiteout::textool;
+
 namespace {
 
 // ============================================================================

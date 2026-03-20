@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 // ============================================================================
 // Batch transformation pipeline
@@ -175,4 +175,4 @@ RecentPaths load_recent_paths(const std::string& ini_path, const char* section);
 void append_recent_paths(const std::string& ini_path, const char* section,
                          const RecentPaths& recent);
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

@@ -5,7 +5,7 @@
 
 #include <filesystem>
 
-namespace whiteout::gui {
+namespace whiteout::textool::views {
 
 namespace blp = whiteout::textures::blp;
 namespace texn = whiteout::textures;
@@ -89,4 +89,4 @@ std::optional<texn::Texture> loadD4TexWithFallback(texn::TextureConverter& conve
     return std::nullopt;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::views

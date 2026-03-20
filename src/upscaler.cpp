@@ -17,7 +17,9 @@
 #include "thread_pool_manager.h"
 #include "views/save_helpers.h"
 
-namespace whiteout::gui {
+namespace whiteout::textool {
+
+using namespace views;
 
 namespace tex = whiteout::textures;
 
@@ -303,4 +305,4 @@ bool Upscaler::isReady() const {
     return impl_->esrgan != nullptr;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

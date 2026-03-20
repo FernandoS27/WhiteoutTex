@@ -17,72 +17,52 @@
 namespace tex = whiteout::textures;
 namespace interfaces = whiteout::interfaces;
 
-namespace whiteout::textool::views {
-
-using namespace services;
-namespace {
+namespace whiteout::textool {
 
 // ── Channel button colors ──────────────────────────────────────────────
-constexpr ImVec4 kChannelColorR{0.58f, 0.28f, 0.28f, 0.90f};
-constexpr ImVec4 kChannelColorG{0.28f, 0.50f, 0.28f, 0.90f};
-constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
-constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
-constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
+static constexpr ImVec4 kChannelColorR{0.58f, 0.28f, 0.28f, 0.90f};
+static constexpr ImVec4 kChannelColorG{0.28f, 0.50f, 0.28f, 0.90f};
+static constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
+static constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
+static constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
 
 /// Short label for a TextureKind (used for Multikind channel buttons).
-const char* channelKindShortLabel(tex::TextureKind k) {
+static const char* channelKindShortLabel(tex::TextureKind k) {
     switch (k) {
-    case tex::TextureKind::AmbientOcclusion:
-        return "O";
-    case tex::TextureKind::Roughness:
-        return "R";
-    case tex::TextureKind::Metalness:
-        return "M";
-    case tex::TextureKind::Gloss:
-        return "G";
-    case tex::TextureKind::Albedo:
-        return "Al";
-    case tex::TextureKind::Diffuse:
-        return "D";
-    case tex::TextureKind::Normal:
-        return "N";
-    case tex::TextureKind::Specular:
-        return "S";
-    case tex::TextureKind::Emissive:
-        return "E";
-    case tex::TextureKind::AlphaMask:
-        return "A";
-    case tex::TextureKind::BinaryMask:
-        return "Bm";
-    case tex::TextureKind::TransparencyMask:
-        return "T";
-    case tex::TextureKind::BlendMask:
-        return "Bl";
-    case tex::TextureKind::Lightmap:
-        return "L";
-    default:
-        return "?";
+    case tex::TextureKind::AmbientOcclusion: return "O";
+    case tex::TextureKind::Roughness:        return "R";
+    case tex::TextureKind::Metalness:        return "M";
+    case tex::TextureKind::Gloss:            return "G";
+    case tex::TextureKind::Albedo:           return "Al";
+    case tex::TextureKind::Diffuse:          return "D";
+    case tex::TextureKind::Normal:           return "N";
+    case tex::TextureKind::Specular:         return "S";
+    case tex::TextureKind::Emissive:         return "E";
+    case tex::TextureKind::AlphaMask:        return "A";
+    case tex::TextureKind::BinaryMask:       return "Bm";
+    case tex::TextureKind::TransparencyMask: return "T";
+    case tex::TextureKind::BlendMask:        return "Bl";
+    case tex::TextureKind::Lightmap:         return "L";
+    default:                                 return "?";
     }
 }
 
 /// Squared distance threshold below which a mouse-up is treated as a click
 /// rather than a drag (in pixels^2).
-constexpr f32 kClickThresholdSq = 9.0f;
+static constexpr f32 kClickThresholdSq = 9.0f;
 
 /// Zoom multiplier per mouse wheel tick.
-constexpr f32 kZoomFactor = 1.15f;
+static constexpr f32 kZoomFactor = 1.15f;
 
 /// Minimum and maximum zoom levels.
-constexpr f32 kZoomMin = 0.01f;
-constexpr f32 kZoomMax = 64.0f;
+static constexpr f32 kZoomMin = 0.01f;
+static constexpr f32 kZoomMax = 64.0f;
 
 /// Channel button size multiplier relative to frame height.
-constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
+static constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
 
 /// Gap between channel buttons in pixels.
-constexpr f32 kChannelBtnGap = 4.0f;
-
-} // anonymous namespace
+static constexpr f32 kChannelBtnGap = 4.0f;
 
 // ============================================================================
 // Lifetime
@@ -196,8 +176,8 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
             ++visible_count;
     const f32 btn_size = ImGui::GetFrameHeight() * kChannelBtnSizeMultiplier;
     const f32 btn_gap = kChannelBtnGap;
-    const f32 total_btns_width =
-        static_cast<f32>(visible_count) * btn_size + static_cast<f32>(visible_count - 1) * btn_gap;
+    const f32 total_btns_width = static_cast<f32>(visible_count) * btn_size +
+                                   static_cast<f32>(visible_count - 1) * btn_gap;
     ImGui::SameLine(0.0f, 0.0f);
     ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_btns_width);
 
@@ -358,8 +338,8 @@ void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
     }
 }
 
-SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data, i32 width,
-                                                 i32 height) {
+SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
+                                                 i32 width, i32 height) {
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
                                              SDL_TEXTUREACCESS_STATIC, width, height);
     if (!texture) {
@@ -385,12 +365,11 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         image_texture_ =
             createTextureFromRGBA8(renderer, mip_data.data(), image_width_, image_height_);
     } else {
-        auto filtered =
-            TextureService::applyChannelFilter(mip_data.data(), image_width_, image_height_,
-                                               channel_r_, channel_g_, channel_b_, channel_a_);
+        auto filtered = TextureService::applyChannelFilter(mip_data.data(), image_width_, image_height_, channel_r_,
+                                           channel_g_, channel_b_, channel_a_);
         image_texture_ =
             createTextureFromRGBA8(renderer, filtered.data(), image_width_, image_height_);
     }
 }
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

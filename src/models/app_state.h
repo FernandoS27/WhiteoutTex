@@ -18,7 +18,7 @@
 
 #include "texture_converter.h"
 
-namespace whiteout::gui {
+namespace whiteout::textool::models {
 
 // ============================================================================
 // Shared OS-dialog state
@@ -72,4 +72,4 @@ struct UIFlags {
     bool show_upscale_dialog = false;
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::models

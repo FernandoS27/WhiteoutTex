@@ -8,16 +8,17 @@
 
 #include "common_types.h"
 #include "models/commands.h"
-#include "preferences.h"
 #include "services/casc_service.h"
 
 #include <SDL3/SDL.h>
 
-namespace whiteout::textool::views {
+namespace whiteout::textool {
+
+struct RecentPaths;
 
 /// Backwards-compatible alias — kept so callers (e.g. App) do not need to
 /// change their variable types.
-using CascBrowserResult = services::CascFileResult;
+using CascBrowserResult = CascFileResult;
 
 /// CASC archive browser.  Opens a Blizzard CASC storage directory and
 /// displays a filterable tree of supported texture files.  The user can
@@ -31,16 +32,16 @@ public:
 
     /// Draw the browser window.  Returns commands when the user selects
     /// a texture to open (e.g. LoadCascTextureCmd).
-    std::vector<models::AppCommand> draw(SDL_Window* window, RecentPaths& recent_paths);
+    std::vector<AppCommand> draw(SDL_Window* window, RecentPaths& recent_paths);
 
 private:
     // ── Inner types ────────────────────────────────────────────────────
 
     /// A node in the virtual file-system tree built from CASC paths.
     struct TreeNode {
-        std::string name;      ///< Directory or file name segment.
-        std::string full_path; ///< Full CASC path (files only).
-        i32 sno_id = -1;       ///< D4 SNO ID (-1 if not a D4 entry).
+        std::string name;           ///< Directory or file name segment.
+        std::string full_path;      ///< Full CASC path (files only).
+        i32 sno_id = -1;            ///< D4 SNO ID (-1 if not a D4 entry).
         std::vector<TreeNode> children;
         bool is_file = false;
     };
@@ -48,17 +49,17 @@ private:
     // ── Methods ────────────────────────────────────────────────────────
 
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                             i32 filter);
+                                              i32 filter);
 
     void processFolderResult();
     void openStorage();
     void buildTree();
     void insertPathIntoTree(TreeNode& root, const std::string& file_path);
-    std::vector<models::AppCommand> drawTree(const TreeNode& node);
+    std::vector<AppCommand> drawTree(const TreeNode& node);
 
     // ── State ──────────────────────────────────────────────────────────
 
-    services::CascService casc_service_;
+    CascService casc_service_;
 
     bool show_window_ = false;
     char storage_path_buf_[PATH_BUFFER_SIZE] = {};
@@ -73,4 +74,4 @@ private:
     std::string status_;
 };
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

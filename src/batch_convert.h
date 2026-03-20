@@ -17,7 +17,7 @@
 
 #include <SDL3/SDL.h>
 
-namespace whiteout::textool::views {
+namespace whiteout::textool {
 
 /// Batch conversion dialog.  Converts all textures in an input directory
 /// to a chosen output format and writes them to an output directory.
@@ -30,8 +30,9 @@ public:
 
     /// Draw the dialog.  Returns commands when conversion finishes
     /// (e.g. ShowResultPopupCmd).
-    std::vector<models::AppCommand> draw(SDL_Window* window, BatchPrefs& prefs,
-                                 RecentPaths& recent_input_dirs, RecentPaths& recent_output_dirs);
+    std::vector<AppCommand> draw(SDL_Window* window, BatchPrefs& prefs,
+                                RecentPaths& recent_input_dirs,
+                                RecentPaths& recent_output_dirs);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models for the transformation pipeline.
@@ -40,14 +41,14 @@ public:
 
 private:
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
-                                             i32 filter);
+                                              i32 filter);
 
     void processFolderResults();
     std::string beginBatch();
     void drawBlpOptions();
     void drawDdsOptions();
     void drawTransformPipeline();
-    void drawProgressDialog(std::vector<models::AppCommand>& commands);
+    void drawProgressDialog(std::vector<AppCommand>& commands);
 
     void applyPrefs(const BatchPrefs& prefs);
     void persistPrefs(BatchPrefs& prefs) const;
@@ -66,10 +67,10 @@ private:
 #endif
 
     // Batch execution service
-    services::BatchService batch_service_;
+    BatchService batch_service_;
 
     FolderState input_folder_state_;
     FolderState output_folder_state_;
 };
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

@@ -8,7 +8,7 @@
 
 #include <whiteout/utils/simple_thread_pool.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 struct ThreadPoolManager::Impl {
     std::unique_ptr<utils::SimpleThreadPool> pool;
@@ -32,4 +32,4 @@ ThreadPoolManager& threadPoolManager() {
     return instance;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

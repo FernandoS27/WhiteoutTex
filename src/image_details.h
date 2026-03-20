@@ -18,7 +18,7 @@
 
 #include <whiteout/textures/texture.h>
 
-namespace whiteout::textool::views {
+namespace whiteout::textool {
 
 /// Draws the image details panel and mip list.
 /// Returns commands for the coordinator to dispatch (no business logic here).
@@ -34,11 +34,12 @@ public:
     /// @param width          Panel width.
     /// @param height         Panel height.
     /// @return Commands describing requested actions.
-    std::vector<models::AppCommand> drawDetailsPanel(whiteout::textures::Texture* texture,
-                                             const std::string& path,
-                                             whiteout::textures::TextureFileFormat file_format,
-                                             whiteout::textures::PixelFormat source_fmt, f32 width,
-                                             f32 height);
+    std::vector<AppCommand> drawDetailsPanel(
+        whiteout::textures::Texture* texture,
+        const std::string& path,
+        whiteout::textures::TextureFileFormat file_format,
+        whiteout::textures::PixelFormat source_fmt,
+        f32 width, f32 height);
 
     /// Draw the mip list (selectable mip levels).
     /// @param texture      The currently loaded texture.
@@ -46,8 +47,9 @@ public:
     /// @param width        Panel width.
     /// @param height       Panel height.
     /// @return The newly selected mip index, or -1 if unchanged.
-    std::vector<models::AppCommand> drawMipList(const whiteout::textures::Texture& texture,
-                                        i32 selected_mip, f32 width, f32 height);
+    std::vector<AppCommand> drawMipList(
+        const whiteout::textures::Texture& texture,
+        i32 selected_mip, f32 width, f32 height);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).
@@ -73,4 +75,4 @@ private:
 #endif
 };
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

@@ -8,7 +8,7 @@
 #include <fstream>
 #include <string>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 namespace {
 
 // ============================================================================
@@ -315,4 +315,4 @@ void append_recent_paths(const std::string& ini_path, const char* section,
         out << p << "\n";
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

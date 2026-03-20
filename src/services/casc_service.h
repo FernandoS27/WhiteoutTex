@@ -18,7 +18,7 @@
 #include <whiteout/sno/core_toc.h>
 #include <whiteout/sno/sno_types.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 /// Result returned when extracting a file from CASC storage.
 struct CascFileResult {
@@ -106,4 +106,4 @@ private:
     std::vector<CascD4TexEntry> d4_tex_entries_;
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services

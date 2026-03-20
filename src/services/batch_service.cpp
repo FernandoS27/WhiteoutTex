@@ -19,7 +19,9 @@ using whiteout::i32;
 
 } // anonymous namespace
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
+
+using namespace views;
 
 BatchService::~BatchService() {
     joinWorkers();
@@ -298,4 +300,4 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
     }
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services

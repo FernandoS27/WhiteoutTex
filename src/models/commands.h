@@ -13,7 +13,7 @@
 #include <variant>
 #include <vector>
 
-namespace whiteout::gui {
+namespace whiteout::textool::models {
 
 // ============================================================================
 // Commands emitted by views
@@ -136,4 +136,4 @@ using AppCommand = std::variant<
     // clang-format on
     >;
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::models

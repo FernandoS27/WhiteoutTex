@@ -45,7 +45,9 @@ constexpr const char* kLicenseText =
 
 } // namespace
 
-namespace whiteout::gui {
+namespace whiteout::textool::views {
+
+using namespace models;
 
 // ============================================================================
 // About dialog
@@ -198,7 +200,7 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
 
 #ifdef WHITEOUT_HAS_UPSCALER
 
-std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<UpscalerModel>& models,
+std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<UpscalerModel>& upscaler_models,
                                           i32& selected_index, bool has_gpu, bool is_running,
                                           const std::string& status,
                                           const std::filesystem::path& model_dir, i32 tex_width,
@@ -222,7 +224,7 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<Upscaler
             return commands;
         }
 
-        if (models.empty()) {
+        if (upscaler_models.empty()) {
             ImGui::TextColored(kErrorColor, "No models found.");
             ImGui::TextUnformatted("Download models with:");
             ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
@@ -240,10 +242,10 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<Upscaler
         ImGui::Spacing();
 
         // Model selector
-        if (ImGui::BeginCombo("Model", models[selected_index].display_name.c_str())) {
-            for (i32 i = 0; i < static_cast<i32>(models.size()); ++i) {
+        if (ImGui::BeginCombo("Model", upscaler_models[selected_index].display_name.c_str())) {
+            for (i32 i = 0; i < static_cast<i32>(upscaler_models.size()); ++i) {
                 bool selected = (i == selected_index);
-                std::string label = models[i].label();
+                std::string label = upscaler_models[i].label();
                 if (ImGui::Selectable(label.c_str(), selected)) {
                     selected_index = i;
                 }
@@ -251,7 +253,7 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<Upscaler
             ImGui::EndCombo();
         }
 
-        const auto& model = models[selected_index];
+        const auto& model = upscaler_models[selected_index];
         if (tex_width > 0 && tex_height > 0) {
             i32 outw = tex_width * model.scale;
             i32 outh = tex_height * model.scale;
@@ -287,4 +289,4 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show, const std::vector<Upscaler
 
 #endif // WHITEOUT_HAS_UPSCALER
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::views

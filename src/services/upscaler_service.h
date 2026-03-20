@@ -21,7 +21,7 @@
 
 #include <whiteout/textures/texture.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 /// Result of a completed upscale operation.
 struct UpscaleResult {
@@ -77,6 +77,6 @@ private:
     std::thread thread_;
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services
 
 #endif // WHITEOUT_HAS_UPSCALER

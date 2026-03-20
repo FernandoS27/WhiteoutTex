@@ -20,7 +20,7 @@
 
 #include <whiteout/textures/texture.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 /// Describes a Real-ESRGAN model preset.
 struct UpscalerModel {
@@ -87,4 +87,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

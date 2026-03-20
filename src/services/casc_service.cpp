@@ -106,7 +106,7 @@ bool hasVisibleAscii(const std::string& s) {
 
 } // anonymous namespace
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 // ============================================================================
 // Open / Close
@@ -333,4 +333,4 @@ CascFileResult CascService::readD4Tex(const std::string& name, i32 sno_id) {
     return result;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services

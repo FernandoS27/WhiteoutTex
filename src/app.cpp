@@ -25,7 +25,7 @@ void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, i
     if (!filelist || !filelist[0]) {
         return;
     }
-    auto* state = static_cast<whiteout::gui::FileDialogState*>(userdata);
+    auto* state = static_cast<whiteout::textool::models::FileDialogState*>(userdata);
     std::lock_guard lock(state->mtx);
     state->pending_path = filelist[0];
     state->pending_filter = filter;
@@ -60,7 +60,11 @@ constexpr ImVec4 kClearColor{0.10f, 0.10f, 0.12f, 1.00f};
 
 } // anonymous namespace
 
-namespace whiteout::gui {
+namespace whiteout::textool {
+
+using namespace models;
+using namespace services;
+using namespace views;
 
 // ============================================================================
 // Initialization & Shutdown
@@ -640,4 +644,4 @@ i32 App::run(i32 argc, char** argv) {
     return 0;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

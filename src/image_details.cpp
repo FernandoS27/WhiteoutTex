@@ -9,19 +9,18 @@
 namespace tex = whiteout::textures;
 using TC = tex::TextureConverter;
 
-namespace whiteout::textool::views {
-
-using namespace models;
+namespace whiteout::textool {
 
 // ============================================================================
 // Details panel
 // ============================================================================
 
-std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
-                                                       const std::string& path,
-                                                       tex::TextureFileFormat file_format,
-                                                       tex::PixelFormat source_fmt, f32 width,
-                                                       f32 height) {
+std::vector<AppCommand> ImageDetails::drawDetailsPanel(
+    tex::Texture* texture,
+    const std::string& path,
+    tex::TextureFileFormat file_format,
+    tex::PixelFormat source_fmt,
+    f32 width, f32 height) {
 
     std::vector<AppCommand> commands;
 
@@ -89,11 +88,14 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
         ImGui::Text("Layers: %u", t.layerCount());
 
         {
-            const i32 maxMips = static_cast<i32>(tex::computeMaxMipCount(t.width(), t.height()));
-            drawMipmapModeUI(generate_mips_, mipmap_mode_, mipmap_custom_count_, maxMips);
+            const i32 maxMips = static_cast<i32>(
+                tex::computeMaxMipCount(t.width(), t.height()));
+            drawMipmapModeUI(generate_mips_, mipmap_mode_,
+                             mipmap_custom_count_, maxMips);
         }
         if (ImGui::Button("Regenerate Mipmaps")) {
-            const auto mipCount = effectiveMipCount(mipmap_mode_, mipmap_custom_count_, *texture);
+            const auto mipCount = effectiveMipCount(
+                mipmap_mode_, mipmap_custom_count_, *texture);
             commands.push_back(RegenerateMipmapsCmd{mipCount});
         }
 
@@ -109,14 +111,13 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
         ImGui::SeparatorText("Downscale");
         {
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
-            ImGui::Combo("##DownscaleLevel", &downscale_level_, kDownscaleOptions,
-                         kDownscaleOptionCount);
+            ImGui::Combo("##DownscaleLevel", &downscale_level_,
+                         kDownscaleOptions, kDownscaleOptionCount);
             const u32 levels = static_cast<u32>(downscale_level_) + 1;
             const u32 new_w = t.width() >> levels;
             const u32 new_h = t.height() >> levels;
             const bool can_downscale = new_w >= 1 && new_h >= 1;
-            if (!can_downscale)
-                ImGui::BeginDisabled();
+            if (!can_downscale) ImGui::BeginDisabled();
             if (ImGui::Button("Downscale")) {
                 commands.push_back(DownscaleCmd{levels});
             }
@@ -130,8 +131,7 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
         if (!upscale_models_.empty()) {
             ImGui::SeparatorText("Upscale");
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
-            if (upscale_in_progress_)
-                ImGui::BeginDisabled();
+            if (upscale_in_progress_) ImGui::BeginDisabled();
             if (ImGui::BeginCombo("##UpscaleModel",
                                   upscale_models_[upscale_model_index_].display_name.c_str())) {
                 for (i32 i = 0; i < static_cast<i32>(upscale_models_.size()); ++i) {
@@ -166,8 +166,9 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
 // Mip list
 // ============================================================================
 
-std::vector<AppCommand> ImageDetails::drawMipList(const tex::Texture& texture, i32 selected_mip,
-                                                  f32 width, f32 height) {
+std::vector<AppCommand> ImageDetails::drawMipList(
+    const tex::Texture& texture,
+    i32 selected_mip, f32 width, f32 height) {
 
     std::vector<AppCommand> commands;
 
@@ -199,4 +200,4 @@ void ImageDetails::setUpscaleInProgress(bool in_progress) {
 }
 #endif
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

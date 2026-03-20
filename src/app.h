@@ -21,7 +21,7 @@
 
 #include <SDL3/SDL.h>
 
-namespace whiteout::gui {
+namespace whiteout::textool {
 
 /// Application configuration constants.
 constexpr i32 WINDOW_WIDTH = 1280;
@@ -53,7 +53,7 @@ private:
     void processSaveResult();
 
     /// Dispatch a batch of commands from any view.
-    void dispatchCommands(std::vector<AppCommand>& commands);
+    void dispatchCommands(std::vector<models::AppCommand>& commands);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     void pollUpscaleResult();
@@ -63,7 +63,7 @@ private:
     void openFile(const std::string& path);
 
     /// Apply a TextureLoadResult to the application state.
-    void applyLoadResult(const std::string& path, TextureLoadResult result);
+    void applyLoadResult(const std::string& path, services::TextureLoadResult result);
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -79,29 +79,29 @@ private:
     RecentPaths recent_batch_output_dirs_;
 
     // Loaded image data
-    TextureState tex_state_;
+    models::TextureState tex_state_;
 
     // Components
-    ImageViewer viewer_;
-    ImageDetails image_details_;
-    SaveDialog save_dialog_;
-    BatchConvert batch_convert_;
-    CascBrowser casc_browser_;
+    views::ImageViewer viewer_;
+    views::ImageDetails image_details_;
+    views::SaveDialog save_dialog_;
+    views::BatchConvert batch_convert_;
+    views::CascBrowser casc_browser_;
     whiteout::textures::TextureConverter converter_;
 
     // Services
-    TextureService texture_service_{converter_};
+    services::TextureService texture_service_{converter_};
 
     // File dialog state
-    FileDialogState open_dialog_state_;
-    FileDialogState save_dialog_state_;
+    models::FileDialogState open_dialog_state_;
+    models::FileDialogState save_dialog_state_;
 
     // UI flags & dialog state
-    UIFlags ui_;
+    models::UIFlags ui_;
 
 #ifdef WHITEOUT_HAS_UPSCALER
     // Upscaler service
-    UpscalerService upscaler_service_;
+    services::UpscalerService upscaler_service_;
     i32 upscale_model_index_ = 0;
     std::vector<UpscalerModel> upscale_models_;
 #endif
@@ -113,4 +113,4 @@ inline i32 run(i32 argc = 0, char** argv = nullptr) {
     return app.run(argc, argv);
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool

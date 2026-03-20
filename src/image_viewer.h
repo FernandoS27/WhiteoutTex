@@ -14,7 +14,7 @@
 #include <SDL3/SDL.h>
 #include <imgui.h>
 
-namespace whiteout::textool::views {
+namespace whiteout::textool {
 
 /// Manages texture preview display including channel filtering, mip
 /// selection, zoom/pan, and GPU texture upload.
@@ -51,8 +51,8 @@ public:
 
 private:
     /// Upload RGBA8 pixel data into an SDL_Texture.
-    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data, i32 width,
-                                               i32 height);
+    static SDL_Texture* createTextureFromRGBA8(SDL_Renderer* renderer, const u8* data,
+                                               i32 width, i32 height);
 
     /// Extract per-channel info (labels, visibility) from a texture.
     void updateChannelInfo(const whiteout::textures::Texture& texture);
@@ -98,4 +98,4 @@ private:
     ImVec2 pan_offset_{0.0f, 0.0f};
 };
 
-} // namespace whiteout::textool::views
+} // namespace whiteout::textool

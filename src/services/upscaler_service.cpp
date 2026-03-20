@@ -9,7 +9,7 @@
 
 namespace tex = whiteout::textures;
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
 
 UpscalerService::~UpscalerService() {
     if (thread_.joinable())
@@ -116,6 +116,6 @@ std::filesystem::path UpscalerService::defaultModelDir() {
     return Upscaler::defaultModelDir();
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services
 
 #endif // WHITEOUT_HAS_UPSCALER

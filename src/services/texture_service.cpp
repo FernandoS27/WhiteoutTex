@@ -9,7 +9,9 @@ namespace tex = whiteout::textures;
 using TFF = tex::TextureFileFormat;
 using TC = tex::TextureConverter;
 
-namespace whiteout::gui {
+namespace whiteout::textool::services {
+
+using namespace views;
 
 TextureService::TextureService(tex::TextureConverter& converter) : converter_(converter) {}
 
@@ -222,4 +224,4 @@ std::vector<u8> TextureService::applyChannelFilter(const u8* data, i32 width, i3
     return out;
 }
 
-} // namespace whiteout::gui
+} // namespace whiteout::textool::services
