@@ -92,7 +92,7 @@ This requires the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Run `scripts
 | [Dear ImGui](https://github.com/ocornut/imgui) | MIT |
 | [SDL3](https://github.com/libsdl-org/SDL) | zlib |
 | [WhiteoutLib](https://github.com/FernandoS27/WhiteoutLib) | See library license |
-| CascLib | MIT |
+| [CascLib](https://github.com/ladislav-zezula/CascLib) | MIT |
 | [Real-ESRGAN ncnn](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan) | MIT *(optional)* |
 
 Full texts in [THIRD_PARTY.md](THIRD_PARTY.md).
