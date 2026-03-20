@@ -19,14 +19,17 @@
 #include <string>
 
 namespace whiteout::textures {
+namespace {
 
 // ============================================================================
 // Helpers (file-local)
 // ============================================================================
 
-static std::string get_extension_lower(const std::string& path) {
+std::string get_extension_lower(const std::string& path) {
     return gui::to_lower(std::filesystem::path(path).extension().string());
 }
+
+} // anonymous namespace
 
 // ============================================================================
 // Impl
@@ -299,9 +302,9 @@ const char* TextureConverter::pixelFormatName(PixelFormat fmt) {
     case PixelFormat::BC5:
         return "BC5 (ATI2)";
     case PixelFormat::BC6H:
-        return "BC6H";
+        return "BC6H (BPTC Float)";
     case PixelFormat::BC7:
-        return "BC7";
+        return "BC7 (BPTC)";
     }
     return "Unknown";
 }
@@ -337,19 +340,19 @@ const char* TextureConverter::textureKindName(TextureKind kind) {
     case TextureKind::Metalness:
         return "Metalness";
     case TextureKind::AmbientOcclusion:
-        return "AmbientOcclusion";
+        return "Ambient Occlusion";
     case TextureKind::Gloss:
         return "Gloss";
     case TextureKind::Emissive:
         return "Emissive";
     case TextureKind::AlphaMask:
-        return "AlphaMask";
+        return "Alpha Mask";
     case TextureKind::Lightmap:
         return "Lightmap";
     case TextureKind::EnvironmentPBR:
-        return "EnvironmentPBR";
+        return "Environment (PBR)";
     case TextureKind::EnvironmentLegacy:
-        return "EnvironmentLegacy";
+        return "Environment (Legacy)";
     }
     return "Unknown";
 }

@@ -29,7 +29,7 @@ constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-static bool matchesFilter(const std::string& ext, const whiteout::gui::BatchPrefs& p) {
+bool matchesFilter(const std::string& ext, const whiteout::gui::BatchPrefs& p) {
     if (ext == ".blp")
         return p.filter_blp;
     if (ext == ".bmp")
@@ -47,7 +47,7 @@ static bool matchesFilter(const std::string& ext, const whiteout::gui::BatchPref
     return false;
 }
 
-static void drawDdsFormatCombo(const char* label, i32& fmt, const i32* allowed, i32 count) {
+void drawDdsFormatCombo(const char* label, i32& fmt, const i32* allowed, i32 count) {
     whiteout::gui::validateDdsFormatRaw(fmt, allowed, count);
     if (ImGui::BeginCombo(label, DDS_FORMAT_NAMES[fmt])) {
         for (i32 i = 0; i < count; ++i) {

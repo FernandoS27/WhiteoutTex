@@ -21,13 +21,15 @@ namespace whiteout::gui {
 
 namespace tex = whiteout::textures;
 
+namespace {
+
 // ============================================================================
 // ncnn GPU instance management
 // ============================================================================
 
-static std::atomic<bool> s_gpu_instance_created{false};
+std::atomic<bool> s_gpu_instance_created{false};
 
-static void ensureGpuInstance() {
+void ensureGpuInstance() {
     bool expected = false;
     if (s_gpu_instance_created.compare_exchange_strong(expected, true)) {
         ncnn::create_gpu_instance();
@@ -38,7 +40,7 @@ static void ensureGpuInstance() {
 // Built-in model definitions
 // ============================================================================
 
-static const UpscalerModel kBuiltinModels[] = {
+const UpscalerModel kBuiltinModels[] = {
     {"Real-ESRGAN x4+", "realesrgan-x4plus", 4, 10},
     {"Real-ESRGAN x4+ Anime", "realesrgan-x4plus-anime", 4, 10},
     {"Real-ESRGAN x2+", "RealESRGAN_x2plus", 2, 10},
@@ -48,6 +50,8 @@ static const UpscalerModel kBuiltinModels[] = {
     {"Real-ESRGAN AnimVideo v3 x2", "realesr-animevideov3-x2", 2, 10},
     {"Real-ESRNet x4+", "realesrnet-x4plus", 4, 10},
 };
+
+} // anonymous namespace
 
 // ============================================================================
 // Impl

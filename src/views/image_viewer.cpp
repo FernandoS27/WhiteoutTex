@@ -18,16 +18,17 @@ namespace tex = whiteout::textures;
 namespace interfaces = whiteout::interfaces;
 
 namespace whiteout::gui {
+namespace {
 
 // ── Channel button colors ──────────────────────────────────────────────
-static constexpr ImVec4 kChannelColorR{0.58f, 0.28f, 0.28f, 0.90f};
-static constexpr ImVec4 kChannelColorG{0.28f, 0.50f, 0.28f, 0.90f};
-static constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
-static constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
-static constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
+constexpr ImVec4 kChannelColorR{0.58f, 0.28f, 0.28f, 0.90f};
+constexpr ImVec4 kChannelColorG{0.28f, 0.50f, 0.28f, 0.90f};
+constexpr ImVec4 kChannelColorB{0.28f, 0.38f, 0.62f, 0.90f};
+constexpr ImVec4 kChannelColorA{0.48f, 0.48f, 0.48f, 0.90f};
+constexpr ImVec4 kChannelColorOff{0.18f, 0.18f, 0.18f, 0.75f};
 
 /// Short label for a TextureKind (used for Multikind channel buttons).
-static const char* channelKindShortLabel(tex::TextureKind k) {
+const char* channelKindShortLabel(tex::TextureKind k) {
     switch (k) {
     case tex::TextureKind::AmbientOcclusion:
         return "O";
@@ -64,20 +65,22 @@ static const char* channelKindShortLabel(tex::TextureKind k) {
 
 /// Squared distance threshold below which a mouse-up is treated as a click
 /// rather than a drag (in pixels^2).
-static constexpr f32 kClickThresholdSq = 9.0f;
+constexpr f32 kClickThresholdSq = 9.0f;
 
 /// Zoom multiplier per mouse wheel tick.
-static constexpr f32 kZoomFactor = 1.15f;
+constexpr f32 kZoomFactor = 1.15f;
 
 /// Minimum and maximum zoom levels.
-static constexpr f32 kZoomMin = 0.01f;
-static constexpr f32 kZoomMax = 64.0f;
+constexpr f32 kZoomMin = 0.01f;
+constexpr f32 kZoomMax = 64.0f;
 
 /// Channel button size multiplier relative to frame height.
-static constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
+constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
 
 /// Gap between channel buttons in pixels.
-static constexpr f32 kChannelBtnGap = 4.0f;
+constexpr f32 kChannelBtnGap = 4.0f;
+
+} // anonymous namespace
 
 // ============================================================================
 // Lifetime

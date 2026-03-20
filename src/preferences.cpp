@@ -9,6 +9,7 @@
 #include <string>
 
 namespace whiteout::gui {
+namespace {
 
 // ============================================================================
 // INI section visitor
@@ -17,7 +18,7 @@ namespace whiteout::gui {
 /// Open @p ini_path and call @p visitor for every key=value line inside
 /// @p section.  Stops when the section ends or the file is exhausted.
 template <typename Visitor>
-static void visitIniSection(const std::string& ini_path, const char* section, Visitor&& visitor) {
+void visitIniSection(const std::string& ini_path, const char* section, Visitor&& visitor) {
     std::ifstream in(ini_path);
     if (!in.is_open())
         return;
@@ -40,6 +41,8 @@ static void visitIniSection(const std::string& ini_path, const char* section, Vi
         visitor(line);
     }
 }
+
+} // anonymous namespace
 
 // ============================================================================
 // Load helpers

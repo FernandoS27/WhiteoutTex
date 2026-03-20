@@ -26,7 +26,7 @@ constexpr u32 kCombinedMetaMagic = 0x44CF00F5;
 constexpr size_t kCombinedAlignment = 8;
 
 /// Strip a 16-byte SNO header from @p buf if present.
-static void stripSnoHeader(std::vector<u8>& buf) {
+void stripSnoHeader(std::vector<u8>& buf) {
     if (buf.size() > 16) {
         u32 magic = 0;
         std::memcpy(&magic, buf.data(), 4);
@@ -36,7 +36,7 @@ static void stripSnoHeader(std::vector<u8>& buf) {
 }
 
 /// Build a 16-byte synthetic SNO header prepended to @p data.
-static std::vector<u8> buildSyntheticSnoHeader(u32 formatHash, const u8* data, size_t size) {
+std::vector<u8> buildSyntheticSnoHeader(u32 formatHash, const u8* data, size_t size) {
     std::vector<u8> result(16 + size);
     u32 magic = kSnoMagic;
     u32 zero = 0;
@@ -49,7 +49,7 @@ static std::vector<u8> buildSyntheticSnoHeader(u32 formatHash, const u8* data, s
 }
 
 /// Return true if @p fileName looks like an encrypted combined meta variant.
-static bool isEncryptedDatFile(const std::string& fileName) {
+bool isEncryptedDatFile(const std::string& fileName) {
     auto dot = fileName.rfind('.');
     std::string base = (dot != std::string::npos) ? fileName.substr(0, dot) : fileName;
     auto last_dash = base.rfind('-');
@@ -60,13 +60,13 @@ static bool isEncryptedDatFile(const std::string& fileName) {
 }
 
 /// Extract the bare filename from a path.
-static std::string baseName(const std::string& path) {
+std::string baseName(const std::string& path) {
     auto sep = path.find_last_of("\\/:");
     return (sep != std::string::npos) ? path.substr(sep + 1) : path;
 }
 
 /// Resolve SnoGroup from a combined meta file name.
-static SnoGroup groupFromCombinedFileName(const std::string& path) {
+SnoGroup groupFromCombinedFileName(const std::string& path) {
     std::string name = baseName(path);
     auto dash = name.find('-');
     if (dash == std::string::npos)
@@ -82,7 +82,7 @@ static SnoGroup groupFromCombinedFileName(const std::string& path) {
 }
 
 /// Returns true if @p name has a supported texture extension.
-static bool isSupportedExtension(const std::string& name) {
+bool isSupportedExtension(const std::string& name) {
     auto dot = name.rfind('.');
     if (dot == std::string::npos)
         return false;
@@ -97,7 +97,7 @@ static bool isSupportedExtension(const std::string& name) {
 }
 
 /// Returns true if @p s contains at least one visible ASCII character.
-static bool hasVisibleAscii(const std::string& s) {
+bool hasVisibleAscii(const std::string& s) {
     for (unsigned char c : s)
         if (c > ' ' && c < 127)
             return true;
