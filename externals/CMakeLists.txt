@@ -1,4 +1,8 @@
 
+# psd_sdk (MolecularMatters PSD reader/writer)
+add_subdirectory(psd_sdk/src/Psd)
+target_include_directories(Psd PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/psd_sdk/src/Psd)
+
 # WhiteoutLib
 
 set(WHITEOUT_ENABLE_CASC ON CACHE BOOL "Enable CASC support" FORCE)

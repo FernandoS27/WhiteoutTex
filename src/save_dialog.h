@@ -27,6 +27,7 @@ constexpr SDL_DialogFileFilter SAVE_FILTERS[] = {
     {"DDS (DirectDraw Surface)", "dds"},
     {"JPEG", "jpg;jpeg"},
     {"PNG", "png"},
+    {"PSD (Adobe Photoshop)", "psd"},
     {"TGA (Targa)", "tga"},
 };
 constexpr i32 SAVE_FILTER_COUNT = static_cast<i32>(std::size(SAVE_FILTERS));

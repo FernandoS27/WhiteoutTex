@@ -30,6 +30,8 @@ add_executable(WhiteoutTex
     src/views/menu_bar.cpp
     src/views/save_dialog.cpp
     src/views/save_helpers.cpp
+    src/psd/parser.cpp
+    src/psd/writer.cpp
 )
 
 if(WHITEOUT_ENABLE_UPSCALER)
@@ -43,7 +45,7 @@ if(WIN32)
 endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
-target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc)
+target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc Psd)
 
 if(WHITEOUT_ENABLE_UPSCALER)
     target_link_libraries(WhiteoutTex PRIVATE realesrgan_lib)
@@ -67,6 +69,8 @@ if(WHITEOUT_BUILD_CLI)
         src/cli_main.cpp
         src/texture_converter.cpp
         src/thread_pool_manager.cpp
+        src/psd/parser.cpp
+        src/psd/writer.cpp
     )
 
     if(WHITEOUT_ENABLE_UPSCALER)
@@ -79,7 +83,7 @@ if(WHITEOUT_BUILD_CLI)
     endif()
 
     target_include_directories(WhiteoutTexCLI PRIVATE src)
-    target_link_libraries(WhiteoutTexCLI PRIVATE whiteout_casc)
+    target_link_libraries(WhiteoutTexCLI PRIVATE whiteout_casc Psd)
 
     if(WIN32)
         target_sources(WhiteoutTexCLI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.rc")

@@ -10,6 +10,7 @@
 #include <whiteout/textures/dds/dds.h>
 #include <whiteout/textures/jpeg/jpeg.h>
 #include <whiteout/textures/png/png.h>
+#include "psd/psd.h"
 #include <whiteout/textures/tex/tex.h>
 #include <whiteout/textures/tga/tga.h>
 
@@ -163,6 +164,7 @@ TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
         {".blp", TextureFileFormat::BLP},   {".bmp", TextureFileFormat::BMP},
         {".dds", TextureFileFormat::DDS},   {".jpg", TextureFileFormat::JPEG},
         {".jpeg", TextureFileFormat::JPEG}, {".png", TextureFileFormat::PNG},
+        {".psd", TextureFileFormat::PSD},
         {".tex", TextureFileFormat::TEX},   {".tga", TextureFileFormat::TGA},
     };
     auto ext = get_extension_lower(path);
@@ -265,6 +267,8 @@ const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {
         return "JPEG";
     case TextureFileFormat::PNG:
         return "PNG";
+    case TextureFileFormat::PSD:
+        return "PSD";
     case TextureFileFormat::TEX:
         return "TEX";
     case TextureFileFormat::TGA:
@@ -381,6 +385,8 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
         return pImpl->loadFile<jpeg::Parser>(path, "JPEG");
     case TextureFileFormat::PNG:
         return pImpl->loadFile<png::Parser>(path, "PNG");
+    case TextureFileFormat::PSD:
+        return pImpl->loadFile<psd::Parser>(path, "PSD");
     case TextureFileFormat::TEX:
         return pImpl->loadFileStrict<tex::Parser>(path);
     case TextureFileFormat::TGA:
@@ -417,6 +423,8 @@ std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureF
         return pImpl->loadFromBuffer<jpeg::Parser>(data, "JPEG");
     case TextureFileFormat::PNG:
         return pImpl->loadFromBuffer<png::Parser>(data, "PNG");
+    case TextureFileFormat::PSD:
+        return pImpl->loadFromBuffer<psd::Parser>(data, "PSD");
     case TextureFileFormat::TEX:
         return pImpl->loadFromBuffer<tex::Parser>(data, "TEX");
     case TextureFileFormat::TGA:
@@ -465,6 +473,8 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
         return pImpl->saveJpeg(tex, path, kDefaultJpegQuality, false);
     case TextureFileFormat::PNG:
         return pImpl->saveFile<png::Writer>(path, tex);
+    case TextureFileFormat::PSD:
+        return pImpl->saveFile<psd::Writer>(path, tex);
     case TextureFileFormat::TEX:
         return pImpl->saveFile<tex::Writer>(path, tex);
     case TextureFileFormat::TGA:

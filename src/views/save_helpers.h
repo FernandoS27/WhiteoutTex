@@ -202,7 +202,7 @@ inline constexpr const char* kDownscaleOptions[] = {"x2 (halve)", "x4 (quarter)"
 inline constexpr i32 kDownscaleOptionCount = static_cast<i32>(std::size(kDownscaleOptions));
 
 /// Output file extensions indexed by the output-format combo (BLP=0 … TGA=5).
-inline constexpr const char* kOutputExtensions[] = {".blp", ".bmp", ".dds", ".jpg", ".png", ".tga"};
+inline constexpr const char* kOutputExtensions[] = {".blp", ".bmp", ".dds", ".jpg", ".png", ".psd", ".tga"};
 
 // ============================================================================
 // Texture kind guessing helper
