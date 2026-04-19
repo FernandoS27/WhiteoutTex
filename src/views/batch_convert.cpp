@@ -182,6 +182,12 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
         SDL_ShowOpenFolderDialog(folderDialogCallback, &output_folder_state_, window,
                                  output_dir_buf_[0] ? output_dir_buf_ : nullptr, false);
     }
+    if (output_dir_buf_[0] != '\0' && std::strcmp(input_dir_buf_, output_dir_buf_) == 0) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.0f, 1.0f));
+        ImGui::TextWrapped(
+            "Warning: output folder is the same as the input folder. Original files may be overwritten.");
+        ImGui::PopStyleColor();
+    }
 
     ImGui::Combo("Format", &prefs_.output_format, OUTPUT_FORMAT_NAMES,
                  static_cast<i32>(std::size(OUTPUT_FORMAT_NAMES)));
@@ -487,9 +493,6 @@ std::string BatchConvert::beginBatch() {
     std::error_code ec;
     if (!fs::is_directory(input_dir, ec))
         return "Error: Input directory does not exist.";
-    if (fs::equivalent(input_dir, output_dir, ec))
-        return "Error: Input and output directories must be different.";
-
     fs::create_directories(output_dir, ec);
     if (!fs::is_directory(output_dir, ec))
         return "Error: Could not create output directory.";

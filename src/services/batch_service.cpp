@@ -45,9 +45,6 @@ std::string BatchService::start(BatchJob job) {
     std::error_code ec;
     if (!fs::is_directory(job.input_dir, ec))
         return "Error: Input directory does not exist.";
-    if (fs::equivalent(job.input_dir, job.output_dir, ec))
-        return "Error: Input and output directories must be different.";
-
     fs::create_directories(job.output_dir, ec);
     if (!fs::is_directory(job.output_dir, ec))
         return "Error: Could not create output directory.";
