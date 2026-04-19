@@ -101,6 +101,9 @@ ImageViewer::~ImageViewer() {
     if (image_texture_) {
         SDL_DestroyTexture(image_texture_);
     }
+    if (unwrap_texture_) {
+        SDL_DestroyTexture(unwrap_texture_);
+    }
 }
 
 // ============================================================================
@@ -119,6 +122,11 @@ void ImageViewer::setTexture(const tex::Texture& texture) {
     array_size_ = (is_cube_array_ || is_2d_array_) ? static_cast<i32>(texture.arraySize()) : 1;
     selected_face_ = 0;
     selected_array_index_ = 0;
+    show_unwrap_ = false;
+    if (unwrap_texture_) {
+        SDL_DestroyTexture(unwrap_texture_);
+        unwrap_texture_ = nullptr;
+    }
 
     auto* pool = threadPoolManager().get();
     display_texture_ = TextureService::makeDisplayTexture(texture, pool);
@@ -195,6 +203,23 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     ImGui::SameLine(0.0f, 8.0f);
     ImGui::Text("%.0f%%", zoom_scale_ * 100.0f);
 
+    // ---- Cubemap unwrap toggle ----
+    if (is_cube_) {
+        ImGui::SameLine(0.0f, 8.0f);
+        const ImVec4 active_col{0.30f, 0.55f, 0.30f, 1.0f};
+        if (show_unwrap_)
+            ImGui::PushStyleColor(ImGuiCol_Button, active_col);
+        if (ImGui::Button("Unwrap")) {
+            show_unwrap_ = !show_unwrap_;
+            if (show_unwrap_)
+                buildUnwrapTexture(renderer);
+            auto_fit_ = true;
+            pan_offset_ = ImVec2{0.0f, 0.0f};
+        }
+        if (show_unwrap_)
+            ImGui::PopStyleColor();
+    }
+
     // ---- Channel filter buttons (right-aligned) ----
     struct ChannelDef {
         const char* label;
@@ -220,14 +245,16 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
         static_cast<f32>(visible_count) * btn_size + static_cast<f32>(visible_count - 1) * btn_gap;
 
     f32 total_right_width = total_btns_width;
-    if (is_cube_)                       total_right_width += kFaceComboW  + kComboGap;
-    if (is_cube_array_ || is_2d_array_) total_right_width += kArrayComboW + kComboGap;
+    if (!show_unwrap_) {
+        if (is_cube_)                       total_right_width += kFaceComboW  + kComboGap;
+        if (is_cube_array_ || is_2d_array_) total_right_width += kArrayComboW + kComboGap;
+    }
 
     ImGui::SameLine(0.0f, 0.0f);
     ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_right_width);
 
-    // ---- Array index combobox (CubeArray or 2DArray) ----
-    if (is_cube_array_ || is_2d_array_) {
+    // ---- Array index combobox (CubeArray or 2DArray, hidden in unwrap mode) ----
+    if (!show_unwrap_ && (is_cube_array_ || is_2d_array_)) {
         ImGui::SetNextItemWidth(kArrayComboW);
         char arr_preview[16];
         std::snprintf(arr_preview, sizeof(arr_preview), "Array %d", selected_array_index_);
@@ -248,8 +275,8 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
         ImGui::SameLine(0.0f, kComboGap);
     }
 
-    // ---- Cube face combobox (Cube and CubeArray) ----
-    if (is_cube_) {
+    // ---- Cube face combobox (Cube and CubeArray, hidden in unwrap mode) ----
+    if (!show_unwrap_ && is_cube_) {
         static constexpr const char* kFaceLabels[] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
         ImGui::SetNextItemWidth(kFaceComboW);
         if (ImGui::BeginCombo("##face", kFaceLabels[selected_face_])) {
@@ -308,17 +335,22 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
 // ============================================================================
 
 void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
+    // In unwrap mode, show the cross layout; otherwise the per-face preview.
+    SDL_Texture* tex = (show_unwrap_ && unwrap_texture_) ? unwrap_texture_ : image_texture_;
+    const i32 w = (show_unwrap_ && unwrap_texture_) ? unwrap_w_ : image_width_;
+    const i32 h = (show_unwrap_ && unwrap_texture_) ? unwrap_h_ : image_height_;
+
     const f32 actual_w = ImGui::GetContentRegionAvail().x;
     const f32 actual_h = ImGui::GetContentRegionAvail().y;
 
     if (auto_fit_) {
-        zoom_scale_ = std::min(actual_w / static_cast<f32>(image_width_),
-                               actual_h / static_cast<f32>(image_height_));
+        zoom_scale_ = std::min(actual_w / static_cast<f32>(w),
+                               actual_h / static_cast<f32>(h));
         pan_offset_ = ImVec2{0.0f, 0.0f};
     }
 
-    f32 disp_w = static_cast<f32>(image_width_) * zoom_scale_;
-    f32 disp_h = static_cast<f32>(image_height_) * zoom_scale_;
+    f32 disp_w = static_cast<f32>(w) * zoom_scale_;
+    f32 disp_h = static_cast<f32>(h) * zoom_scale_;
 
     const ImVec2 area_pos = ImGui::GetCursorScreenPos();
 
@@ -341,8 +373,8 @@ void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
             const f32 uvx = (mouse_local.x - ix) / disp_w;
             const f32 uvy = (mouse_local.y - iy) / disp_h;
 
-            const f32 new_dw = static_cast<f32>(image_width_) * new_zoom;
-            const f32 new_dh = static_cast<f32>(image_height_) * new_zoom;
+            const f32 new_dw = static_cast<f32>(w) * new_zoom;
+            const f32 new_dh = static_cast<f32>(h) * new_zoom;
             pan_offset_.x = mouse_local.x - uvx * new_dw - actual_w * 0.5f + new_dw * 0.5f;
             pan_offset_.y = mouse_local.y - uvy * new_dh - actual_h * 0.5f + new_dh * 0.5f;
             zoom_scale_ = new_zoom;
@@ -384,7 +416,7 @@ void ImageViewer::drawImageArea(SDL_Renderer* /*renderer*/) {
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(area_pos, ImVec2(area_pos.x + actual_w, area_pos.y + actual_h), true);
-    dl->AddImage(ImTextureRef(image_texture_), ImVec2(img_x, img_y),
+    dl->AddImage(ImTextureRef(tex), ImVec2(img_x, img_y),
                  ImVec2(img_x + disp_w, img_y + disp_h));
     dl->PopClipRect();
 }
@@ -461,6 +493,74 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         image_texture_ =
             createTextureFromRGBA8(renderer, filtered.data(), image_width_, image_height_);
     }
+    // Rebuild unwrap if active.
+    if (show_unwrap_)
+        buildUnwrapTexture(renderer);
+}
+
+// ============================================================================
+// Cubemap unwrap
+// ============================================================================
+
+void ImageViewer::buildUnwrapTexture(SDL_Renderer* renderer) {
+    if (!display_texture_)
+        return;
+    if (unwrap_texture_) {
+        SDL_DestroyTexture(unwrap_texture_);
+        unwrap_texture_ = nullptr;
+    }
+
+    const u32 mip = static_cast<u32>(selected_mip_);
+    const u32 base_layer = static_cast<u32>(selected_array_index_) * 6u;
+
+    const auto& dml = display_texture_->mipLevel(mip, base_layer);
+    const i32 fw = static_cast<i32>(dml.width);
+    const i32 fh = static_cast<i32>(dml.height);
+
+    // Horizontal cross layout (4fw x 3fh):
+    //   col:  0     1     2     3
+    // row 0:  .     .    +Y     .
+    // row 1: -X    +Z    +X    -Z
+    // row 2:  .     .    -Y     .
+    static constexpr std::pair<i32, i32> kLayout[6] = {
+        {2, 1}, // face 0: +X
+        {0, 1}, // face 1: -X
+        {1, 0}, // face 2: +Y  (cap over +Z)
+        {1, 2}, // face 3: -Y  (cap over +Z)
+        {1, 1}, // face 4: +Z
+        {3, 1}, // face 5: -Z
+    };
+
+    const i32 cross_w = fw * 4;
+    const i32 cross_h = fh * 3;
+    std::vector<u8> cross(static_cast<size_t>(cross_w * cross_h * 4), u8{0});
+
+    for (i32 face = 0; face < 6; ++face) {
+        const u32 layer = base_layer + static_cast<u32>(face);
+        auto face_span = display_texture_->mipData(mip, layer);
+
+        std::vector<u8> filtered;
+        const u8* src = face_span.data();
+        if (!(channel_r_ && channel_g_ && channel_b_ && channel_a_)) {
+            filtered = TextureService::applyChannelFilter(
+                src, fw, fh, channel_r_, channel_g_, channel_b_, channel_a_);
+            src = filtered.data();
+        }
+
+        const auto [col, row] = kLayout[face];
+        const i32 dst_x = col * fw;
+        const i32 dst_y = row * fh;
+        for (i32 y = 0; y < fh; ++y) {
+            const u8* src_row = src + static_cast<ptrdiff_t>(y * fw * 4);
+            u8* dst_row = cross.data() +
+                          static_cast<ptrdiff_t>((dst_y + y) * cross_w * 4 + dst_x * 4);
+            std::copy_n(src_row, fw * 4, dst_row);
+        }
+    }
+
+    unwrap_w_ = cross_w;
+    unwrap_h_ = cross_h;
+    unwrap_texture_ = createTextureFromRGBA8(renderer, cross.data(), cross_w, cross_h);
 }
 
 } // namespace whiteout::textool::views

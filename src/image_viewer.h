@@ -70,12 +70,19 @@ private:
     /// at the selected mip with the active channel filter.
     void rebuildPreview(SDL_Renderer* renderer);
 
+    /// Build a cross-layout unwrap of all 6 cube faces into unwrap_texture_.
+    void buildUnwrapTexture(SDL_Renderer* renderer);
+
     // Display state
     std::optional<whiteout::textures::Texture> display_texture_;
     SDL_Texture* image_texture_ = nullptr;
+    SDL_Texture* unwrap_texture_ = nullptr; ///< Cross-layout cube unwrap (built on demand).
     SDL_Renderer* renderer_ = nullptr;
     i32 image_width_ = 0;
     i32 image_height_ = 0;
+    i32 unwrap_w_ = 0;
+    i32 unwrap_h_ = 0;
+    bool show_unwrap_ = false;
     i32 selected_mip_ = 0;
 
     // Cube / CubeArray selection
