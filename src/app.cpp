@@ -356,9 +356,20 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                                          t == tex::TextureType::TextureCubeArray;
                     }
                     save_dialog_.buildFilterOrder(save_prefs_, is_multi_layer);
-                    const char* save_default = save_prefs_.last_save_dir.empty()
-                                                   ? nullptr
-                                                   : save_prefs_.last_save_dir.c_str();
+                    // Build a default save path: preferred save dir + stem of the open file.
+                    std::string save_default_str;
+                    if (!tex_state_.path.empty()) {
+                        namespace fs = std::filesystem;
+                        fs::path src(tex_state_.path);
+                        fs::path dir = save_prefs_.last_save_dir.empty()
+                                           ? src.parent_path()
+                                           : fs::path(save_prefs_.last_save_dir);
+                        save_default_str = (dir / src.stem()).string();
+                    } else if (!save_prefs_.last_save_dir.empty()) {
+                        save_default_str = save_prefs_.last_save_dir;
+                    }
+                    const char* save_default =
+                        save_default_str.empty() ? nullptr : save_default_str.c_str();
                     SDL_ShowSaveFileDialog(file_dialog_callback, &save_dialog_state_, window_,
                                            save_dialog_.filterData(), save_dialog_.filterCount(),
                                            save_default);
