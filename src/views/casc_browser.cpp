@@ -126,15 +126,14 @@ void CascBrowser::buildTree() {
     }
 
     for (const auto& entry : d4_entries) {
-        const std::string display = entry.name + ".tex";
-        if (!filter.empty() && to_lower(display).find(filter) == std::string::npos)
+        if (!filter.empty() && to_lower(entry.name).find(filter) == std::string::npos)
             continue;
 
         d4_folder->children.push_back({});
         auto& node = d4_folder->children.back();
-        node.name = display;
-        node.full_path = entry.name;
-        node.sno_id = entry.sno_id;
+        node.name = entry.name;
+        node.full_path = entry.meta_path;
+        node.is_d4_tex = true;
         node.is_file = true;
     }
 }
@@ -154,11 +153,11 @@ std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                 CascBrowserResult file_result;
-                if (child.sno_id >= 0) {
-                    file_result = casc_service_.readD4Tex(child.full_path, child.sno_id);
+                if (child.is_d4_tex) {
+                    file_result = casc_service_.readD4Tex(child.full_path);
                     status_ = file_result
-                                  ? ("Loaded D4 TEX: " + child.full_path)
-                                  : ("Skipped (encrypted or unavailable): " + child.full_path);
+                                  ? ("Loaded D4 TEX: " + child.name)
+                                  : ("Skipped (encrypted or unavailable): " + child.name);
                 } else {
                     file_result = casc_service_.readFile(child.full_path);
                     status_ = file_result ? ("Loaded: " + child.full_path)
@@ -172,9 +171,8 @@ std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
                 }
             }
             if (ImGui::IsItemHovered()) {
-                if (child.sno_id >= 0)
-                    ImGui::SetTooltip("D4 TEX: %s (snoId=%d)", child.full_path.c_str(),
-                                      child.sno_id);
+                if (child.is_d4_tex)
+                    ImGui::SetTooltip("D4 TEX: %s", child.full_path.c_str());
                 else
                     ImGui::SetTooltip("%s", child.full_path.c_str());
             }

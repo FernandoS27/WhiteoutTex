@@ -2,106 +2,89 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "services/casc_service.h"
+#include "thread_pool_manager.h"
 
 #include <algorithm>
-#include <cstring>
-
-#include <whiteout/sno/sno_types.h>
 
 namespace {
 
 using namespace whiteout;
-using sno::kSnoMagic;
-using sno::SnoGroup;
 
 /// Supported texture extensions (lowercase, with dot).
 constexpr const char* kSupportedExtensions[] = {
     ".blp", ".bmp", ".dds", ".jpg", ".jpeg", ".png", ".tex", ".tga",
 };
 
-/// Signature of D4 combined meta files.
-constexpr u32 kCombinedMetaMagic = 0x44CF00F5;
-
-/// Data alignment within combined meta files.
-constexpr size_t kCombinedAlignment = 8;
-
-/// Strip a 16-byte SNO header from @p buf if present.
-void stripSnoHeader(std::vector<u8>& buf) {
-    if (buf.size() > 16) {
-        u32 magic = 0;
-        std::memcpy(&magic, buf.data(), 4);
-        if (magic == kSnoMagic)
-            buf.erase(buf.begin(), buf.begin() + 16);
-    }
-}
-
-/// Build a 16-byte synthetic SNO header prepended to @p data.
-std::vector<u8> buildSyntheticSnoHeader(u32 formatHash, const u8* data, size_t size) {
-    std::vector<u8> result(16 + size);
-    u32 magic = kSnoMagic;
-    u32 zero = 0;
-    std::memcpy(result.data() + 0, &magic, 4);
-    std::memcpy(result.data() + 4, &formatHash, 4);
-    std::memcpy(result.data() + 8, &zero, 4);
-    std::memcpy(result.data() + 12, &zero, 4);
-    std::memcpy(result.data() + 16, data, size);
-    return result;
-}
-
-/// Return true if @p fileName looks like an encrypted combined meta variant.
-bool isEncryptedDatFile(const std::string& fileName) {
-    auto dot = fileName.rfind('.');
-    std::string base = (dot != std::string::npos) ? fileName.substr(0, dot) : fileName;
-    auto last_dash = base.rfind('-');
-    if (last_dash == std::string::npos)
-        return false;
-    std::string suffix = base.substr(last_dash + 1);
-    return suffix.size() > 2 && suffix[0] == '0' && suffix[1] == 'x';
-}
-
-/// Extract the bare filename from a path.
-std::string baseName(const std::string& path) {
-    auto sep = path.find_last_of("\\/:");
-    return (sep != std::string::npos) ? path.substr(sep + 1) : path;
-}
-
-/// Resolve SnoGroup from a combined meta file name.
-SnoGroup groupFromCombinedFileName(const std::string& path) {
-    std::string name = baseName(path);
-    auto dash = name.find('-');
-    if (dash == std::string::npos)
-        return SnoGroup::None;
-    std::string groupStr = name.substr(0, dash);
-    for (i32 gid = 0; gid <= 180; ++gid) {
-        auto g = static_cast<SnoGroup>(gid);
-        const char* gname = sno::snoGroupName(g);
-        if (gname && groupStr == gname)
-            return g;
-    }
-    return SnoGroup::None;
-}
+/// D4 enriched meta texture path prefix (after the root folder and colon).
+constexpr std::string_view kD4MetaPrefix = ":meta\\Texture\\";
 
 /// Returns true if @p name has a supported texture extension.
-bool isSupportedExtension(const std::string& name) {
+bool isSupportedExtension(std::string_view name) {
     auto dot = name.rfind('.');
-    if (dot == std::string::npos)
+    if (dot == std::string_view::npos)
         return false;
-    std::string ext;
-    ext.reserve(name.size() - dot);
-    for (size_t i = dot; i < name.size(); ++i)
-        ext += static_cast<char>(std::tolower(static_cast<unsigned char>(name[i])));
-    for (const char* s : kSupportedExtensions)
-        if (ext == s)
+    auto ext = name.substr(dot);
+    // Case-insensitive compare against known extensions.
+    for (const char* s : kSupportedExtensions) {
+        std::string_view sv(s);
+        if (ext.size() != sv.size())
+            continue;
+        bool match = true;
+        for (size_t i = 0; i < ext.size(); ++i) {
+            if (std::tolower(static_cast<unsigned char>(ext[i])) !=
+                std::tolower(static_cast<unsigned char>(sv[i]))) {
+                match = false;
+                break;
+            }
+        }
+        if (match)
             return true;
+    }
     return false;
 }
 
-/// Returns true if @p s contains at least one visible ASCII character.
-bool hasVisibleAscii(const std::string& s) {
-    for (unsigned char c : s)
-        if (c > ' ' && c < 127)
-            return true;
-    return false;
+/// Returns true if @p path is a D4 enriched meta texture path.
+/// Format: <folder>:meta\Texture\<name>.tex
+bool isD4MetaTexturePath(std::string_view path) {
+    auto colon = path.find(':');
+    if (colon == std::string_view::npos || colon == 0)
+        return false;
+    return path.substr(colon).starts_with(kD4MetaPrefix);
+}
+
+/// Returns true if @p path is a D4 enriched sub-file (payload/paylow/paymed/child).
+/// Only matches known D4 sub-path prefixes so that TVFS sub-container paths
+/// (e.g. Warcraft III "war3.w3mod:units\...") are not incorrectly filtered.
+bool isD4SubPath(std::string_view path) {
+    auto colon = path.find(':');
+    if (colon == std::string_view::npos || colon == 0)
+        return false;
+    auto rest = path.substr(colon);
+    return rest.starts_with(":meta\\") ||
+           rest.starts_with(":payload\\") ||
+           rest.starts_with(":paylow\\") ||
+           rest.starts_with(":paymed\\") ||
+           rest.starts_with(":child\\");
+}
+
+/// Extract display name from a D4 meta path.
+/// e.g. "base:meta\Texture\SomeName.tex" → "SomeName.tex"
+std::string d4DisplayName(std::string_view meta_path) {
+    auto sep = meta_path.find_last_of("\\/");
+    if (sep != std::string_view::npos)
+        return std::string(meta_path.substr(sep + 1));
+    return std::string(meta_path);
+}
+
+/// Replace ":meta\" with ":<target>\" in a D4 path.
+std::string d4ReplaceSub(const std::string& meta_path, std::string_view target) {
+    constexpr std::string_view kMetaSub = ":meta\\";
+    auto pos = meta_path.find(kMetaSub);
+    if (pos == std::string::npos)
+        return {};
+    std::string result = meta_path;
+    result.replace(pos + 1, kMetaSub.size() - 2, target);
+    return result;
 }
 
 } // anonymous namespace
@@ -122,56 +105,51 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
 
     close();
 
-    if (!storage_.open(path)) {
+    // Use OpenOptions with a memory cache for D4 combined meta performance,
+    // and the global worker pool for parallel I/O.
+    storages::casc::OpenOptions opts;
+    opts.path = path;
+    opts.memoryCacheSize = 256 * 1024 * 1024; // 256 MB
+    opts.pool = threadPoolManager().get();
+
+    auto result = storages::casc::Storage::open(opts);
+    if (!result) {
         info.status = "Failed to open CASC storage at: " + path;
         return info;
     }
+    storage_ = std::move(*result);
 
     if (auto prod = storage_.product())
-        info.product_name = prod->codeName + " (build " + std::to_string(prod->buildNumber) + ")";
-    if (auto count = storage_.totalFileCount()) {
+        info.product_name = prod->name + " (" + prod->version + ")";
+    if (auto count = storage_.totalFileCount())
         info.file_count = *count;
-    }
 
-    // Detect D4 by trying to read CoreTOC.dat.
-    sno::CoreToc toc;
-    for (const char* toc_path : {"base:CoreTOC.dat", "CoreTOC.dat"}) {
-        if (auto toc_data = storage_.readFile(toc_path)) {
-            if (toc.parse(*toc_data)) {
-                auto fmt = toc.format();
-                is_d4_ = (fmt == sno::CoreTocFormat::D4Old || fmt == sno::CoreTocFormat::D4New);
-            }
-            break;
+    // Enumerate all files.  The library handles D3/D4 root enrichment
+    // automatically — D4 paths are human-readable (e.g. base:meta\Texture\Name.tex),
+    // D3 paths use the correct group directory names.
+    storage_.enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
+        if (!isSupportedExtension(entry.path))
+            return true;
+
+        if (isD4MetaTexturePath(entry.path)) {
+            // D4 TEX meta entry — collect for separate display.
+            is_d4_ = true;
+            std::string meta_path{entry.path};
+            d4_tex_entries_.push_back({d4DisplayName(entry.path), std::move(meta_path)});
+        } else if (!isD4SubPath(entry.path)) {
+            // Regular file (WoW, D3, or non-texture D4 files).
+            all_files_.emplace_back(entry.path);
         }
-    }
-    info.is_d4 = is_d4_;
-
-    if (is_d4_) {
-        // Cache the Texture group's format hash for synthetic SNO headers.
-        auto& fh_map = toc.formatHashes();
-        auto it = fh_map.find(static_cast<i32>(SnoGroup::Texture));
-        if (it != fh_map.end())
-            d4_tex_format_hash_ = it->second;
-
-        // Collect valid D4 Texture entries from the CoreTOC.
-        for (const auto& entry : toc.entriesForGroup(SnoGroup::Texture)) {
-            if (hasVisibleAscii(entry.name))
-                d4_tex_entries_.push_back({entry.name, entry.snoId});
-        }
-        std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),
-                  [](const CascD4TexEntry& a, const CascD4TexEntry& b) { return a.name < b.name; });
-
-        loadD4Textures(toc);
-    }
-
-    // Enumerate regular files (WoW, D3, or any non-D4 textures).
-    storage_.enumerate("", [&](const std::string& name) -> bool {
-        if (isSupportedExtension(name))
-            all_files_.push_back(name);
+        // Skip D4 payload/paylow/paymed/child texture files — they are read
+        // via readD4Tex() alongside the meta entry.
         return true;
     });
-    std::sort(all_files_.begin(), all_files_.end());
 
+    std::sort(all_files_.begin(), all_files_.end());
+    std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),
+              [](const CascD4TexEntry& a, const CascD4TexEntry& b) { return a.name < b.name; });
+
+    info.is_d4 = is_d4_;
     storage_open_ = true;
 
     const size_t total = all_files_.size() + d4_tex_entries_.size();
@@ -190,86 +168,6 @@ void CascService::close() {
     is_d4_ = false;
     all_files_.clear();
     d4_tex_entries_.clear();
-    combined_cache_.clear();
-    d4_tex_format_hash_ = 0;
-}
-
-// ============================================================================
-// D4 combined meta loading
-// ============================================================================
-
-void CascService::loadD4Textures(sno::CoreToc& toc) {
-    std::vector<std::string> dat_files;
-    for (const char* pattern : {"*.dat", "base:*.dat", "base\\*.dat"}) {
-        if (!dat_files.empty())
-            break;
-        storage_.enumerate(pattern, "", [&](const std::string& name) -> bool {
-            dat_files.push_back(name);
-            return true;
-        });
-    }
-
-    std::vector<std::string> tex_combined;
-    for (const auto& path : dat_files) {
-        std::string fname = baseName(path);
-        if (std::count(fname.begin(), fname.end(), '-') < 2)
-            continue;
-        if (isEncryptedDatFile(fname))
-            continue;
-        if (groupFromCombinedFileName(path) == SnoGroup::Texture)
-            tex_combined.push_back(path);
-    }
-
-    for (const auto& path : tex_combined) {
-        auto file_data = storage_.readFile(path);
-        if (!file_data || file_data->size() < 8)
-            continue;
-
-        auto shared = std::make_shared<std::vector<u8>>(std::move(*file_data));
-        const auto& buf = *shared;
-
-        u32 sig = 0;
-        std::memcpy(&sig, buf.data(), 4);
-        if (sig != kCombinedMetaMagic)
-            continue;
-
-        u32 entry_count = 0;
-        std::memcpy(&entry_count, buf.data() + 4, 4);
-
-        const size_t index_end = 8 + static_cast<size_t>(entry_count) * 8;
-        if (index_end > buf.size())
-            continue;
-
-        struct IndexEntry {
-            i32 sno_id;
-            u32 size;
-        };
-        std::vector<IndexEntry> index(entry_count);
-        for (u32 i = 0; i < entry_count; ++i) {
-            const size_t off = 8 + static_cast<size_t>(i) * 8;
-            std::memcpy(&index[i].sno_id, buf.data() + off, 4);
-            std::memcpy(&index[i].size, buf.data() + off + 4, 4);
-        }
-
-        size_t pos = index_end;
-        for (u32 i = 0; i < entry_count; ++i) {
-            pos = (pos + kCombinedAlignment - 1) & ~(kCombinedAlignment - 1);
-            pos += 8; // Texture group extra skip
-
-            if (pos + index[i].size > buf.size())
-                break;
-
-            i32 check_id = 0;
-            std::memcpy(&check_id, buf.data() + pos, 4);
-            if (check_id != index[i].sno_id) {
-                pos += index[i].size;
-                continue;
-            }
-
-            combined_cache_[index[i].sno_id] = {shared, pos, index[i].size};
-            pos += index[i].size;
-        }
-    }
 }
 
 // ============================================================================
@@ -287,48 +185,30 @@ CascFileResult CascService::readFile(const std::string& casc_path) {
     return result;
 }
 
-CascFileResult CascService::readD4Tex(const std::string& name, i32 sno_id) {
-    // --- Meta ---
-    std::optional<std::vector<u8>> meta;
-    const char* dir = sno::snoGroupDir(SnoGroup::Texture);
-    const char* ext = sno::snoGroupExtension(SnoGroup::Texture);
+CascFileResult CascService::readD4Tex(const std::string& meta_path) {
+    // Build batch requests for meta, payload, and paylow in parallel.
+    std::string payload_path = d4ReplaceSub(meta_path, "payload");
+    std::string paylow_path = d4ReplaceSub(meta_path, "paylow");
 
-    if (dir && ext)
-        meta = storage_.readFile(std::string("Base\\meta\\") + dir + "\\" + name + "." + ext);
-    if (!meta)
-        meta = storage_.readFile("base:meta\\" + std::to_string(sno_id));
+    storages::casc::BatchReadRequest requests[3];
+    requests[0].path = meta_path;
+    requests[1].path = payload_path;
+    requests[2].path = paylow_path;
 
-    // Fallback: build a synthetic SNO from the combined meta cache.
-    if (!meta) {
-        auto it = combined_cache_.find(sno_id);
-        if (it != combined_cache_.end()) {
-            auto& ce = it->second;
-            meta = buildSyntheticSnoHeader(d4_tex_format_hash_,
-                                           ce.file_data->data() + ce.data_offset, ce.data_size);
-        }
-    }
+    auto results = storage_.readBatch(requests);
 
-    if (!meta || meta->empty())
+    // Meta and payload are required; paylow is optional.
+    if (!results[0].success || results[0].data.empty())
         return {};
-
-    // --- Payload ---
-    auto payload = storage_.readFile("base:payload\\" + std::to_string(sno_id));
-    if (!payload || payload->empty())
+    if (!results[1].success || results[1].data.empty())
         return {};
-    stripSnoHeader(*payload);
-
-    // --- Paylow (optional) ---
-    std::vector<u8> paylow;
-    if (auto plow = storage_.readFile("base:paylow\\" + std::to_string(sno_id))) {
-        paylow = std::move(*plow);
-        stripSnoHeader(paylow);
-    }
 
     CascFileResult result;
-    result.name = name + ".tex";
-    result.data = std::move(*meta);
-    result.payload = std::move(*payload);
-    result.paylow = std::move(paylow);
+    result.name = d4DisplayName(meta_path);
+    result.data = std::move(results[0].data);
+    result.payload = std::move(results[1].data);
+    if (results[2].success)
+        result.paylow = std::move(results[2].data);
     result.is_d4_tex = true;
     return result;
 }

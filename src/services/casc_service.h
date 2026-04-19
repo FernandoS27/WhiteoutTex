@@ -9,14 +9,10 @@
 
 #include "common_types.h"
 
-#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
-#include <whiteout/casc/storage.h>
-#include <whiteout/sno/core_toc.h>
-#include <whiteout/sno/sno_types.h>
+#include <whiteout/storages/casc/storage.h>
 
 namespace whiteout::textool::services {
 
@@ -33,10 +29,10 @@ struct CascFileResult {
     }
 };
 
-/// Lightweight D4 TOC texture entry (name + SNO ID).
+/// Lightweight D4 TEX entry discovered from the enriched root.
 struct CascD4TexEntry {
-    std::string name;
-    i32 sno_id;
+    std::string name;      ///< Display name (e.g. "SomeName.tex").
+    std::string meta_path; ///< Full CASC path to the meta file.
 };
 
 /// Information about an opened CASC storage.
@@ -47,8 +43,12 @@ struct CascStorageInfo {
     std::string status;
 };
 
-/// CASC archive I/O service.  Owns the storage handle, combined meta cache,
-/// and enumerated file lists.  No UI or SDL dependencies.
+/// CASC archive I/O service.  Owns the storage handle and enumerated file
+/// lists.  No UI or SDL dependencies.
+///
+/// The underlying library auto-detects game-specific root formats (D3, D4,
+/// WoW) and enriches paths accordingly.  D4 textures are split across
+/// meta / payload / paylow files; this service reassembles them on read.
 class CascService {
 public:
     CascService() = default;
@@ -74,7 +74,7 @@ public:
     CascFileResult readFile(const std::string& casc_path);
 
     /// Read a D4 TEX (meta + payload + paylow) from the open storage.
-    CascFileResult readD4Tex(const std::string& name, i32 sno_id);
+    CascFileResult readD4Tex(const std::string& meta_path);
 
     /// Enumerated regular files (sorted).
     const std::vector<std::string>& files() const {
@@ -87,18 +87,7 @@ public:
     }
 
 private:
-    /// Combined meta cache entry for a single SNO.
-    struct CombinedEntry {
-        std::shared_ptr<std::vector<u8>> file_data;
-        size_t data_offset = 0;
-        size_t data_size = 0;
-    };
-
-    void loadD4Textures(whiteout::sno::CoreToc& toc);
-
-    whiteout::casc::Storage storage_;
-    std::unordered_map<i32, CombinedEntry> combined_cache_;
-    u32 d4_tex_format_hash_ = 0;
+    whiteout::storages::casc::Storage storage_;
     bool storage_open_ = false;
     bool is_d4_ = false;
 
