@@ -6,6 +6,7 @@ target_include_directories(Psd PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/psd_sdk/src/Ps
 # WhiteoutLib
 
 set(WHITEOUT_ENABLE_CASC ON CACHE BOOL "Enable CASC support" FORCE)
+set(WHITEOUT_ENABLE_MPQ  ON CACHE BOOL "Enable MPQ support"  FORCE)
 add_subdirectory(WhiteoutLib)
 
 # SDL3

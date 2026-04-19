@@ -10,6 +10,7 @@
 #include "models/commands.h"
 #include "preferences.h"
 #include "services/casc_service.h"
+#include "services/mpq_service.h"
 
 #include <SDL3/SDL.h>
 
@@ -19,9 +20,8 @@ namespace whiteout::textool::views {
 /// change their variable types.
 using CascBrowserResult = services::CascFileResult;
 
-/// CASC archive browser.  Opens a Blizzard CASC storage directory and
-/// displays a filterable tree of supported texture files.  The user can
-/// select a file to extract and open in the texture viewer.
+/// Unified Blizzard storage browser.  Supports local CASC directories,
+/// local MPQ archives, and online CDN-backed CASC archives.
 class CascBrowser {
 public:
     CascBrowser() = default;
@@ -36,10 +36,13 @@ public:
 private:
     // ── Inner types ────────────────────────────────────────────────────
 
-    /// A node in the virtual file-system tree built from CASC paths.
+    /// Active local storage kind.
+    enum class LocalKind { None, Casc, Mpq };
+
+    /// A node in the virtual file-system tree built from CASC/MPQ paths.
     struct TreeNode {
         std::string name;      ///< Directory or file name segment.
-        std::string full_path; ///< Full CASC path (files) or D4 meta path.
+        std::string full_path; ///< Full path.
         bool is_d4_tex = false;///< True if this is a D4 TEX meta entry.
         std::vector<TreeNode> children;
         bool is_file = false;
@@ -49,9 +52,13 @@ private:
 
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
                                              i32 filter);
+    static void SDLCALL fileDialogCallback(void* userdata, const char* const* filelist,
+                                           i32 filter);
 
     void processFolderResult();
-    void openStorage();
+    void processFileResult();
+    void openLocalStorage();
+    void loadListfileFromExeDir();
     void buildTree();
     void insertPathIntoTree(TreeNode& root, const std::string& file_path);
     std::vector<models::AppCommand> drawTree(const TreeNode& node);
@@ -59,12 +66,21 @@ private:
     // ── State ──────────────────────────────────────────────────────────
 
     services::CascService casc_service_;
+    services::MpqService  mpq_service_;
+    LocalKind local_kind_ = LocalKind::None;
+
+    // Mode toggle
+    enum class BrowserMode { Local, Online };
+    BrowserMode mode_ = BrowserMode::Local;
+    int selected_product_idx_ = 0;
+    int selected_region_idx_ = 0;
 
     bool show_window_ = false;
     char storage_path_buf_[PATH_BUFFER_SIZE] = {};
     char search_buf_[256] = {};
 
-    FolderState folder_state_;
+    FolderState folder_state_; ///< For CASC folder dialog.
+    FolderState file_state_;   ///< For MPQ file dialog (reuses the same type).
 
     // Display
     TreeNode root_;

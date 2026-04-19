@@ -21,6 +21,7 @@ add_executable(WhiteoutTex
     src/thread_pool_manager.cpp
     src/services/texture_service.cpp
     src/services/casc_service.cpp
+    src/services/mpq_service.cpp
     src/services/batch_service.cpp
     src/views/batch_convert.cpp
     src/views/casc_browser.cpp
@@ -45,7 +46,7 @@ if(WIN32)
 endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
-target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc Psd)
+target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc whiteout_mpq Psd)
 
 if(WHITEOUT_ENABLE_UPSCALER)
     target_link_libraries(WhiteoutTex PRIVATE realesrgan_lib)

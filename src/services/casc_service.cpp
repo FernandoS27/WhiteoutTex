@@ -5,6 +5,7 @@
 #include "thread_pool_manager.h"
 
 #include <algorithm>
+#include <span>
 
 namespace {
 
@@ -111,6 +112,8 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
     opts.path = path;
     opts.memoryCacheSize = 256 * 1024 * 1024; // 256 MB
     opts.pool = threadPoolManager().get();
+    if (!listfile_data_.empty())
+        opts.listfile = std::span<const u8>(listfile_data_);
 
     auto result = storages::casc::Storage::open(opts);
     if (!result) {
@@ -127,27 +130,7 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
     // Enumerate all files.  The library handles D3/D4 root enrichment
     // automatically — D4 paths are human-readable (e.g. base:meta\Texture\Name.tex),
     // D3 paths use the correct group directory names.
-    storage_->enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
-        if (!isSupportedExtension(entry.path))
-            return true;
-
-        if (isD4MetaTexturePath(entry.path)) {
-            // D4 TEX meta entry — collect for separate display.
-            is_d4_ = true;
-            std::string meta_path{entry.path};
-            d4_tex_entries_.push_back({d4DisplayName(entry.path), std::move(meta_path)});
-        } else if (!isD4SubPath(entry.path)) {
-            // Regular file (WoW, D3, or non-texture D4 files).
-            all_files_.emplace_back(entry.path);
-        }
-        // Skip D4 payload/paylow/paymed/child texture files — they are read
-        // via readD4Tex() alongside the meta entry.
-        return true;
-    });
-
-    std::sort(all_files_.begin(), all_files_.end());
-    std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),
-              [](const CascD4TexEntry& a, const CascD4TexEntry& b) { return a.name < b.name; });
+    enumerateStorage();
 
     info.is_d4 = is_d4_;
     storage_open_ = true;
@@ -163,13 +146,143 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
 }
 
 void CascService::close() {
+    // Join any pending background connect before clearing state.
+    if (connect_thread_.joinable())
+        connect_thread_.join();
+    {
+        std::lock_guard lock(connect_mutex_);
+        connect_result_.reset();
+    }
+    is_connecting_.store(false, std::memory_order_release);
+
     if (storage_)
         storage_->close();
     storage_.reset();
+    // Release the HTTP handler after the storage (which holds a raw pointer to it).
+    http_handler_.reset();
     storage_open_ = false;
     is_d4_ = false;
     all_files_.clear();
     d4_tex_entries_.clear();
+}
+
+// ============================================================================
+// Listfile
+// ============================================================================
+
+void CascService::setListfile(std::vector<u8> data) {
+    listfile_data_ = std::move(data);
+}
+
+// ============================================================================
+// Async online connect
+// ============================================================================
+
+void CascService::startOnlineConnect(const std::string& product, const std::string& region) {
+    close(); // also joins any pending thread and clears state
+
+    connect_step_.store(-1, std::memory_order_relaxed);
+    connect_current_.store(0, std::memory_order_relaxed);
+    connect_total_.store(0, std::memory_order_relaxed);
+    is_connecting_.store(true, std::memory_order_release);
+
+    connect_thread_ = std::thread([this, product, region] {
+        auto info = doOpenOnline(product, region);
+        {
+            std::lock_guard lock(connect_mutex_);
+            connect_result_ = std::move(info);
+        }
+        is_connecting_.store(false, std::memory_order_release);
+    });
+}
+
+std::optional<CascStorageInfo> CascService::pollConnect() {
+    // Still running — nothing to return yet.
+    if (is_connecting_.load(std::memory_order_acquire))
+        return std::nullopt;
+    // No thread pending.
+    if (!connect_thread_.joinable())
+        return std::nullopt;
+    connect_thread_.join();
+    std::lock_guard lock(connect_mutex_);
+    return std::move(connect_result_);
+}
+
+CascStorageInfo CascService::doOpenOnline(const std::string& product, const std::string& region) {
+    CascStorageInfo info;
+
+    if (product.empty()) {
+        info.status = "Please select a product.";
+        return info;
+    }
+
+    http_handler_ = std::make_unique<whiteout::utils::SimpleHttpHandler>(4);
+
+    storages::casc::OnlineOpenOptions opts;
+    opts.product = product;
+    opts.region = region.empty() ? "us" : region;
+    opts.http = http_handler_.get();
+    opts.memoryCacheSize = 256 * 1024 * 1024; // 256 MB
+    opts.pool = threadPoolManager().get();
+    if (!listfile_data_.empty())
+        opts.listfile = std::span<const u8>(listfile_data_);
+    opts.progressCallback = [this](storages::casc::ProgressStep step, u32 current, u32 total) -> bool {
+        connect_step_.store(static_cast<int8_t>(step), std::memory_order_relaxed);
+        connect_current_.store(current, std::memory_order_relaxed);
+        connect_total_.store(total, std::memory_order_relaxed);
+        return true;
+    };
+
+    auto result = storages::casc::Storage::openOnline(opts);
+    if (!result) {
+        info.status = "Failed to connect to CDN for product '" + product + "' (" + opts.region + ").";
+        http_handler_.reset();
+        return info;
+    }
+    storage_ = std::move(*result);
+
+    if (auto prod = storage_->product())
+        info.product_name = prod->name + " (" + prod->version + ")";
+    if (auto count = storage_->totalFileCount())
+        info.file_count = *count;
+
+    enumerateStorage();
+
+    info.is_d4 = is_d4_;
+    storage_open_ = true;
+
+    const size_t total_files = all_files_.size() + d4_tex_entries_.size();
+    info.status = "[Online] Opened: " + std::to_string(total_files) + " supported textures found";
+    if (is_d4_) {
+        info.status += " (" + std::to_string(d4_tex_entries_.size()) + " D4 TEX + " +
+                       std::to_string(all_files_.size()) + " other)";
+    }
+    info.status += " (of " + std::to_string(info.file_count) + " total files).";
+    return info;
+}
+
+// ============================================================================
+// enumerateStorage  (shared by local and online paths)
+// ============================================================================
+
+void CascService::enumerateStorage() {
+    storage_->enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
+        if (!isSupportedExtension(entry.path))
+            return true;
+
+        if (isD4MetaTexturePath(entry.path)) {
+            is_d4_ = true;
+            std::string meta_path{entry.path};
+            d4_tex_entries_.push_back({d4DisplayName(entry.path), std::move(meta_path)});
+        } else if (!isD4SubPath(entry.path)) {
+            all_files_.emplace_back(entry.path);
+        }
+        return true;
+    });
+
+    std::sort(all_files_.begin(), all_files_.end());
+    std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),
+              [](const CascD4TexEntry& a, const CascD4TexEntry& b) { return a.name < b.name; });
 }
 
 // ============================================================================

@@ -9,11 +9,16 @@
 
 #include "common_types.h"
 
+#include <atomic>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <whiteout/storages/casc/storage.h>
+#include <whiteout/utils/simple_http_handler.h>
 
 namespace whiteout::textool::services {
 
@@ -54,9 +59,32 @@ class CascService {
 public:
     CascService() = default;
 
-    /// Open a CASC storage directory.  Enumerates supported texture files
+    /// Open a local CASC storage directory.  Enumerates supported texture files
     /// and discovers D4 TEX entries when applicable.
     CascStorageInfo openStorage(const std::string& path);
+
+    /// Set an external listfile (e.g. community-listfile.csv).
+    /// The data is used on the next openStorage / startOnlineConnect call.
+    void setListfile(std::vector<u8> data);
+
+    /// Begin an asynchronous CDN connection.  Returns immediately.
+    /// Poll with pollConnect() each frame; inspect progress via connect*()
+    /// accessors.
+    void startOnlineConnect(const std::string& product, const std::string& region);
+
+    /// True while an async online connection is in progress.
+    bool isConnecting() const { return is_connecting_.load(std::memory_order_acquire); }
+
+    /// If an async online connection has just finished, returns the result
+    /// and finalizes internal state.  Returns nullopt if still connecting
+    /// or if no connection was pending.
+    std::optional<CascStorageInfo> pollConnect();
+
+    // ── Progress accessors (updated by bg thread) ──────────────────────
+    /// Progress step index (cast from ProgressStep), or -1 = not started.
+    int8_t connectStep()    const { return connect_step_.load(std::memory_order_relaxed); }
+    u32    connectCurrent() const { return connect_current_.load(std::memory_order_relaxed); }
+    u32    connectTotal()   const { return connect_total_.load(std::memory_order_relaxed); }
 
     /// Close the current storage and clear all cached data.
     void close();
@@ -88,12 +116,34 @@ public:
     }
 
 private:
+    // ── Core helpers ───────────────────────────────────────────────────
+    /// Body of the online connect, executed on the background thread.
+    CascStorageInfo doOpenOnline(const std::string& product, const std::string& region);
+    /// Enumerate storage files into all_files_ / d4_tex_entries_.
+    void enumerateStorage();
+
+    // ── Storage ────────────────────────────────────────────────────────
     std::optional<whiteout::storages::casc::Storage> storage_;
+    std::unique_ptr<whiteout::utils::SimpleHttpHandler> http_handler_;
     bool storage_open_ = false;
     bool is_d4_ = false;
 
     std::vector<std::string> all_files_;
     std::vector<CascD4TexEntry> d4_tex_entries_;
+
+    // ── Listfile ───────────────────────────────────────────────────────
+    std::vector<u8> listfile_data_;
+
+    // ── Async online connect ───────────────────────────────────────────
+    std::atomic<bool>    is_connecting_{false};
+    std::thread          connect_thread_;
+    std::mutex           connect_mutex_;
+    std::optional<CascStorageInfo> connect_result_; ///< Written by bg thread.
+
+    // Progress (written by bg thread, read by UI thread).
+    std::atomic<int8_t>  connect_step_{-1};
+    std::atomic<u32>     connect_current_{0};
+    std::atomic<u32>     connect_total_{0};
 };
 
 } // namespace whiteout::textool::services
