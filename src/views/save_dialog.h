@@ -184,14 +184,16 @@ public:
     SaveDialog() = default;
 
     /// Rebuild the reordered filter array (last-used format first).
-    void buildFilterOrder(const SavePrefs& prefs);
+    /// @param is_multi_layer  When true, restricts the filter to DDS only
+    ///                        (2D arrays, cube maps, and cube-map arrays).
+    void buildFilterOrder(const SavePrefs& prefs, bool is_multi_layer = false);
 
     /// Access the reordered filter array for SDL_ShowSaveFileDialog.
     const SDL_DialogFileFilter* filterData() const {
         return active_filters_.data();
     }
     i32 filterCount() const {
-        return SAVE_FILTER_COUNT;
+        return active_filter_count_;
     }
 
     /// Call after the OS save-dialog callback delivers a result.
@@ -238,6 +240,8 @@ private:
     Options opts_;
     std::array<SDL_DialogFileFilter, SAVE_FILTER_COUNT> active_filters_;
     std::array<i32, SAVE_FILTER_COUNT> filter_map_;
+    i32 active_filter_count_ = SAVE_FILTER_COUNT;
+    bool is_multi_layer_ = false;
 };
 
 } // namespace whiteout::textool::views

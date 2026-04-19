@@ -9,6 +9,7 @@
 
 #include "common_types.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -87,7 +88,7 @@ public:
     }
 
 private:
-    whiteout::storages::casc::Storage storage_;
+    std::optional<whiteout::storages::casc::Storage> storage_;
     bool storage_open_ = false;
     bool is_d4_ = false;
 

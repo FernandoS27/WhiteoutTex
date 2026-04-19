@@ -348,7 +348,14 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                                            default_dir, false);
                 },
                 [&](ShowSaveDialogCmd&) {
-                    save_dialog_.buildFilterOrder(save_prefs_);
+                    bool is_multi_layer = false;
+                    if (tex_state_.texture) {
+                        const auto t = tex_state_.texture->type();
+                        is_multi_layer = t == tex::TextureType::TextureCube ||
+                                         t == tex::TextureType::Texture2DArray ||
+                                         t == tex::TextureType::TextureCubeArray;
+                    }
+                    save_dialog_.buildFilterOrder(save_prefs_, is_multi_layer);
                     const char* save_default = save_prefs_.last_save_dir.empty()
                                                    ? nullptr
                                                    : save_prefs_.last_save_dir.c_str();

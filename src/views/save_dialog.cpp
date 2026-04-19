@@ -26,7 +26,20 @@ using namespace models;
 // Filter ordering
 // ============================================================================
 
-void SaveDialog::buildFilterOrder(const SavePrefs& prefs) {
+void SaveDialog::buildFilterOrder(const SavePrefs& prefs, bool is_multi_layer) {
+    is_multi_layer_ = is_multi_layer;
+
+    if (is_multi_layer) {
+        // Only DDS supports multi-layer textures (2D array, cube, cube array).
+        // DDS is at index 2 in SAVE_FILTERS.
+        constexpr i32 kDdsIndex = 2;
+        active_filters_[0] = SAVE_FILTERS[kDdsIndex];
+        filter_map_[0] = kDdsIndex;
+        active_filter_count_ = 1;
+        return;
+    }
+
+    active_filter_count_ = SAVE_FILTER_COUNT;
     const i32 preferred = std::clamp(prefs.last_filter, 0, SAVE_FILTER_COUNT - 1);
     filter_map_[0] = preferred;
     i32 slot = 1;
@@ -114,6 +127,9 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
                                ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Saving to: %s", opts_.save_path.c_str());
         ImGui::Text("Format: %s", TC::fileFormatName(opts_.target_format));
+        if (is_multi_layer_)
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
+                               "Multi-layer textures can only be saved as DDS.");
         ImGui::Separator();
 
         // Format-specific options
@@ -162,6 +178,9 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
         }
 
         ImGui::Separator();
+        const bool save_blocked = is_multi_layer_ && opts_.target_format != TFF::DDS;
+        if (save_blocked)
+            ImGui::BeginDisabled();
         if (ImGui::Button("Save", ImVec2(120, 0)) && loaded_texture) {
             std::string status = performSave(converter, *loaded_texture, prefs);
             if (!status.empty()) {
@@ -171,6 +190,8 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
             opts_.show_dialog = false;
             ImGui::CloseCurrentPopup();
         }
+        if (save_blocked)
+            ImGui::EndDisabled();
         ImGui::SameLine();
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             opts_.show_dialog = false;
@@ -234,6 +255,9 @@ void SaveDialog::drawDdsOptions() {
 // ============================================================================
 
 std::string SaveDialog::performSave(TC& converter, const tex::Texture& source, SavePrefs& prefs) {
+    if (is_multi_layer_ && opts_.target_format != TFF::DDS)
+        return "Error: 2D array, cube, and cube-array textures can only be saved as DDS.";
+
     auto tex_copy = source;
     tex_copy.setKind(static_cast<tex::TextureKind>(opts_.texture_kind));
 

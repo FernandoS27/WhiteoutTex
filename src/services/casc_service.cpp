@@ -119,15 +119,15 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
     }
     storage_ = std::move(*result);
 
-    if (auto prod = storage_.product())
+    if (auto prod = storage_->product())
         info.product_name = prod->name + " (" + prod->version + ")";
-    if (auto count = storage_.totalFileCount())
+    if (auto count = storage_->totalFileCount())
         info.file_count = *count;
 
     // Enumerate all files.  The library handles D3/D4 root enrichment
     // automatically — D4 paths are human-readable (e.g. base:meta\Texture\Name.tex),
     // D3 paths use the correct group directory names.
-    storage_.enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
+    storage_->enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
         if (!isSupportedExtension(entry.path))
             return true;
 
@@ -163,7 +163,9 @@ CascStorageInfo CascService::openStorage(const std::string& path) {
 }
 
 void CascService::close() {
-    storage_.close();
+    if (storage_)
+        storage_->close();
+    storage_.reset();
     storage_open_ = false;
     is_d4_ = false;
     all_files_.clear();
@@ -175,7 +177,7 @@ void CascService::close() {
 // ============================================================================
 
 CascFileResult CascService::readFile(const std::string& casc_path) {
-    auto data = storage_.readFile(casc_path);
+    auto data = storage_->readFile(casc_path);
     if (!data || data->empty())
         return {};
 
@@ -195,7 +197,7 @@ CascFileResult CascService::readD4Tex(const std::string& meta_path) {
     requests[1].path = payload_path;
     requests[2].path = paylow_path;
 
-    auto results = storage_.readBatch(requests);
+    auto results = storage_->readBatch(requests);
 
     // Meta and payload are required; paylow is optional.
     if (!results[0].success || results[0].data.empty())

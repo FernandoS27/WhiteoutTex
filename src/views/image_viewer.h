@@ -78,6 +78,14 @@ private:
     i32 image_height_ = 0;
     i32 selected_mip_ = 0;
 
+    // Cube / CubeArray / 2DArray selection
+    bool is_cube_ = false;
+    bool is_cube_array_ = false;
+    bool is_2d_array_ = false;
+    i32 array_size_ = 1;
+    i32 selected_face_ = 0;         ///< 0=+X 1=-X 2=+Y 3=-Y 4=+Z 5=-Z
+    i32 selected_array_index_ = 0;
+
     // Channel filter
     bool channel_r_ = true;
     bool channel_g_ = true;

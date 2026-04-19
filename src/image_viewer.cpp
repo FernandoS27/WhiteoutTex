@@ -79,6 +79,15 @@ static constexpr f32 kChannelBtnSizeMultiplier = 1.4f;
 /// Gap between channel buttons in pixels.
 static constexpr f32 kChannelBtnGap = 4.0f;
 
+/// Width of the cube face combobox.
+static constexpr f32 kFaceComboW = 65.0f;
+
+/// Width of the array index combobox.
+static constexpr f32 kArrayComboW = 90.0f;
+
+/// Gap between comboboxes and the first channel button.
+static constexpr f32 kComboGap = 8.0f;
+
 // ============================================================================
 // Lifetime
 // ============================================================================
@@ -95,6 +104,16 @@ ImageViewer::~ImageViewer() {
 
 void ImageViewer::setTexture(const tex::Texture& texture) {
     updateChannelInfo(texture);
+
+    // Detect cube / cube-array topology.
+    const auto tex_type = texture.type();
+    is_cube_ = (tex_type == tex::TextureType::TextureCube ||
+                tex_type == tex::TextureType::TextureCubeArray);
+    is_cube_array_ = (tex_type == tex::TextureType::TextureCubeArray);
+    array_size_ = is_cube_array_ ? static_cast<i32>(texture.arraySize()) : 1;
+    selected_face_ = 0;
+    selected_array_index_ = 0;
+
     auto* pool = threadPoolManager().get();
     display_texture_ = TextureService::makeDisplayTexture(texture, pool);
     selected_mip_ = 0;
@@ -193,8 +212,54 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     const f32 btn_gap = kChannelBtnGap;
     const f32 total_btns_width =
         static_cast<f32>(visible_count) * btn_size + static_cast<f32>(visible_count - 1) * btn_gap;
+
+    f32 total_right_width = total_btns_width;
+    if (is_cube_)       total_right_width += kFaceComboW  + kComboGap;
+    if (is_cube_array_) total_right_width += kArrayComboW + kComboGap;
+
     ImGui::SameLine(0.0f, 0.0f);
-    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_btns_width);
+    ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_right_width);
+
+    // ---- Array index combobox (CubeArray only) ----
+    if (is_cube_array_) {
+        ImGui::SetNextItemWidth(kArrayComboW);
+        char arr_preview[16];
+        std::snprintf(arr_preview, sizeof(arr_preview), "Array %d", selected_array_index_);
+        if (ImGui::BeginCombo("##arr", arr_preview)) {
+            for (i32 i = 0; i < array_size_; ++i) {
+                char item[16];
+                std::snprintf(item, sizeof(item), "Array %d", i);
+                const bool is_selected = (i == selected_array_index_);
+                if (ImGui::Selectable(item, is_selected)) {
+                    selected_array_index_ = i;
+                    rebuildPreview(renderer);
+                }
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(0.0f, kComboGap);
+    }
+
+    // ---- Cube face combobox (Cube and CubeArray) ----
+    if (is_cube_) {
+        static constexpr const char* kFaceLabels[] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
+        ImGui::SetNextItemWidth(kFaceComboW);
+        if (ImGui::BeginCombo("##face", kFaceLabels[selected_face_])) {
+            for (i32 i = 0; i < 6; ++i) {
+                const bool is_selected = (i == selected_face_);
+                if (ImGui::Selectable(kFaceLabels[i], is_selected)) {
+                    selected_face_ = i;
+                    rebuildPreview(renderer);
+                }
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(0.0f, kComboGap);
+    }
 
     bool first_visible = true;
     for (i32 ci = 0; ci < 4; ++ci) {
@@ -372,10 +437,13 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         image_texture_ = nullptr;
     }
     const auto mip_idx = static_cast<u32>(selected_mip_);
-    const auto& dml = display_texture_->mipLevel(mip_idx);
+    const u32 layer_idx =
+        is_cube_ ? static_cast<u32>(selected_array_index_) * 6u + static_cast<u32>(selected_face_)
+                 : 0u;
+    const auto& dml = display_texture_->mipLevel(mip_idx, layer_idx);
     image_width_ = static_cast<i32>(dml.width);
     image_height_ = static_cast<i32>(dml.height);
-    auto mip_data = display_texture_->mipData(mip_idx);
+    auto mip_data = display_texture_->mipData(mip_idx, layer_idx);
     if (channel_r_ && channel_g_ && channel_b_ && channel_a_) {
         image_texture_ =
             createTextureFromRGBA8(renderer, mip_data.data(), image_width_, image_height_);

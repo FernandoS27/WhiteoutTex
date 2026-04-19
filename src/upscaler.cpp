@@ -191,7 +191,10 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input, bool up
     }
     const tex::Texture& work = needs_conversion ? *converted : input;
 
-    const u32 mip_count = work.mipCount();
+    const tex::TextureType tex_type = input.type();
+    const u32 layer_count = work.layerCount();
+    const u32 array_size  = work.arraySize();
+    const u32 mip_count   = work.mipCount();
     const i32 w = static_cast<i32>(work.width());
     const i32 h = static_cast<i32>(work.height());
     constexpr i32 c = 4; // RGBA
@@ -200,15 +203,9 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input, bool up
     const i32 outh = h * scale;
     const u32 out_mip_count = mip_count > 1 ? mip_count + static_cast<u32>(std::log2(scale)) : 1;
 
-    // The RealESRGAN::process() reads the channel count from inimage.elempack.
-    // It handles BGR↔RGB conversion internally (via from_pixels / to_pixels on
-    // the non-int8 path, and via shader specialization on the int8 path).
-    auto src_span = work.mipData(0);
-    std::vector<u8> inbuf(src_span.begin(), src_span.end());
-
-    const size_t in_pixels = static_cast<size_t>(w) * h;
+    const size_t in_pixels  = static_cast<size_t>(w) * h;
     const size_t out_pixels = static_cast<size_t>(outw) * outh;
-    std::vector<u8> outbuf(out_pixels * c);
+    const bool is_multikind = (input.kind() == tex::TextureKind::Multikind);
 
     // Helper: upscale a single channel by broadcasting it to grayscale RGB,
     // running through the model, and averaging the output RGB back.
@@ -239,64 +236,75 @@ std::optional<tex::Texture> Upscaler::process(const tex::Texture& input, bool up
         return true;
     };
 
-    const bool is_multikind = (input.kind() == tex::TextureKind::Multikind);
-
-    if (is_multikind) {
-        // Multikind: each channel has independent semantic meaning, so we
-        // upscale every used channel independently through the model.
-        // Unused channels are filled with their default value.
-        for (i32 ch_idx = 0; ch_idx < 4; ++ch_idx) {
-            const tex::TextureKind ck = input.channelKind(kRGBAChannels[ch_idx]);
-            if (ck == tex::TextureKind::Unused) {
-                const u8 def = static_cast<u8>(std::clamp(
-                    input.channelDefault(kRGBAChannels[ch_idx]) * 255.0f + 0.5f, 0.0f, 255.0f));
-                for (size_t px = 0; px < out_pixels; ++px) {
-                    outbuf[px * 4 + ch_idx] = def;
-                }
-                continue;
-            }
-
-            if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, ch_idx,
-                                outbuf.data())) {
-                return std::nullopt;
-            }
+    // Create the output texture matching the input topology.
+    tex::Texture result = [&]() -> tex::Texture {
+        switch (tex_type) {
+        case tex::TextureType::TextureCube:
+            return tex::Texture::createCube(tex::PixelFormat::RGBA8, static_cast<u32>(outw), 1);
+        case tex::TextureType::Texture2DArray:
+            return tex::Texture::create2DArray(tex::PixelFormat::RGBA8, static_cast<u32>(outw),
+                                               static_cast<u32>(outh), array_size, 1);
+        case tex::TextureType::TextureCubeArray:
+            return tex::Texture::createCubeArray(tex::PixelFormat::RGBA8, static_cast<u32>(outw),
+                                                 array_size, 1);
+        default:
+            return tex::Texture::create2D(tex::PixelFormat::RGBA8, static_cast<u32>(outw),
+                                          static_cast<u32>(outh), 1);
         }
-    } else {
-        // Non-multikind: run the model on the full RGB image.
-        ncnn::Mat inimage(w, h, static_cast<void*>(inbuf.data()), static_cast<size_t>(c), c);
-        ncnn::Mat outimage(outw, outh, static_cast<void*>(outbuf.data()), static_cast<size_t>(c),
-                           c);
+    }();
 
-        i32 ret = impl_->esrgan->process(inimage, outimage);
-        if (ret != 0) {
-            return std::nullopt;
-        }
+    // Process each layer independently.
+    for (u32 layer = 0; layer < layer_count; ++layer) {
+        auto src_span = work.mipData(0, layer);
+        std::vector<u8> inbuf(src_span.begin(), src_span.end());
+        std::vector<u8> outbuf(out_pixels * c);
 
-        if (upscale_alpha) {
-            // Upscale the alpha channel through the model as grayscale.
-            if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, 3,
-                                outbuf.data())) {
-                // Fall back to opaque if alpha upscale fails.
-                for (size_t i = 3; i < outbuf.size(); i += 4) {
-                    outbuf[i] = 255;
+        if (is_multikind) {
+            // Multikind: each channel has independent semantic meaning, so we
+            // upscale every used channel independently through the model.
+            // Unused channels are filled with their default value.
+            for (i32 ch_idx = 0; ch_idx < 4; ++ch_idx) {
+                const tex::TextureKind ck = input.channelKind(kRGBAChannels[ch_idx]);
+                if (ck == tex::TextureKind::Unused) {
+                    const u8 def = static_cast<u8>(std::clamp(
+                        input.channelDefault(kRGBAChannels[ch_idx]) * 255.0f + 0.5f, 0.0f, 255.0f));
+                    for (size_t px = 0; px < out_pixels; ++px)
+                        outbuf[px * 4 + ch_idx] = def;
+                    continue;
                 }
+                if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, ch_idx,
+                                    outbuf.data()))
+                    return std::nullopt;
             }
         } else {
-            // No AI alpha upscale — force fully opaque.
-            for (size_t i = 3; i < outbuf.size(); i += 4) {
-                outbuf[i] = 255;
+            // Non-multikind: run the model on the full RGB image.
+            ncnn::Mat inimage(w, h, static_cast<void*>(inbuf.data()), static_cast<size_t>(c), c);
+            ncnn::Mat outimage(outw, outh, static_cast<void*>(outbuf.data()),
+                               static_cast<size_t>(c), c);
+
+            if (impl_->esrgan->process(inimage, outimage) != 0)
+                return std::nullopt;
+
+            if (upscale_alpha) {
+                // Upscale the alpha channel through the model as grayscale.
+                if (!upscaleChannel(inbuf.data(), in_pixels, w, h, outw, outh, out_pixels, 3,
+                                    outbuf.data())) {
+                    // Fall back to opaque if alpha upscale fails.
+                    for (size_t i = 3; i < outbuf.size(); i += 4)
+                        outbuf[i] = 255;
+                }
+            } else {
+                // No AI alpha upscale — force fully opaque.
+                for (size_t i = 3; i < outbuf.size(); i += 4)
+                    outbuf[i] = 255;
             }
         }
+
+        auto dst = result.mipData(0, layer);
+        std::memcpy(dst.data(), outbuf.data(), std::min(dst.size(), outbuf.size()));
     }
 
-    // Build the result texture.
-    auto result = tex::Texture::create2D(tex::PixelFormat::RGBA8, static_cast<u32>(outw),
-                                         static_cast<u32>(outh), 1);
-    auto dst = result.mipData(0);
-    std::memcpy(dst.data(), outbuf.data(), std::min(dst.size(), outbuf.size()));
-
     copyKindMetadata(result, input);
-
     result.generateMipmaps(out_mip_count, threadPoolManager().get());
     return result;
 }
