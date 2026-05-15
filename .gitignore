@@ -1,6 +1,5 @@
 # Build directories
-build/
-build-clang/
+build*/
 scripts/
 
 # IDE

@@ -1,0 +1,163 @@
+name: Linux AppImage
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Ubuntu 24.04 is the lowest GitHub runner where gcc-15 is reliably
+    # available from ppa:ubuntu-toolchain-r/test. The resulting AppImage
+    # has a glibc 2.39 baseline.
+    name: Build AppImage (Ubuntu 24.04, gcc-15)
+    runs-on: ubuntu-24.04
+
+    env:
+      BUILD_TYPE: Release
+      APPDIR: ${{ github.workspace }}/AppDir
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CC: gcc-15
+      CXX: g++-15
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install build toolchain
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc-15 g++-15 \
+            cmake ninja-build ccache \
+            git wget file patchelf desktop-file-utils \
+            zsync
+
+      - name: Install SDL3 system dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            libwayland-dev wayland-protocols libxkbcommon-dev libdecor-0-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxinerama-dev libxss-dev libxxf86vm-dev libxfixes-dev \
+            libasound2-dev libpulse-dev libjack-jackd2-dev libpipewire-0.3-dev \
+            libdbus-1-dev libudev-dev libusb-1.0-0-dev libibus-1.0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev \
+            libgbm-dev libdrm-dev
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-linux-appimage-${{ github.sha }}
+          restore-keys: |
+            ccache-linux-appimage-
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_C_COMPILER=gcc-15 \
+            -DCMAKE_CXX_COMPILER=g++-15 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DWHITEOUT_ENABLE_UPSCALER=OFF \
+            -DWHITEOUT_BUILD_CLI=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Stage AppDir
+        run: |
+          set -eux
+          mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/lib" \
+                   "${APPDIR}/usr/share/applications" \
+                   "${APPDIR}/usr/share/icons/hicolor/1024x1024/apps" \
+                   "${APPDIR}/usr/share/metainfo" \
+                   "${APPDIR}/usr/share/WhiteoutTex"
+
+          cp build/WhiteoutTex "${APPDIR}/usr/bin/WhiteoutTex"
+
+          # SDL3 is built in-tree as a shared library; linuxdeploy bundles
+          # transitive deps but needs the primary .so available to ldd.
+          find build/externals/SDL -maxdepth 2 -name 'libSDL3.so*' \
+            -exec cp -av {} "${APPDIR}/usr/lib/" \;
+
+          # Icon — linuxdeploy matches by basename to the .desktop Icon= field.
+          cp resources/Icon.png "${APPDIR}/whiteouttex.png"
+          cp resources/Icon.png "${APPDIR}/usr/share/icons/hicolor/1024x1024/apps/whiteouttex.png"
+
+          # Bundled docs (mirrors the existing POST_BUILD copy on Windows).
+          cp LICENSE.md LICENSE-AI.md README.md THIRD_PARTY.md \
+             "${APPDIR}/usr/share/WhiteoutTex/"
+
+      - name: Generate .desktop entry
+        run: |
+          cat > "${APPDIR}/whiteouttex.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=WhiteoutTex
+          GenericName=Texture Viewer
+          Comment=Texture viewer and converter for Blizzard game assets
+          Exec=WhiteoutTex
+          Icon=whiteouttex
+          Terminal=false
+          Categories=Graphics;2DGraphics;
+          Keywords=BLP;DDS;CASC;MPQ;Texture;Blizzard;
+          EOF
+          desktop-file-validate "${APPDIR}/whiteouttex.desktop"
+
+      - name: Fetch linuxdeploy
+        run: |
+          mkdir -p tools && cd tools
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-appimage-x86_64.AppImage
+
+      - name: Build AppImage
+        run: |
+          set -eux
+          export PATH="${{ github.workspace }}/tools:${PATH}"
+          export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
+          export VERSION="${GITHUB_SHA::8}"
+
+          sdl3_lib="$(find "${APPDIR}/usr/lib" -maxdepth 1 -name 'libSDL3.so*' -not -type l | head -n1)"
+          test -n "${sdl3_lib}"
+
+          # FUSE is unavailable on GitHub-hosted runners; the wrapper flag
+          # extracts linuxdeploy in place and runs it without mounting.
+          linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
+            --appdir "${APPDIR}" \
+            --desktop-file "${APPDIR}/whiteouttex.desktop" \
+            --icon-file "${APPDIR}/whiteouttex.png" \
+            --executable "${APPDIR}/usr/bin/WhiteoutTex" \
+            --library "${sdl3_lib}" \
+            --plugin appimage \
+            --output appimage
+
+          # linuxdeploy-plugin-appimage names output "<AppName>-<VERSION>-<arch>.AppImage".
+          produced="$(ls WhiteoutTex-*.AppImage | head -n1)"
+          echo "ARTIFACT=${produced}" >> "${GITHUB_ENV}"
+
+      - name: Smoke test extracted AppImage
+        run: |
+          set -eux
+          ./"${ARTIFACT}" --appimage-extract > /dev/null
+          test -x squashfs-root/usr/bin/WhiteoutTex
+          find squashfs-root -name 'libSDL3.so*' | grep -q .
+          rm -rf squashfs-root
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhiteoutTex-linux-x86_64-AppImage
+          path: ${{ env.ARTIFACT }}
+          if-no-files-found: error
+          retention-days: 30

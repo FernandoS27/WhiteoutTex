@@ -100,6 +100,9 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <climits>
 #endif
 
 namespace tex = whiteout::textures;
@@ -155,6 +158,17 @@ static std::filesystem::path executable_dir() {
     wchar_t buf[32768]{};
     DWORD len = GetModuleFileNameW(nullptr, buf, 32768);
     if (len > 0 && len < 32768) {
+        return std::filesystem::path(buf).parent_path();
+    }
+#elif defined(__APPLE__)
+    char buf[PATH_MAX]{};
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        std::error_code ec;
+        auto resolved = std::filesystem::canonical(buf, ec);
+        if (!ec) {
+            return resolved.parent_path();
+        }
         return std::filesystem::path(buf).parent_path();
     }
 #elif defined(__linux__)

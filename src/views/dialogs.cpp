@@ -228,7 +228,11 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show,
         if (upscaler_models.empty()) {
             ImGui::TextColored(kErrorColor, "No models found.");
             ImGui::TextUnformatted("Download models with:");
+#if defined(_WIN32)
             ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
+#else
+            ImGui::TextDisabled("  pwsh ./scripts/download_models.ps1");
+#endif
             ImGui::TextUnformatted("Models directory:");
             ImGui::TextDisabled("  %s", model_dir.string().c_str());
             ImGui::Spacing();
