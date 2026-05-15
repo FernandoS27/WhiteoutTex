@@ -11,6 +11,12 @@ endif()
 option(WHITEOUT_ENABLE_UPSCALER "Enable AI upscaling via Real-ESRGAN / ncnn / Vulkan" OFF)
 option(WHITEOUT_BUILD_CLI "Build WhiteoutTexCLI command-line tool" OFF)
 
+# On macOS the WinHTTP/libcurl SimpleHttpHandler from WhiteoutLib is not
+# available, so we link cpp-httplib + OpenSSL to provide a native HttpHandler.
+if(APPLE)
+    find_package(OpenSSL REQUIRED)
+endif()
+
 add_subdirectory(externals)
 
 add_executable(WhiteoutTex
@@ -47,6 +53,14 @@ endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
 target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc whiteout_mpq Psd)
+
+if(APPLE)
+    target_sources(WhiteoutTex PRIVATE src/services/httplib_http_handler.cpp)
+    target_include_directories(WhiteoutTex PRIVATE
+        ${CMAKE_SOURCE_DIR}/externals/cpp-httplib)
+    target_link_libraries(WhiteoutTex PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(WhiteoutTex PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT=1)
+endif()
 
 if(WHITEOUT_ENABLE_UPSCALER)
     target_link_libraries(WhiteoutTex PRIVATE realesrgan_lib)

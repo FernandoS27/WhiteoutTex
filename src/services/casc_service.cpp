@@ -4,6 +4,12 @@
 #include "services/casc_service.h"
 #include "thread_pool_manager.h"
 
+#if defined(__APPLE__)
+#include "services/httplib_http_handler.h"
+#else
+#include <whiteout/utils/simple_http_handler.h>
+#endif
+
 #include <algorithm>
 #include <span>
 
@@ -217,7 +223,11 @@ CascStorageInfo CascService::doOpenOnline(const std::string& product, const std:
         return info;
     }
 
+#if defined(__APPLE__)
+    http_handler_ = std::make_unique<HttplibHttpHandler>(4);
+#else
     http_handler_ = std::make_unique<whiteout::utils::SimpleHttpHandler>(4);
+#endif
 
     storages::casc::OnlineOpenOptions opts;
     opts.product = product;

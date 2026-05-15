@@ -13,3 +13,6 @@
 [submodule "externals/psd_sdk"]
 	path = externals/psd_sdk
 	url = https://github.com/MolecularMatters/psd_sdk
+[submodule "externals/cpp-httplib"]
+	path = externals/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git

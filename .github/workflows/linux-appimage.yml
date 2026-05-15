@@ -40,7 +40,7 @@ jobs:
             git wget file patchelf desktop-file-utils \
             zsync
 
-      - name: Install SDL3 system dependencies
+      - name: Install SDL3 + libcurl system dependencies
         run: |
           sudo apt-get install -y --no-install-recommends \
             libwayland-dev wayland-protocols libxkbcommon-dev libdecor-0-dev \
@@ -49,7 +49,8 @@ jobs:
             libasound2-dev libpulse-dev libjack-jackd2-dev libpipewire-0.3-dev \
             libdbus-1-dev libudev-dev libusb-1.0-0-dev libibus-1.0-dev \
             libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev \
-            libgbm-dev libdrm-dev
+            libgbm-dev libdrm-dev \
+            libcurl4-openssl-dev
 
       - name: Restore ccache
         uses: actions/cache@v4
@@ -68,6 +69,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DSDL_X11_XTEST=OFF \
             -DWHITEOUT_ENABLE_UPSCALER=OFF \
             -DWHITEOUT_BUILD_CLI=OFF
 
@@ -79,7 +81,7 @@ jobs:
           set -eux
           mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/lib" \
                    "${APPDIR}/usr/share/applications" \
-                   "${APPDIR}/usr/share/icons/hicolor/1024x1024/apps" \
+                   "${APPDIR}/usr/share/icons/hicolor/256x256/apps" \
                    "${APPDIR}/usr/share/metainfo" \
                    "${APPDIR}/usr/share/WhiteoutTex"
 
@@ -91,8 +93,8 @@ jobs:
             -exec cp -av {} "${APPDIR}/usr/lib/" \;
 
           # Icon — linuxdeploy matches by basename to the .desktop Icon= field.
-          cp resources/Icon.png "${APPDIR}/whiteouttex.png"
-          cp resources/Icon.png "${APPDIR}/usr/share/icons/hicolor/1024x1024/apps/whiteouttex.png"
+          cp resources/icon_linux.png "${APPDIR}/whiteouttex.png"
+          cp resources/icon_linux.png "${APPDIR}/usr/share/icons/hicolor/256x256/apps/whiteouttex.png"
 
           # Bundled docs (mirrors the existing POST_BUILD copy on Windows).
           cp LICENSE.md LICENSE-AI.md README.md THIRD_PARTY.md \
@@ -139,7 +141,6 @@ jobs:
             --icon-file "${APPDIR}/whiteouttex.png" \
             --executable "${APPDIR}/usr/bin/WhiteoutTex" \
             --library "${sdl3_lib}" \
-            --plugin appimage \
             --output appimage
 
           # linuxdeploy-plugin-appimage names output "<AppName>-<VERSION>-<arch>.AppImage".

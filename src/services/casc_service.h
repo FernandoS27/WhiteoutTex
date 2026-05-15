@@ -17,8 +17,11 @@
 #include <thread>
 #include <vector>
 
+#include <whiteout/interfaces.h>
 #include <whiteout/storages/casc/storage.h>
+#if !defined(__APPLE__)
 #include <whiteout/utils/simple_http_handler.h>
+#endif
 
 namespace whiteout::textool::services {
 
@@ -130,7 +133,7 @@ private:
 
     // ── Storage ────────────────────────────────────────────────────────
     std::optional<whiteout::storages::casc::Storage> storage_;
-    std::unique_ptr<whiteout::utils::SimpleHttpHandler> http_handler_;
+    std::unique_ptr<whiteout::interfaces::HttpHandler> http_handler_;
     bool storage_open_ = false;
     bool is_d4_ = false;
 
