@@ -49,6 +49,23 @@ endif()
 if(WIN32)
     target_sources(WhiteoutTex PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.rc")
     set_target_properties(WhiteoutTex PROPERTIES WIN32_EXECUTABLE TRUE)
+elseif(APPLE)
+    set_target_properties(WhiteoutTex PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_BUNDLE_NAME "WhiteoutTex"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.fernandosahmkow.whiteouttex"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_ICON_FILE "AppIcon")
+    # The CI workflow generates AppIcon.icns from resources/Icon.png before
+    # configure runs.  Local macOS builds without the .icns get a bundle
+    # with the system default icon — non-fatal.
+    set(_appicon "${CMAKE_CURRENT_SOURCE_DIR}/resources/AppIcon.icns")
+    if(EXISTS "${_appicon}")
+        target_sources(WhiteoutTex PRIVATE "${_appicon}")
+        set_source_files_properties("${_appicon}"
+            PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    endif()
 endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
@@ -60,6 +77,12 @@ if(APPLE)
         ${CMAKE_SOURCE_DIR}/externals/cpp-httplib)
     target_link_libraries(WhiteoutTex PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     target_compile_definitions(WhiteoutTex PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT=1)
+    # cpp-httplib loads the macOS system trust store via Security.framework
+    # (SecTrustCopyAnchorCertificates / SecCertificateCopyData) and uses
+    # CoreFoundation for the CFArray/CFData handling.
+    target_link_libraries(WhiteoutTex PRIVATE
+        "-framework Security"
+        "-framework CoreFoundation")
 endif()
 
 if(WHITEOUT_ENABLE_UPSCALER)

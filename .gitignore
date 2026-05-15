@@ -20,3 +20,6 @@ vcpkg_installed/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated at build time on macOS (from resources/Icon.png)
+resources/AppIcon.icns

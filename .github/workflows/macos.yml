@@ -1,0 +1,149 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build .app (macOS arm64)
+    runs-on: macos-latest
+
+    env:
+      BUILD_TYPE: Release
+      # Homebrew installs OpenSSL 3 under /opt/homebrew on Apple Silicon.
+      # find_package(OpenSSL) honours this hint to skip the LibreSSL stubs
+      # in /usr/lib that have no headers.
+      OPENSSL_ROOT_DIR: /opt/homebrew/opt/openssl@3
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install dependencies via Homebrew
+        run: |
+          brew update --quiet
+          # coreutils provides gtimeout, used to bound dylibbundler so it
+          # can't infinite-loop the runner on an unresolved dependency.
+          brew install ninja openssl@3 dylibbundler coreutils
+
+      - name: Generate AppIcon.icns from resources/Icon.png
+        run: |
+          set -eux
+          SRC=resources/Icon.png
+          ICONSET=AppIcon.iconset
+          mkdir -p "${ICONSET}"
+          sips -z 16   16   "${SRC}" --out "${ICONSET}/icon_16x16.png"
+          sips -z 32   32   "${SRC}" --out "${ICONSET}/icon_16x16@2x.png"
+          sips -z 32   32   "${SRC}" --out "${ICONSET}/icon_32x32.png"
+          sips -z 64   64   "${SRC}" --out "${ICONSET}/icon_32x32@2x.png"
+          sips -z 128  128  "${SRC}" --out "${ICONSET}/icon_128x128.png"
+          sips -z 256  256  "${SRC}" --out "${ICONSET}/icon_128x128@2x.png"
+          sips -z 256  256  "${SRC}" --out "${ICONSET}/icon_256x256.png"
+          sips -z 512  512  "${SRC}" --out "${ICONSET}/icon_256x256@2x.png"
+          sips -z 512  512  "${SRC}" --out "${ICONSET}/icon_512x512.png"
+          cp "${SRC}" "${ICONSET}/icon_512x512@2x.png"
+          iconutil --convert icns "${ICONSET}" --output resources/AppIcon.icns
+          rm -rf "${ICONSET}"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DSDL_X11_XTEST=OFF \
+            -DWHITEOUT_ENABLE_UPSCALER=OFF \
+            -DWHITEOUT_BUILD_CLI=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Bundle dylibs into .app
+        run: |
+          set -eux
+          APP="build/WhiteoutTex.app"
+          test -d "${APP}/Contents/MacOS"
+
+          # Discover where SDL3's dylib(s) actually landed.  The exact
+          # filename (libSDL3.0.dylib vs libSDL3.0.3.0.dylib vs …) and the
+          # build subdirectory both vary across SDL versions and generators,
+          # so don't hard-code — find the first match and use its dir.
+          sdl_dylib="$(find build/externals/SDL -name 'libSDL3*.dylib' \
+                       -not -type l | head -n1)"
+          test -n "${sdl_dylib}"
+          sdl_lib_dir="$(dirname "${sdl_dylib}")"
+          echo "SDL dylib dir: ${sdl_lib_dir}"
+          ls -la "${sdl_lib_dir}"/libSDL3* || true
+
+          # dylibbundler rewrites LC_LOAD_DYLIB entries to point at the
+          # @executable_path-relative Frameworks/ dir and copies every
+          # non-system dylib in.  -od overwrites existing copies; -of
+          # overwrites existing files; -cd creates the dest dir; -b is
+          # "bundle" mode (default).  -p sets the rewritten install_name
+          # prefix.
+          # -s search paths are MANDATORY for libs whose install_name is
+          # @rpath/... (SDL3) or that live in non-standard prefixes
+          # (Homebrew OpenSSL).  If anything goes unresolved dylibbundler
+          # enters an infinite stdin-prompt loop with no escape flag —
+          # the `timeout` is a hard backstop so the runner doesn't burn
+          # the full 6-hour job budget logging "Please specify ...".
+          mkdir -p "${APP}/Contents/Frameworks"
+          gtimeout 300 dylibbundler -od -b -of -cd \
+            -x "${APP}/Contents/MacOS/WhiteoutTex" \
+            -d "${APP}/Contents/Frameworks/" \
+            -p "@executable_path/../Frameworks/" \
+            -s "/opt/homebrew/opt/openssl@3/lib" \
+            -s "${sdl_lib_dir}"
+
+      - name: Ad-hoc codesign
+        run: |
+          # No Developer ID — ad-hoc signature lets the bundle launch via
+          # right-click → Open.  Real distribution would notarize separately.
+          codesign --force --deep --sign - --timestamp=none build/WhiteoutTex.app
+          codesign --verify --deep --strict --verbose=2 build/WhiteoutTex.app
+
+      - name: Smoke test bundle launch
+        run: |
+          set -eux
+          # Verify the executable resolves all its dylibs.  We can't
+          # actually run the GUI on a headless runner; just confirm no
+          # absolute build-tree paths leaked into the load commands.
+          # `tail -n +2` skips otool's first line, which is the filename
+          # header (e.g. "build/.../WhiteoutTex:") and would falsely
+          # match `build/`.
+          otool -L build/WhiteoutTex.app/Contents/MacOS/WhiteoutTex
+          if otool -L build/WhiteoutTex.app/Contents/MacOS/WhiteoutTex \
+               | tail -n +2 \
+               | grep -qE "(/Users/|/runner/|build/)"; then
+            echo "ERROR: bundle still references absolute build paths"
+            exit 1
+          fi
+
+      - name: Create .dmg
+        run: |
+          set -eux
+          DMG="WhiteoutTex-${GITHUB_SHA::8}-arm64.dmg"
+          STAGE=dmg-staging
+          rm -rf "${STAGE}" "${DMG}"
+          mkdir "${STAGE}"
+          cp -R build/WhiteoutTex.app "${STAGE}/"
+          ln -s /Applications "${STAGE}/Applications"
+          hdiutil create -volname "WhiteoutTex" \
+            -srcfolder "${STAGE}" \
+            -ov -format UDZO \
+            "${DMG}"
+          echo "ARTIFACT=${DMG}" >> "${GITHUB_ENV}"
+
+      - name: Upload .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhiteoutTex-macos-arm64-dmg
+          path: ${{ env.ARTIFACT }}
+          if-no-files-found: error
+          retention-days: 30
