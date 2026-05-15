@@ -19,13 +19,12 @@ constexpr const char* kSupportedExtensions[] = {
 /// D4 enriched meta texture path prefix (after the root folder and colon).
 constexpr std::string_view kD4MetaPrefix = ":meta\\Texture\\";
 
-/// Returns true if @p name has a supported texture extension.
+/// Returns true if @p name has a supported texture extension (case-insensitive).
 bool isSupportedExtension(std::string_view name) {
     auto dot = name.rfind('.');
     if (dot == std::string_view::npos)
         return false;
     auto ext = name.substr(dot);
-    // Case-insensitive compare against known extensions.
     for (const char* s : kSupportedExtensions) {
         std::string_view sv(s);
         if (ext.size() != sv.size())
@@ -178,7 +177,8 @@ void CascService::setListfile(std::vector<u8> data) {
 // Async online connect
 // ============================================================================
 
-void CascService::startOnlineConnect(const std::string& product, const std::string& region) {
+void CascService::startOnlineConnect(const std::string& product, const std::string& region,
+                                     std::string cache_dir) {
     close(); // also joins any pending thread and clears state
 
     connect_step_.store(-1, std::memory_order_relaxed);
@@ -186,8 +186,8 @@ void CascService::startOnlineConnect(const std::string& product, const std::stri
     connect_total_.store(0, std::memory_order_relaxed);
     is_connecting_.store(true, std::memory_order_release);
 
-    connect_thread_ = std::thread([this, product, region] {
-        auto info = doOpenOnline(product, region);
+    connect_thread_ = std::thread([this, product, region, cache_dir = std::move(cache_dir)] {
+        auto info = doOpenOnline(product, region, cache_dir);
         {
             std::lock_guard lock(connect_mutex_);
             connect_result_ = std::move(info);
@@ -208,7 +208,8 @@ std::optional<CascStorageInfo> CascService::pollConnect() {
     return std::move(connect_result_);
 }
 
-CascStorageInfo CascService::doOpenOnline(const std::string& product, const std::string& region) {
+CascStorageInfo CascService::doOpenOnline(const std::string& product, const std::string& region,
+                                           const std::string& cache_dir) {
     CascStorageInfo info;
 
     if (product.empty()) {
@@ -224,6 +225,24 @@ CascStorageInfo CascService::doOpenOnline(const std::string& product, const std:
     opts.http = http_handler_.get();
     opts.memoryCacheSize = 256 * 1024 * 1024; // 256 MB
     opts.pool = threadPoolManager().get();
+    opts.cacheDir = cache_dir;
+    // Use FullLazy *minus* LazyVfsSubmanifest:
+    //
+    // - LoadOnDemand / LazyEncodingFrames / LazyArchiveIndex / LazyIdxBuckets
+    //   defer the big downloads, so openOnline returns quickly; the heavy
+    //   work runs during our first listFiles() under the synthetic step
+    //   below.
+    //
+    // - LazyVfsSubmanifest must NOT be set for plain-TVFS games (notably
+    //   Warcraft III Reforged), because their entire file table lives inside
+    //   `war3.w3mod:` / `_hd.w3mod:` sub-manifests.  Under LazyVfsSubmanifest
+    //   those sub-manifests are resolved one-by-one via a synchronous
+    //   resolver during TvfsRoot::parse; any resolver miss silently drops
+    //   the sub-tree (the container entry survives but its children don't),
+    //   leaving an apparently-empty storage.  Letting prefetchVfsOnline run
+    //   pulls them all in parallel up front.
+    opts.flags = storages::casc::StorageFeatureFlags::FullLazy &
+                 ~storages::casc::StorageFeatureFlags::LazyVfsSubmanifest;
     if (!listfile_data_.empty())
         opts.listfile = std::span<const u8>(listfile_data_);
     opts.progressCallback = [this](storages::casc::ProgressStep step, u32 current, u32 total) -> bool {
@@ -240,6 +259,17 @@ CascStorageInfo CascService::doOpenOnline(const std::string& product, const std:
         return info;
     }
     storage_ = std::move(*result);
+
+    // Under FullLazy + LoadOnDemand, openOnline emits Ready before any of the
+    // big work has happened — encoding TOC + root manifest fetch is deferred
+    // until the first ensureLoaded() call, which is triggered below by
+    // totalFileCount/listFiles.  Advance to a synthetic step so the modal
+    // labels this final (network-bound) phase honestly instead of sitting on
+    // a stale "Ready".
+    connect_step_.store(static_cast<int8_t>(storages::casc::ProgressStep::Ready) + 1,
+                        std::memory_order_relaxed);
+    connect_current_.store(0, std::memory_order_relaxed);
+    connect_total_.store(0, std::memory_order_relaxed);
 
     if (auto prod = storage_->product())
         info.product_name = prod->name + " (" + prod->version + ")";
@@ -266,19 +296,22 @@ CascStorageInfo CascService::doOpenOnline(const std::string& product, const std:
 // ============================================================================
 
 void CascService::enumerateStorage() {
-    storage_->enumerate([&](const storages::casc::EnumerateEntry& entry) -> bool {
-        if (!isSupportedExtension(entry.path))
-            return true;
+    // Use listFiles() instead of Storage::enumerate(): the enumerate overloads
+    // fetch fileSize via the encoding table for every matching root entry, which
+    // on online (lazy-encoding) storages triggers a CDN page fetch per file —
+    // making texture enumeration take many minutes.  listFiles() reads paths
+    // straight from the root manifest with no encoding-table access.
+    for (const auto& path : storage_->listFiles()) {
+        if (!isSupportedExtension(path))
+            continue;
 
-        if (isD4MetaTexturePath(entry.path)) {
+        if (isD4MetaTexturePath(path)) {
             is_d4_ = true;
-            std::string meta_path{entry.path};
-            d4_tex_entries_.push_back({d4DisplayName(entry.path), std::move(meta_path)});
-        } else if (!isD4SubPath(entry.path)) {
-            all_files_.emplace_back(entry.path);
+            d4_tex_entries_.push_back({d4DisplayName(path), path});
+        } else if (!isD4SubPath(path)) {
+            all_files_.push_back(path);
         }
-        return true;
-    });
+    }
 
     std::sort(all_files_.begin(), all_files_.end());
     std::sort(d4_tex_entries_.begin(), d4_tex_entries_.end(),

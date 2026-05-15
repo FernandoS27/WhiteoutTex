@@ -27,42 +27,85 @@ struct OnlineProduct {
     const char* product_code;
 };
 
+// Trimmed to retail + PTR per game family.  Beta variants and Overwatch
+// (unsupported) were removed.
 constexpr OnlineProduct kOnlineProducts[] = {
     {"World of Warcraft",         "wow"},
     {"WoW PTR",                   "wowt"},
-    {"WoW Beta",                  "wowb"},
     {"WoW Classic",               "wow_classic"},
     {"WoW Classic PTR",           "wow_classic_ptr"},
-    {"WoW Classic Beta",          "wow_classic_beta"},
     {"Diablo III",                "d3"},
     {"Diablo III PTR",            "d3t"},
     {"Diablo IV",                 "fenris"},
-    {"Diablo IV Beta",            "fenrisb"},
+    {"Diablo IV PTR",             "fenrisb"},
     {"Heroes of the Storm",       "hero"},
     {"Heroes of the Storm PTR",   "herot"},
     {"Warcraft III: Reforged",    "w3"},
+    {"Warcraft III PTR",          "w3t"},
     {"StarCraft II",              "s2"},
     {"StarCraft: Remastered",     "s1"},
-    {"Overwatch 2",               "prometheus"},
-    {"Hearthstone",               "hsb"},
 };
 
 constexpr const char* kRegionCodes[] = {"us", "eu", "kr", "cn", "tw"};
 constexpr const char* kRegionNames[] = {
     "US (Americas)", "EU (Europe)", "KR (Korea)", "CN (China)", "TW (Taiwan)"};
 
-/// Returns a short label for the given ProgressStep index (-1 = not started).
+/// Returns a label for the given progress step.  Only the steps the library
+/// actually emits on the online path (0, 2, 6) are listed; everything else
+/// (including the synthetic post-open step 7) is mapped to a single honest
+/// "downloading file list" message rather than a per-sub-step label that the
+/// library never delivers.
 const char* connectStepLabel(int8_t step) {
     switch (step) {
-        case 0:  return "Loading build config...";
-        case 1:  return "Loading CDN config...";
-        case 2:  return "Loading index files...";
-        case 3:  return "Mapping archives...";
-        case 4:  return "Loading encoding table...";
-        case 5:  return "Loading root manifest...";
-        case 6:  return "Ready";
-        default: return "Connecting to CDN...";
+        case 0:  return "Loading build + CDN configs...";
+        case 2:  return "Loading archive indexes...";
+        case 6:  return "Downloading file list...";
+        case 7:  return "Downloading file list...";
+        default: return "Contacting Blizzard CDN...";
     }
+}
+
+/// Build (and ensure-existence-of) a per-CDN cache directory next to the
+/// executable: `<exe>/cache/<product>_<region>`.  Returns "" if the path
+/// can't be created.  Each CDN target gets its own subdirectory so
+/// switching products/regions doesn't pollute one shared cache.
+std::string onlineCacheDirFor(const char* product, const char* region) {
+    const char* base = SDL_GetBasePath();
+    if (!base)
+        return {};
+    std::filesystem::path dir = std::filesystem::path(base) / "cache" /
+                                (std::string(product) + "_" + region);
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec)
+        return {};
+    return dir.string();
+}
+
+/// Render an indeterminate "knight-rider" bar: a fixed-width segment
+/// slides back and forth across the bar.  Used when we have no real
+/// fraction (total == 0) instead of ImGui::ProgressBar's default
+/// percentage overlay, which is misleading on an oscillating sine.
+void indeterminateBar(float height) {
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    float width = ImGui::GetContentRegionAvail().x;
+    if (width <= 0.0f)
+        return;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImU32 bg = ImGui::GetColorU32(ImGuiCol_FrameBg);
+    const ImU32 fg = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
+    dl->AddRectFilled(pos, ImVec2(pos.x + width, pos.y + height), bg);
+
+    const float seg = width * 0.25f;
+    const float travel = width - seg;
+    const float t = static_cast<float>(ImGui::GetTime());
+    const float phase = 0.5f + 0.5f * std::sin(t * 1.6f);
+    const float seg_x = phase * travel;
+    dl->AddRectFilled(
+        ImVec2(pos.x + seg_x, pos.y),
+        ImVec2(pos.x + seg_x + seg, pos.y + height),
+        fg);
+    ImGui::Dummy(ImVec2(width, height));
 }
 
 } // namespace
@@ -437,9 +480,10 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
             if (ImGui::Button("Connect")) {
                 loadListfileFromExeDir();
                 status_.clear();
-                casc_service_.startOnlineConnect(
-                    kOnlineProducts[selected_product_idx_].product_code,
-                    kRegionCodes[selected_region_idx_]);
+                const char* product = kOnlineProducts[selected_product_idx_].product_code;
+                const char* region  = kRegionCodes[selected_region_idx_];
+                casc_service_.startOnlineConnect(product, region,
+                                                 onlineCacheDirFor(product, region));
             }
         }
 
@@ -504,18 +548,16 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
             ImGui::Separator();
             ImGui::TextUnformatted(connectStepLabel(step));
 
-            float fraction;
+            // The online path emits no current/total on any step the library
+            // exposes today — total is always 0.  Use a knight-rider bar so
+            // the indicator is honestly "working, indeterminate" instead of a
+            // misleading sine percentage.
             if (total > 0) {
-                fraction = static_cast<float>(current) / static_cast<float>(total);
-            } else {
-                // Animated indeterminate bar while waiting for first step data.
-                const float t = static_cast<float>(ImGui::GetTime());
-                fraction = 0.5f + 0.5f * std::sin(t * 2.5f);
-            }
-            ImGui::ProgressBar(fraction, ImVec2(-1.0f, 0.0f));
-
-            if (total > 0) {
+                float fraction = static_cast<float>(current) / static_cast<float>(total);
+                ImGui::ProgressBar(fraction, ImVec2(-1.0f, 0.0f));
                 ImGui::TextDisabled("%u / %u", current, total);
+            } else {
+                indeterminateBar(ImGui::GetTextLineHeight());
             }
 
             // Auto-close when the background thread finishes.

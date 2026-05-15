@@ -70,7 +70,12 @@ public:
     /// Begin an asynchronous CDN connection.  Returns immediately.
     /// Poll with pollConnect() each frame; inspect progress via connect*()
     /// accessors.
-    void startOnlineConnect(const std::string& product, const std::string& region);
+    ///
+    /// @param cache_dir Optional per-CDN persistent cache directory.  When
+    ///                  non-empty, the caller must have created it; downloads
+    ///                  are stored there so subsequent opens are much faster.
+    void startOnlineConnect(const std::string& product, const std::string& region,
+                            std::string cache_dir = {});
 
     /// True while an async online connection is in progress.
     bool isConnecting() const { return is_connecting_.load(std::memory_order_acquire); }
@@ -118,7 +123,8 @@ public:
 private:
     // ── Core helpers ───────────────────────────────────────────────────
     /// Body of the online connect, executed on the background thread.
-    CascStorageInfo doOpenOnline(const std::string& product, const std::string& region);
+    CascStorageInfo doOpenOnline(const std::string& product, const std::string& region,
+                                 const std::string& cache_dir);
     /// Enumerate storage files into all_files_ / d4_tex_entries_.
     void enumerateStorage();
 
