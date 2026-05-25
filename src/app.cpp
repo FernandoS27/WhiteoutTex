@@ -356,15 +356,27 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                                          t == tex::TextureType::TextureCubeArray;
                     }
                     save_dialog_.buildFilterOrder(save_prefs_, is_multi_layer);
-                    // Build a default save path: preferred save dir + stem of the open file.
+                    // Build a default save path: preferred save dir + stem of the open
+                    // file.  SDL3 splits this on the last separator and feeds the folder
+                    // half to IFileDialog::SetFolder, which fails if the folder doesn't
+                    // exist — common when the loaded texture came from a virtual CASC or
+                    // MPQ path.  When the dir doesn't resolve to a real directory, fall
+                    // back to passing only the stem (no separators), which SDL treats as
+                    // a filename suggestion with no SetFolder call.
                     std::string save_default_str;
                     if (!tex_state_.path.empty()) {
                         namespace fs = std::filesystem;
                         fs::path src(tex_state_.path);
+                        fs::path stem = src.stem();
                         fs::path dir = save_prefs_.last_save_dir.empty()
                                            ? src.parent_path()
                                            : fs::path(save_prefs_.last_save_dir);
-                        save_default_str = (dir / src.stem()).string();
+                        std::error_code ec;
+                        if (!dir.empty() && fs::is_directory(dir, ec)) {
+                            save_default_str = (dir / stem).string();
+                        } else {
+                            save_default_str = stem.string();
+                        }
                     } else if (!save_prefs_.last_save_dir.empty()) {
                         save_default_str = save_prefs_.last_save_dir;
                     }
