@@ -47,7 +47,9 @@ set(NCNN_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(NCNN_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(NCNN_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(NCNN_DISABLE_RTTI ON CACHE BOOL "" FORCE)
-set(NCNN_DISABLE_EXCEPTION ON CACHE BOOL "" FORCE)
+# Keep exceptions enabled — the host app and the PSD SDK both use throw/try.
+# ncnn's `-fno-exceptions` would otherwise propagate PUBLIC through realesrgan_lib.
+set(NCNN_DISABLE_EXCEPTION OFF CACHE BOOL "" FORCE)
 
 # Enable only the ncnn layers required by Real-ESRGAN models.
 set(WITH_LAYER_absval OFF CACHE BOOL "" FORCE)

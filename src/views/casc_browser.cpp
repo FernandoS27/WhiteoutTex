@@ -11,6 +11,10 @@
 
 #include <imgui.h>
 
+#ifdef __APPLE__
+#include "macos_folder_dialog.h"
+#endif
+
 namespace whiteout::textool::views {
 
 using namespace models;
@@ -417,8 +421,18 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
 
             // ── Buttons row ────────────────────────────────────────────
             if (ImGui::Button("Browse Folder...")) {
+#ifdef __APPLE__
+                // SDL's NSOpenPanel wrapper doesn't expose
+                // `treatsFilePackagesAsDirectories`, which blocks picking
+                // folders inside `.app` bundles — Warcraft III on macOS
+                // ships as `Warcraft III.app`, so we need to descend into it.
+                ShowMacFolderDialogAllowingPackages(
+                    folderDialogCallback, &folder_state_, window,
+                    storage_path_buf_[0] ? storage_path_buf_ : nullptr, false);
+#else
                 SDL_ShowOpenFolderDialog(folderDialogCallback, &folder_state_, window,
                                          storage_path_buf_[0] ? storage_path_buf_ : nullptr, false);
+#endif
             }
             ImGui::SameLine();
             if (ImGui::Button("Browse Archive...")) {

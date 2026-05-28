@@ -72,17 +72,23 @@ target_include_directories(WhiteoutTex PRIVATE src)
 target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc whiteout_mpq Psd)
 
 if(APPLE)
-    target_sources(WhiteoutTex PRIVATE src/services/httplib_http_handler.cpp)
+    target_sources(WhiteoutTex PRIVATE
+        src/services/httplib_http_handler.cpp
+        src/views/macos_folder_dialog.mm)
+    set_source_files_properties(src/views/macos_folder_dialog.mm
+        PROPERTIES COMPILE_FLAGS "-fobjc-arc")
     target_include_directories(WhiteoutTex PRIVATE
         ${CMAKE_SOURCE_DIR}/externals/cpp-httplib)
     target_link_libraries(WhiteoutTex PRIVATE OpenSSL::SSL OpenSSL::Crypto)
     target_compile_definitions(WhiteoutTex PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT=1)
     # cpp-httplib loads the macOS system trust store via Security.framework
     # (SecTrustCopyAnchorCertificates / SecCertificateCopyData) and uses
-    # CoreFoundation for the CFArray/CFData handling.
+    # CoreFoundation for the CFArray/CFData handling.  Cocoa is needed for
+    # the native NSOpenPanel-based folder picker (macos_folder_dialog.mm).
     target_link_libraries(WhiteoutTex PRIVATE
         "-framework Security"
-        "-framework CoreFoundation")
+        "-framework CoreFoundation"
+        "-framework Cocoa")
 endif()
 
 if(WHITEOUT_ENABLE_UPSCALER)
