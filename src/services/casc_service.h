@@ -19,9 +19,7 @@
 
 #include <whiteout/interfaces.h>
 #include <whiteout/storages/casc/storage.h>
-#if !defined(__APPLE__)
 #include <whiteout/utils/simple_http_handler.h>
-#endif
 
 namespace whiteout::textool::services {
 

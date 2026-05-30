@@ -77,8 +77,16 @@ Upscaler::~Upscaler() {
 }
 
 bool Upscaler::isGpuAvailable() {
-    ensureGpuInstance();
-    return ncnn::get_gpu_count() > 0;
+    // Cache the result of the first probe.  ncnn::get_gpu_count() internally
+    // calls try_create_gpu_instance() each time, which retries vkCreateInstance
+    // and floods the log on machines without a working Vulkan ICD (e.g. macOS
+    // with no MoltenVK loader).  Callers query this every frame from the save
+    // dialog, so the retry is both wasteful and noisy.
+    static const bool available = [] {
+        ensureGpuInstance();
+        return ncnn::get_gpu_count() > 0;
+    }();
+    return available;
 }
 
 std::filesystem::path Upscaler::defaultModelDir() {

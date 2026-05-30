@@ -123,7 +123,7 @@ public:
 
     /// BLP writer accepts an optional WorkerPool for parallel quantization.
     bool saveBlp(const Texture& tex, const std::string& path, const blp::SaveOptions& opts) {
-        blp::Writer writer(blp::Writer::WriteMode::Lenient, gui::threadPoolManager().get());
+        blp::Writer writer(gui::threadPoolManager().get());
         writer.write(path, tex, opts);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
@@ -134,7 +134,7 @@ public:
 
     /// JPEG writer requires quality in its constructor.
     bool saveJpeg(const Texture& tex, const std::string& path, i32 quality, bool progressive) {
-        jpeg::Writer writer(quality, jpeg::Writer::WriteMode::Lenient, nullptr, progressive);
+        jpeg::Writer writer(quality, nullptr, progressive);
         writer.write(path, tex);
         if (writer.hasIssues()) {
             issues.insert(issues.end(), writer.getIssues().begin(), writer.getIssues().end());
