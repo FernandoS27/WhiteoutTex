@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+  # Allows release.yml to invoke this build as a reusable workflow so the
+  # produced artifact is available to the aggregating release job.
+  workflow_call:
 
 jobs:
   build:
@@ -52,6 +55,21 @@ jobs:
             libgbm-dev libdrm-dev \
             libcurl4-openssl-dev
 
+      - name: Install Vulkan SDK (LunarG apt repo)
+        run: |
+          set -eux
+          # The LunarG repo provides the Vulkan headers, loader, and
+          # glslangValidator that the Real-ESRGAN/ncnn upscaler build needs.
+          # Installs into system paths, so find_package(Vulkan) and the
+          # glslangValidator lookup resolve without VULKAN_SDK being set.
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc \
+            | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc >/dev/null
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list \
+            https://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+          glslangValidator --version
+
       - name: Restore ccache
         uses: actions/cache@v4
         with:
@@ -70,7 +88,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DSDL_X11_XTEST=OFF \
-            -DWHITEOUT_ENABLE_UPSCALER=OFF \
+            -DWHITEOUT_ENABLE_UPSCALER=ON \
             -DWHITEOUT_BUILD_CLI=OFF
 
       - name: Build
@@ -86,6 +104,19 @@ jobs:
                    "${APPDIR}/usr/share/WhiteoutTex"
 
           cp build/WhiteoutTex "${APPDIR}/usr/bin/WhiteoutTex"
+
+          # Real-ESRGAN model weights, next to the binary — SDL_GetBasePath()
+          # resolves to the executable's directory on Linux, and the upscaler
+          # looks for <basepath>/models. Weights are platform-independent;
+          # pulled from the official ncnn-vulkan v0.2.5.0 release.
+          models_url="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip"
+          mtmp="$(mktemp -d)"
+          curl -L --fail -o "${mtmp}/models.zip" "${models_url}"
+          unzip -q "${mtmp}/models.zip" -d "${mtmp}/extract"
+          mkdir -p "${APPDIR}/usr/bin/models"
+          find "${mtmp}/extract" -type f \( -name '*.param' -o -name '*.bin' \) \
+            -exec cp -v {} "${APPDIR}/usr/bin/models/" \;
+          rm -rf "${mtmp}"
 
           # SDL3 is built in-tree as a shared library; linuxdeploy bundles
           # transitive deps but needs the primary .so available to ldd.

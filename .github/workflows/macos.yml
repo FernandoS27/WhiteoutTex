@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+  # Allows release.yml to invoke this build as a reusable workflow so the
+  # produced artifact is available to the aggregating release job.
+  workflow_call:
 
 jobs:
   build:
@@ -26,12 +29,28 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      # Cache the downloaded Homebrew bottles (incl. the Vulkan/MoltenVK
+      # formulae) so repeat runs skip re-fetching them.
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/downloads
+          key: brew-downloads-${{ runner.os }}-${{ runner.arch }}-vulkan-v1
+          restore-keys: |
+            brew-downloads-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install dependencies via Homebrew
         run: |
           brew update --quiet
           # coreutils provides gtimeout, used to bound dylibbundler so it
           # can't infinite-loop the runner on an unresolved dependency.
-          brew install ninja openssl@3 dylibbundler coreutils
+          # vulkan-headers/loader + molten-vk + glslang supply everything the
+          # Real-ESRGAN/ncnn upscaler needs to build (Vulkan via MoltenVK).
+          brew install ninja openssl@3 dylibbundler coreutils \
+            vulkan-headers vulkan-loader molten-vk glslang
+          # Point FindVulkan + the glslangValidator lookup at the Homebrew
+          # prefix ($PREFIX/include, $PREFIX/lib, $PREFIX/bin).
+          echo "VULKAN_SDK=$(brew --prefix)" >> "${GITHUB_ENV}"
 
       - name: Generate AppIcon.icns from resources/Icon.png
         run: |
@@ -58,7 +77,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DSDL_X11_XTEST=OFF \
-            -DWHITEOUT_ENABLE_UPSCALER=OFF \
+            -DWHITEOUT_ENABLE_UPSCALER=ON \
             -DWHITEOUT_BUILD_CLI=OFF
 
       - name: Build
@@ -99,12 +118,51 @@ jobs:
             -d "${APP}/Contents/Frameworks/" \
             -p "@executable_path/../Frameworks/" \
             -s "/opt/homebrew/opt/openssl@3/lib" \
+            -s "$(brew --prefix)/lib" \
             -s "${sdl_lib_dir}"
+
+      - name: Bundle models + MoltenVK into .app
+        run: |
+          set -eux
+          APP="build/WhiteoutTex.app"
+
+          # Real-ESRGAN model weights. On macOS bundles SDL_GetBasePath()
+          # returns Contents/Resources/, so the upscaler looks there for models/.
+          # Weights are platform-independent; pulled from the official
+          # ncnn-vulkan v0.2.5.0 release.
+          models_url="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip"
+          mtmp="$(mktemp -d)"
+          curl -L --fail -o "${mtmp}/models.zip" "${models_url}"
+          unzip -q "${mtmp}/models.zip" -d "${mtmp}/extract"
+          mkdir -p "${APP}/Contents/Resources/models"
+          find "${mtmp}/extract" -type f \( -name '*.param' -o -name '*.bin' \) \
+            -exec cp -v {} "${APP}/Contents/Resources/models/" \;
+          rm -rf "${mtmp}"
+
+          # Vulkan on macOS is provided by MoltenVK. The loader (libvulkan,
+          # bundled by dylibbundler since the binary links it) discovers an ICD
+          # via the bundle's Resources/vulkan/icd.d directory, so ship MoltenVK
+          # plus an ICD manifest whose library_path is bundle-relative.
+          FW="${APP}/Contents/Frameworks"
+          ICD="${APP}/Contents/Resources/vulkan/icd.d"
+          mkdir -p "${FW}" "${ICD}"
+          cp "$(brew --prefix molten-vk)/lib/libMoltenVK.dylib" "${FW}/"
+          cat > "${ICD}/MoltenVK_icd.json" <<'EOF'
+          {
+              "file_format_version": "1.0.0",
+              "ICD": {
+                  "library_path": "../../../Frameworks/libMoltenVK.dylib",
+                  "api_version": "1.2.0"
+              }
+          }
+          EOF
 
       - name: Ad-hoc codesign
         run: |
           # No Developer ID — ad-hoc signature lets the bundle launch via
           # right-click → Open.  Real distribution would notarize separately.
+          # Run AFTER models/MoltenVK are staged so they are covered by the
+          # signature (adding files post-sign would invalidate it).
           codesign --force --deep --sign - --timestamp=none build/WhiteoutTex.app
           codesign --verify --deep --strict --verbose=2 build/WhiteoutTex.app
 

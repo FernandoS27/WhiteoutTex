@@ -1,0 +1,130 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+  # Allows release.yml to invoke this build as a reusable workflow so the
+  # produced artifact is available to the aggregating release job.
+  workflow_call:
+
+jobs:
+  build:
+    name: Build .exe (Windows x64, MSVC)
+    runs-on: windows-latest
+
+    env:
+      BUILD_TYPE: Release
+      # Bump to pull a newer Vulkan SDK; the upscaler needs the headers,
+      # loader import lib, and glslangValidator from this SDK to build.
+      VULKAN_SDK_VERSION: 1.3.296.0
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      # The LunarG installer download + silent install is the slowest part of
+      # this job, so cache the resulting SDK tree and skip the installer on a
+      # hit. Only the SDK directory (headers, Lib, Bin) is needed to BUILD; the
+      # runtime loader (vulkan-1.dll) comes from the GPU driver at run time.
+      - name: Cache Vulkan SDK
+        id: cache-vulkan
+        uses: actions/cache@v4
+        with:
+          path: C:\VulkanSDK\${{ env.VULKAN_SDK_VERSION }}
+          key: vulkan-sdk-windows-${{ env.VULKAN_SDK_VERSION }}
+
+      - name: Install Vulkan SDK
+        if: steps.cache-vulkan.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ver = $env:VULKAN_SDK_VERSION
+          $url = "https://sdk.lunarg.com/sdk/download/$ver/windows/VulkanSDK-$ver-Installer.exe"
+          $exe = Join-Path $env:RUNNER_TEMP 'VulkanSDK-Installer.exe'
+          Write-Host "Downloading Vulkan SDK $ver"
+          curl.exe -L --fail -o $exe $url
+          # Qt Installer Framework silent flags; installs the default component
+          # set (headers, loader lib, glslang) to C:\VulkanSDK\<ver>.
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList `
+            '--accept-licenses','--default-answer','--confirm-command','install'
+          if ($p.ExitCode -ne 0) { throw "Vulkan SDK installer exited $($p.ExitCode)" }
+
+      # Runs on both cache hit and miss so the env is always set for the build.
+      - name: Export Vulkan SDK environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sdk = "C:\VulkanSDK\$env:VULKAN_SDK_VERSION"
+          if (-not (Test-Path "$sdk\Bin\glslangValidator.exe")) {
+              throw "glslangValidator not found under $sdk (cache may be corrupt)"
+          }
+          "VULKAN_SDK=$sdk" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "$sdk\Bin"        | Out-File $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -A x64
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          -DWHITEOUT_ENABLE_UPSCALER=ON
+          -DWHITEOUT_BUILD_CLI=OFF
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = 'WhiteoutTex-windows-x64'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+
+          # Main executable.
+          Copy-Item "build/$env:BUILD_TYPE/WhiteoutTex.exe" $stage/
+
+          # SDL3 is built in-tree as a shared library; the exact output path
+          # varies by SDL/CMake version, so locate the DLL rather than
+          # hard-coding it. WinHTTP (the HTTP backend on Windows) is a system
+          # DLL, so SDL3.dll is the only runtime dependency to bundle.
+          $dll = Get-ChildItem -Path build/externals/SDL -Recurse -Filter SDL3.dll |
+                 Select-Object -First 1
+          if (-not $dll) { throw 'SDL3.dll not found under build/externals/SDL' }
+          Copy-Item $dll.FullName $stage/
+
+          # Bundled docs (mirrors the CMake POST_BUILD copy).
+          Copy-Item LICENSE.md,LICENSE-AI.md,README.md,THIRD_PARTY.md $stage/
+
+          # Real-ESRGAN model weights, into models/ next to the exe (where
+          # SDL_GetBasePath() resolves the upscaler's model dir on Windows).
+          # Weights are platform-independent; pulled from the official
+          # ncnn-vulkan v0.2.5.0 release.
+          $modelsUrl = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip'
+          $mzip = Join-Path $env:RUNNER_TEMP 'realesrgan-models.zip'
+          $mext = Join-Path $env:RUNNER_TEMP 'realesrgan-models'
+          curl.exe -L --fail -o $mzip $modelsUrl
+          Expand-Archive -Path $mzip -DestinationPath $mext -Force
+          $models = Join-Path $stage 'models'
+          New-Item -ItemType Directory -Force $models | Out-Null
+          Get-ChildItem -Path $mext -Recurse -Include *.param, *.bin |
+              ForEach-Object { Copy-Item $_.FullName $models }
+
+          # NOTE: the Vulkan loader (vulkan-1.dll) ships with the user's GPU
+          # driver on Windows, so it is intentionally not bundled here.
+
+          $sha = $env:GITHUB_SHA.Substring(0, 8)
+          $zip = "WhiteoutTex-$sha-windows-x64.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
+          "ARTIFACT=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhiteoutTex-windows-x64-zip
+          path: ${{ env.ARTIFACT }}
+          if-no-files-found: error
+          retention-days: 30
