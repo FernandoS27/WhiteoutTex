@@ -56,6 +56,9 @@ jobs:
         run: |
           set -eux
           TAG="${{ steps.meta.outputs.tag }}"
+          # This job has no checkout, so `gh` can't infer the repo from a local
+          # git remote — pass it explicitly so every call goes via the API.
+          REPO="${{ github.repository }}"
 
           # download-artifact drops each artifact into its own subdirectory;
           # collect every file (the .zip, .dmg and .AppImage) for upload.
@@ -65,7 +68,7 @@ jobs:
           # On manual (nightly) runs the tag/release may already exist from a
           # previous run — replace it. Version-tag pushes always create fresh.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            gh release delete "${TAG}" --yes --cleanup-tag || true
+            gh release delete "${TAG}" --repo "${REPO}" --yes --cleanup-tag || true
           fi
 
           extra=""
@@ -74,6 +77,7 @@ jobs:
           fi
 
           gh release create "${TAG}" ${files} \
+            --repo "${REPO}" \
             --title "${TAG}" \
             --generate-notes \
             ${extra}

@@ -1,13 +1,8 @@
 name: Linux AppImage
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-  workflow_dispatch:
-  # Allows release.yml to invoke this build as a reusable workflow so the
-  # produced artifact is available to the aggregating release job.
+  # Build only as part of a release — invoked by release.yml as a reusable
+  # workflow. No push/PR autobuilds.
   workflow_call:
 
 jobs:
