@@ -8,7 +8,7 @@
  * @brief Unified texture loading, saving, and format classification
  *
  * TextureConverter provides a single entry point for reading and writing
- * textures across all supported file formats (BLP, BMP, DDS, JPEG, PNG, PSD, TEX, TGA).
+ * textures across all supported file formats (BLP, BMP, DDS, JPEG, PNG, PSD, TEX, TGA, TIFF).
  * It also offers static utilities for format classification, display-name
  * lookup, and heuristic TextureKind guessing from file names and pixel
  * formats.
@@ -44,6 +44,7 @@ enum class TextureFileFormat : u32 {
     PSD,     ///< Adobe Photoshop Document (8/16/32-bit RGB).
     TEX,     ///< Blizzard proprietary texture (Diablo III/IV).
     TGA,     ///< Truevision TGA (uncompressed + RLE).
+    TIFF,    ///< Tagged Image File Format (TIFF 6.0 subset).
     Unknown, ///< Unrecognised extension.
 };
 

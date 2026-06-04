@@ -23,7 +23,7 @@ using whiteout::i32;
 
 // ── Output format table ────────────────────────────────────────────────
 
-constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG", "TGA"};
+constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP", "BMP", "DDS", "JPEG", "PNG", "TGA", "TIFF"};
 
 // ── BLP / DDS name arrays live in save_dialog.h
 
@@ -44,6 +44,8 @@ bool matchesFilter(const std::string& ext, const whiteout::textool::BatchPrefs& 
         return p.filter_tex;
     if (ext == ".tga")
         return p.filter_tga;
+    if (ext == ".tif" || ext == ".tiff")
+        return p.filter_tiff;
     return false;
 }
 
@@ -156,6 +158,8 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
     ImGui::Checkbox("TEX", &prefs_.filter_tex);
     ImGui::SameLine();
     ImGui::Checkbox("TGA", &prefs_.filter_tga);
+    ImGui::SameLine();
+    ImGui::Checkbox("TIFF", &prefs_.filter_tiff);
 
     ImGui::Spacing();
     ImGui::Checkbox("Scan subdirectories", &prefs_.recursive);

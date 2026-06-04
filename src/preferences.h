@@ -114,6 +114,7 @@ struct BatchPrefs {
     bool filter_png = true;
     bool filter_tex = true;
     bool filter_tga = true;
+    bool filter_tiff = true;
     bool recursive = true;
     bool keep_layout = true;
 

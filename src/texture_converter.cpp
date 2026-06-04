@@ -13,6 +13,7 @@
 #include "psd/psd.h"
 #include <whiteout/textures/tex/tex.h>
 #include <whiteout/textures/tga/tga.h>
+#include <whiteout/textures/tiff/tiff.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -166,6 +167,7 @@ TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
         {".jpeg", TextureFileFormat::JPEG}, {".png", TextureFileFormat::PNG},
         {".psd", TextureFileFormat::PSD},
         {".tex", TextureFileFormat::TEX},   {".tga", TextureFileFormat::TGA},
+        {".tif", TextureFileFormat::TIFF},  {".tiff", TextureFileFormat::TIFF},
     };
     auto ext = get_extension_lower(path);
     for (const auto& e : kTable)
@@ -244,7 +246,7 @@ std::array<TextureKind, 4> TextureConverter::guessTextureMultiKind(const std::st
     // ORM: R=AmbientOcclusion, G=Roughness, B=Metalness, A=Unused
     if (stem.find("_orm") != std::string::npos) {
         return {TextureKind::AmbientOcclusion, TextureKind::Roughness, TextureKind::Metalness,
-                TextureKind::Unused};
+                TextureKind::BlendMask};
     }
     if (stem.find("_tint") != std::string::npos) {
         return {TextureKind::AlphaMask, TextureKind::AlphaMask, TextureKind::AlphaMask,
@@ -273,6 +275,8 @@ const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {
         return "TEX";
     case TextureFileFormat::TGA:
         return "TGA";
+    case TextureFileFormat::TIFF:
+        return "TIFF";
     default:
         return "Unknown";
     }
@@ -391,6 +395,8 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
         return pImpl->loadFileStrict<tex::Parser>(path);
     case TextureFileFormat::TGA:
         return pImpl->loadFile<tga::Parser>(path, "TGA");
+    case TextureFileFormat::TIFF:
+        return pImpl->loadFile<tiff::Parser>(path, "TIFF");
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -429,6 +435,8 @@ std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureF
         return pImpl->loadFromBuffer<tex::Parser>(data, "TEX");
     case TextureFileFormat::TGA:
         return pImpl->loadFromBuffer<tga::Parser>(data, "TGA");
+    case TextureFileFormat::TIFF:
+        return pImpl->loadFromBuffer<tiff::Parser>(data, "TIFF");
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -479,6 +487,8 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
         return pImpl->saveFile<tex::Writer>(path, tex);
     case TextureFileFormat::TGA:
         return pImpl->saveFile<tga::Writer>(path, tex);
+    case TextureFileFormat::TIFF:
+        return pImpl->saveFile<tiff::Writer>(path, tex);
     default:
         pImpl->issues.push_back("Unsupported output format");
         return false;

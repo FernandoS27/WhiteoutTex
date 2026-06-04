@@ -440,11 +440,22 @@ void ImageViewer::resetChannelVisibility() {
 void ImageViewer::updateChannelInfo(const tex::Texture& texture) {
     is_multikind_ = (texture.kind() == tex::TextureKind::Multikind);
     if (is_multikind_) {
+        static const char kDefaults[] = {'R', 'G', 'B', 'A'};
         for (i32 i = 0; i < 4; ++i) {
             auto ch_kind = texture.channelKind(kRGBAChannels[i]);
-            channel_info_[i].visible = (ch_kind != tex::TextureKind::Unused);
-            const char* lbl = channelKindShortLabel(ch_kind);
-            std::snprintf(channel_info_[i].label, sizeof(channel_info_[i].label), "%s", lbl);
+            const bool used = (ch_kind != tex::TextureKind::Unused);
+            // Always keep the alpha channel selectable so its contents can be
+            // inspected even when it carries no assigned kind — standard ORM
+            // marks alpha Unused, but the data may still be meaningful.
+            channel_info_[i].visible = used || (i == 3);
+            if (used) {
+                const char* lbl = channelKindShortLabel(ch_kind);
+                std::snprintf(channel_info_[i].label, sizeof(channel_info_[i].label), "%s", lbl);
+            } else {
+                // Unused channel kept visible (alpha): fall back to its RGBA letter.
+                channel_info_[i].label[0] = kDefaults[i];
+                channel_info_[i].label[1] = '\0';
+            }
         }
     } else {
         static const char kDefaults[][2] = {"R", "G", "B", "A"};
