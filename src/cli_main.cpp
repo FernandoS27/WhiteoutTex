@@ -139,6 +139,8 @@ static std::string default_output_extension(TFF input_fmt) {
         return ".jpg";
     case TFF::TEX:
         return ".dds";
+    case TFF::D2R:
+        return ".dds";
     case TFF::TGA:
         return ".dds";
     default:
@@ -309,7 +311,7 @@ static void print_usage(const char* program) {
               << "Usage: " << program << " <input> [output] [options...]\n\n"
               << "If no output path is given, the extension is replaced automatically:\n"
               << "  .blp -> .dds    .bmp -> .dds    .tex -> .dds\n"
-              << "  .dds -> .blp    .tga -> .dds\n"
+              << "  .dds -> .blp    .tga -> .dds    .texture -> .dds\n"
               << "  .jpg -> .png    .png -> .jpg\n\n"
               << "Conversion options:\n"
               << "  --blp_type=<1|2>           BLP container version (default: 2)\n"

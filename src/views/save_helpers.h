@@ -201,10 +201,10 @@ inline whiteout::u32 effectiveMipCount(MipmapMode mode, i32 customCount,
 inline constexpr const char* kDownscaleOptions[] = {"x2 (halve)", "x4 (quarter)"};
 inline constexpr i32 kDownscaleOptionCount = static_cast<i32>(std::size(kDownscaleOptions));
 
-/// Output file extensions indexed by the output-format combo (BLP=0 … TIFF=6).
+/// Output file extensions indexed by the output-format combo (BLP=0 … D2R=7).
 /// Must stay in lock-step with OUTPUT_FORMAT_NAMES in batch_convert.cpp.
 inline constexpr const char* kOutputExtensions[] = {".blp", ".bmp", ".dds", ".jpg",
-                                                    ".png", ".tga", ".tif"};
+                                                    ".png", ".tga", ".tif", ".texture"};
 
 // ============================================================================
 // Texture kind guessing helper

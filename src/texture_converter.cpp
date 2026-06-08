@@ -7,6 +7,7 @@
 
 #include <whiteout/textures/blp/blp.h>
 #include <whiteout/textures/bmp/bmp.h>
+#include <whiteout/textures/d2r_texture/d2r_texture.h>
 #include <whiteout/textures/dds/dds.h>
 #include <whiteout/textures/jpeg/jpeg.h>
 #include <whiteout/textures/png/png.h>
@@ -163,6 +164,7 @@ TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
     };
     static constexpr ExtMap kTable[] = {
         {".blp", TextureFileFormat::BLP},   {".bmp", TextureFileFormat::BMP},
+        {".texture", TextureFileFormat::D2R},
         {".dds", TextureFileFormat::DDS},   {".jpg", TextureFileFormat::JPEG},
         {".jpeg", TextureFileFormat::JPEG}, {".png", TextureFileFormat::PNG},
         {".psd", TextureFileFormat::PSD},
@@ -263,6 +265,8 @@ const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {
         return "BLP";
     case TextureFileFormat::BMP:
         return "BMP";
+    case TextureFileFormat::D2R:
+        return "D2R";
     case TextureFileFormat::DDS:
         return "DDS";
     case TextureFileFormat::JPEG:
@@ -383,6 +387,8 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
         return pImpl->loadFile<blp::Parser>(path, "BLP");
     case TextureFileFormat::BMP:
         return pImpl->loadFile<bmp::Parser>(path, "BMP");
+    case TextureFileFormat::D2R:
+        return pImpl->loadFile<d2r_texture::Parser>(path, "D2R");
     case TextureFileFormat::DDS:
         return pImpl->loadFileStrict<dds::Parser>(path);
     case TextureFileFormat::JPEG:
@@ -423,6 +429,8 @@ std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureF
         return pImpl->loadFromBuffer<blp::Parser>(data, "BLP");
     case TextureFileFormat::BMP:
         return pImpl->loadFromBuffer<bmp::Parser>(data, "BMP");
+    case TextureFileFormat::D2R:
+        return pImpl->loadFromBuffer<d2r_texture::Parser>(data, "D2R");
     case TextureFileFormat::DDS:
         return pImpl->loadFromBuffer<dds::Parser>(data, "DDS");
     case TextureFileFormat::JPEG:
@@ -475,6 +483,8 @@ bool TextureConverter::save(const Texture& tex, const std::string& path,
         return pImpl->saveBlp(tex, path, blpOpts);
     case TextureFileFormat::BMP:
         return pImpl->saveFile<bmp::Writer>(path, tex);
+    case TextureFileFormat::D2R:
+        return pImpl->saveFile<d2r_texture::Writer>(path, tex);
     case TextureFileFormat::DDS:
         return pImpl->saveFile<dds::Writer>(path, tex);
     case TextureFileFormat::JPEG:

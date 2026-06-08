@@ -291,6 +291,9 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
         return converter.save(tex_copy, out_path, job_.prefs.jpeg_quality,
                               job_.prefs.jpeg_progressive);
 
+    case 7: // D2R (.texture) — encodes RGBA8 and BCn natively, pass through as-is.
+        return converter.save(tex_copy, out_path);
+
     default: // BMP (1), PNG (4), TGA (5), TIFF (6)
         if (tex::isBcn(tex_copy.format()))
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);

@@ -42,9 +42,10 @@ void rememberParentDir(const std::string& path, std::string& out) {
 }
 
 constexpr SDL_DialogFileFilter OPEN_FILTERS[] = {
-    {"All Supported Images", "blp;bmp;dds;jpg;jpeg;png;psd;tex;tga;tif;tiff"},
+    {"All Supported Images", "blp;bmp;dds;jpg;jpeg;png;psd;tex;texture;tga;tif;tiff"},
     {"BLP (Blizzard Picture)", "blp"},
     {"BMP (Bitmap)", "bmp"},
+    {"D2R (Diablo II Resurrected)", "texture"},
     {"DDS (DirectDraw Surface)", "dds"},
     {"JPEG", "jpg;jpeg"},
     {"PNG", "png"},

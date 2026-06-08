@@ -30,6 +30,7 @@ constexpr SDL_DialogFileFilter SAVE_FILTERS[] = {
     {"PSD (Adobe Photoshop)", "psd"},
     {"TGA (Targa)", "tga"},
     {"TIFF (Tagged Image File Format)", "tif;tiff"},
+    {"D2R (Diablo II Resurrected)", "texture"},
 };
 constexpr i32 SAVE_FILTER_COUNT = static_cast<i32>(std::size(SAVE_FILTERS));
 

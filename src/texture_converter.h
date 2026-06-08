@@ -8,7 +8,7 @@
  * @brief Unified texture loading, saving, and format classification
  *
  * TextureConverter provides a single entry point for reading and writing
- * textures across all supported file formats (BLP, BMP, DDS, JPEG, PNG, PSD, TEX, TGA, TIFF).
+ * textures across all supported file formats (BLP, BMP, D2R, DDS, JPEG, PNG, PSD, TEX, TGA, TIFF).
  * It also offers static utilities for format classification, display-name
  * lookup, and heuristic TextureKind guessing from file names and pixel
  * formats.
@@ -38,6 +38,7 @@ constexpr i32 kDefaultJpegQuality = 75;
 enum class TextureFileFormat : u32 {
     BLP,     ///< Blizzard Picture (BLP1 / BLP2).
     BMP,     ///< Windows Bitmap (24/32-bit uncompressed).
+    D2R,     ///< Diablo II: Resurrected `.texture` container.
     DDS,     ///< DirectDraw Surface (legacy + DX10 header).
     JPEG,    ///< JPEG (baseline sequential DCT, Y'CbCr / grayscale).
     PNG,     ///< Portable Network Graphics (8/16-bit, non-interlaced).

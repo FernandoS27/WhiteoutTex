@@ -175,6 +175,8 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
             prefs.filter_tga = iv != 0;
         else if (std::sscanf(line.c_str(), "FilterTiff=%d", &iv) == 1)
             prefs.filter_tiff = iv != 0;
+        else if (std::sscanf(line.c_str(), "FilterD2r=%d", &iv) == 1)
+            prefs.filter_d2r = iv != 0;
         else if (std::sscanf(line.c_str(), "Recursive=%d", &iv) == 1)
             prefs.recursive = iv != 0;
         else if (std::sscanf(line.c_str(), "KeepLayout=%d", &iv) == 1)
@@ -257,6 +259,7 @@ void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
     out << "FilterTex=" << (prefs.filter_tex ? 1 : 0) << "\n";
     out << "FilterTga=" << (prefs.filter_tga ? 1 : 0) << "\n";
     out << "FilterTiff=" << (prefs.filter_tiff ? 1 : 0) << "\n";
+    out << "FilterD2r=" << (prefs.filter_d2r ? 1 : 0) << "\n";
     out << "Recursive=" << (prefs.recursive ? 1 : 0) << "\n";
     out << "KeepLayout=" << (prefs.keep_layout ? 1 : 0) << "\n";
     out << "OutputFormat=" << prefs.output_format << "\n";

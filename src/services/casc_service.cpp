@@ -15,7 +15,7 @@ using namespace whiteout;
 
 /// Supported texture extensions (lowercase, with dot).
 constexpr const char* kSupportedExtensions[] = {
-    ".blp", ".bmp", ".dds", ".jpg", ".jpeg", ".png", ".tex", ".tga",
+    ".blp", ".bmp", ".dds", ".jpg", ".jpeg", ".png", ".tex", ".texture", ".tga",
 };
 
 /// D4 enriched meta texture path prefix (after the root folder and colon).
