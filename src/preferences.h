@@ -9,6 +9,12 @@
 #include <string>
 #include <vector>
 
+// Forward-declared to keep this widely-included header light (the full enum lives
+// in texture_converter.h).  Underlying type must match that definition.
+namespace whiteout::textures {
+enum class TextureFileFormat : whiteout::u32;
+}
+
 namespace whiteout::textool {
 
 // ============================================================================
@@ -159,6 +165,12 @@ SavePrefs load_save_prefs(const std::string& ini_path);
 
 /// Append the [WhiteoutTex][SavePrefs] section.
 void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs);
+
+/// Pointer to the batch read-filter bool in @p prefs for @p fmt, or nullptr if
+/// the format has no batch-input filter (e.g. PSD).  Lets registry-driven UI and
+/// the file scanner toggle/read the named flags without a parallel list; the INI
+/// keys remain per-named-flag for backward compatibility.
+bool* batch_filter_flag(BatchPrefs& prefs, whiteout::textures::TextureFileFormat fmt);
 
 /// Load the [WhiteoutTex][BatchPrefs] section.
 BatchPrefs load_batch_prefs(const std::string& ini_path);

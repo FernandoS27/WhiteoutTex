@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "preferences.h"
+#include "texture_converter.h" // TextureFileFormat
 
 #include <algorithm>
 #include <cstdio>
@@ -9,6 +10,33 @@
 #include <string>
 
 namespace whiteout::textool {
+
+bool* batch_filter_flag(BatchPrefs& p, whiteout::textures::TextureFileFormat fmt) {
+    using F = whiteout::textures::TextureFileFormat;
+    switch (fmt) {
+    case F::BLP:
+        return &p.filter_blp;
+    case F::BMP:
+        return &p.filter_bmp;
+    case F::DDS:
+        return &p.filter_dds;
+    case F::JPEG:
+        return &p.filter_jpeg;
+    case F::PNG:
+        return &p.filter_png;
+    case F::TEX:
+        return &p.filter_tex;
+    case F::TGA:
+        return &p.filter_tga;
+    case F::TIFF:
+        return &p.filter_tiff;
+    case F::D2R:
+        return &p.filter_d2r;
+    default: // PSD and Unknown have no batch read filter.
+        return nullptr;
+    }
+}
+
 namespace {
 
 // ============================================================================

@@ -220,7 +220,7 @@ void BatchService::workerFunc() {
             }
             auto stem = fs::path(file).stem().string();
             auto out_path =
-                (out_base / (stem + kOutputExtensions[job_.prefs.output_format])).string();
+                (out_base / (stem + batchOutputExtension(job_.prefs.output_format))).string();
 
             const auto tex_kind = loaded->kind();
             if (saveOne(converter, std::move(*loaded), out_path, tex_kind)) {
@@ -252,8 +252,8 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
             return false;
     }
 
-    switch (job_.prefs.output_format) {
-    case 0: { // BLP
+    switch (tex::capSliceAt(tex::FmtCap::BatchOut, job_.prefs.output_format)) {
+    case TFF::BLP: { // BLP
         auto blp = buildBlpSaveOptions(job_.prefs.blp_version, job_.prefs.blp_encoding,
                                        job_.prefs.blp_dither, job_.prefs.blp_dither_strength,
                                        job_.prefs.jpeg_quality, job_.prefs.jpeg_progressive);
@@ -261,7 +261,7 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
         return converter.save(tex_copy, out_path, blp);
     }
 
-    case 2: { // DDS
+    case TFF::DDS: { // DDS
         i32 dds_fmt;
         bool invert_y;
 
@@ -285,16 +285,16 @@ bool BatchService::saveOne(TC& converter, tex::Texture tex_copy, const std::stri
         return converter.save(tex_copy, out_path);
     }
 
-    case 3: // JPEG
+    case TFF::JPEG: // JPEG
         if (tex::isBcn(tex_copy.format()))
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
         return converter.save(tex_copy, out_path, job_.prefs.jpeg_quality,
                               job_.prefs.jpeg_progressive);
 
-    case 7: // D2R (.texture) — encodes RGBA8 and BCn natively, pass through as-is.
+    case TFF::D2R: // D2R (.texture) — encodes RGBA8 and BCn natively, pass through as-is.
         return converter.save(tex_copy, out_path);
 
-    default: // BMP (1), PNG (4), TGA (5), TIFF (6)
+    default: // BMP, PNG, TGA, TIFF — lossless RGBA writers, decompress BCn first.
         if (tex::isBcn(tex_copy.format()))
             tex_copy = tex_copy.copyAsFormat(tex::PixelFormat::RGBA8, pool);
         return converter.save(tex_copy, out_path);

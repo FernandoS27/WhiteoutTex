@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "common_types.h"
+#include "format_registry.h"
 #include "texture_converter.h"
 #include "thread_pool_manager.h"
 
@@ -158,24 +159,7 @@ TextureConverter::~TextureConverter() = default;
 // ============================================================================
 
 TextureFileFormat TextureConverter::classifyPath(const std::string& path) {
-    struct ExtMap {
-        const char* ext;
-        TextureFileFormat fmt;
-    };
-    static constexpr ExtMap kTable[] = {
-        {".blp", TextureFileFormat::BLP},   {".bmp", TextureFileFormat::BMP},
-        {".texture", TextureFileFormat::D2R},
-        {".dds", TextureFileFormat::DDS},   {".jpg", TextureFileFormat::JPEG},
-        {".jpeg", TextureFileFormat::JPEG}, {".png", TextureFileFormat::PNG},
-        {".psd", TextureFileFormat::PSD},
-        {".tex", TextureFileFormat::TEX},   {".tga", TextureFileFormat::TGA},
-        {".tif", TextureFileFormat::TIFF},  {".tiff", TextureFileFormat::TIFF},
-    };
-    auto ext = get_extension_lower(path);
-    for (const auto& e : kTable)
-        if (ext == e.ext)
-            return e.fmt;
-    return TextureFileFormat::Unknown;
+    return classifyExtension(get_extension_lower(path));
 }
 
 bool TextureConverter::isD4Tex(const std::string& path) {
@@ -260,30 +244,8 @@ std::array<TextureKind, 4> TextureConverter::guessTextureMultiKind(const std::st
 }
 
 const char* TextureConverter::fileFormatName(TextureFileFormat fmt) {
-    switch (fmt) {
-    case TextureFileFormat::BLP:
-        return "BLP";
-    case TextureFileFormat::BMP:
-        return "BMP";
-    case TextureFileFormat::D2R:
-        return "D2R";
-    case TextureFileFormat::DDS:
-        return "DDS";
-    case TextureFileFormat::JPEG:
-        return "JPEG";
-    case TextureFileFormat::PNG:
-        return "PNG";
-    case TextureFileFormat::PSD:
-        return "PSD";
-    case TextureFileFormat::TEX:
-        return "TEX";
-    case TextureFileFormat::TGA:
-        return "TGA";
-    case TextureFileFormat::TIFF:
-        return "TIFF";
-    default:
-        return "Unknown";
-    }
+    const auto* info = formatInfo(fmt);
+    return info ? info->shortName : "Unknown";
 }
 
 const char* TextureConverter::pixelFormatName(PixelFormat fmt) {

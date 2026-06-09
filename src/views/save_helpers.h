@@ -8,16 +8,73 @@
 ///        used by both SaveDialog and BatchConvert.
 
 #include "common_types.h"
+#include "format_registry.h"
 #include "save_dialog.h"
 #include "texture_converter.h"
 
+#include <map>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include <whiteout/interfaces.h>
 #include <whiteout/textures/blp/types.h>
 #include <whiteout/textures/texture.h>
 
+#include <SDL3/SDL.h>
+
 namespace whiteout::textool::views {
+
+// ============================================================================
+// Registry-driven file-dialog filters
+// ============================================================================
+
+/// Build SDL file-dialog filters from the format registry for every format with
+/// capability @p cap, in registry order.  When @p allSupported is set, an
+/// "All Supported Images" entry (the union of every included format's pattern)
+/// is prepended; when @p allFiles is set an "All Files" ("*") entry is appended.
+///
+/// The result is cached and returned by reference; the backing strings and the
+/// filter array therefore have static lifetime, which is required because SDL's
+/// file dialogs run asynchronously and read the array after this call returns.
+inline const std::vector<SDL_DialogFileFilter>&
+dialogFiltersFor(whiteout::textures::FmtCap cap, bool allSupported, bool allFiles) {
+    namespace tex = whiteout::textures;
+
+    struct Built {
+        std::string aggregate;                   ///< Backs the "All Supported" pattern.
+        std::vector<SDL_DialogFileFilter> filters;
+    };
+    // Keyed by (cap, allSupported, allFiles).  std::map never relocates mapped
+    // values, so references handed out here stay valid.
+    static std::map<u32, Built> cache;
+
+    const u32 key = (static_cast<u32>(cap) << 2) | (allSupported ? 2u : 0u) | (allFiles ? 1u : 0u);
+    auto it = cache.find(key);
+    if (it != cache.end())
+        return it->second.filters;
+
+    Built b;
+    if (allSupported) {
+        for (const auto& row : tex::formatTable()) {
+            if (!row.has(cap))
+                continue;
+            if (!b.aggregate.empty())
+                b.aggregate += ';';
+            b.aggregate += row.dialogPattern;
+        }
+    }
+    auto [ins, _] = cache.emplace(key, std::move(b));
+    Built& stored = ins->second;
+    if (allSupported)
+        stored.filters.push_back({"All Supported Images", stored.aggregate.c_str()});
+    for (const auto& row : tex::formatTable())
+        if (row.has(cap))
+            stored.filters.push_back({row.dialogName, row.dialogPattern});
+    if (allFiles)
+        stored.filters.push_back({"All Files", "*"});
+    return stored.filters;
+}
 
 // ============================================================================
 // Shared channel array
@@ -201,10 +258,15 @@ inline whiteout::u32 effectiveMipCount(MipmapMode mode, i32 customCount,
 inline constexpr const char* kDownscaleOptions[] = {"x2 (halve)", "x4 (quarter)"};
 inline constexpr i32 kDownscaleOptionCount = static_cast<i32>(std::size(kDownscaleOptions));
 
-/// Output file extensions indexed by the output-format combo (BLP=0 … D2R=7).
-/// Must stay in lock-step with OUTPUT_FORMAT_NAMES in batch_convert.cpp.
-inline constexpr const char* kOutputExtensions[] = {".blp", ".bmp", ".dds", ".jpg",
-                                                    ".png", ".tga", ".tif", ".texture"};
+/// Canonical output extension (incl. dot) for a batch output-format combo index.
+/// Derived from the registry's FmtCap::BatchOut slice, so it stays in lock-step
+/// with the combo's names automatically.  Empty string if the index is invalid.
+inline std::string batchOutputExtension(i32 outputFormatIndex) {
+    namespace tex = whiteout::textures;
+    const auto fmt = tex::capSliceAt(tex::FmtCap::BatchOut, outputFormatIndex);
+    const auto* info = tex::formatInfo(fmt);
+    return (info && !info->exts.empty()) ? std::string(info->exts.front()) : std::string();
+}
 
 // ============================================================================
 // Texture kind guessing helper

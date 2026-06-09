@@ -20,19 +20,9 @@
 
 namespace whiteout::textool::views {
 
-/// File extension filters for the Save dialog.
-constexpr SDL_DialogFileFilter SAVE_FILTERS[] = {
-    {"BLP (Blizzard Picture)", "blp"},
-    {"BMP (Bitmap)", "bmp"},
-    {"DDS (DirectDraw Surface)", "dds"},
-    {"JPEG", "jpg;jpeg"},
-    {"PNG", "png"},
-    {"PSD (Adobe Photoshop)", "psd"},
-    {"TGA (Targa)", "tga"},
-    {"TIFF (Tagged Image File Format)", "tif;tiff"},
-    {"D2R (Diablo II Resurrected)", "texture"},
-};
-constexpr i32 SAVE_FILTER_COUNT = static_cast<i32>(std::size(SAVE_FILTERS));
+/// The Save dialog's writable-format filters are built from the format registry
+/// (FmtCap::Write) via dialogFiltersFor() in save_helpers.h — there is no
+/// hand-maintained array here.
 
 /// Entry mapping a human-readable name to a TextureKind enum value.
 struct KindEntry {
@@ -195,7 +185,7 @@ public:
         return active_filters_.data();
     }
     i32 filterCount() const {
-        return active_filter_count_;
+        return static_cast<i32>(active_filters_.size());
     }
 
     /// Call after the OS save-dialog callback delivers a result.
@@ -240,9 +230,8 @@ private:
     void drawDdsOptions();
 
     Options opts_;
-    std::array<SDL_DialogFileFilter, SAVE_FILTER_COUNT> active_filters_;
-    std::array<i32, SAVE_FILTER_COUNT> filter_map_;
-    i32 active_filter_count_ = SAVE_FILTER_COUNT;
+    std::vector<SDL_DialogFileFilter> active_filters_; ///< Reordered (preferred-first) filters.
+    std::vector<i32> filter_map_;                      ///< active_filters_ index → registry Write-slice index.
     bool is_multi_layer_ = false;
 };
 

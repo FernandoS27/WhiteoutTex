@@ -1,42 +1,29 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Fernando Sahmkow
 
+#include "format_registry.h"
 #include "services/mpq_service.h"
 #include "thread_pool_manager.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <string>
 
 namespace {
 
 using namespace whiteout;
 
-/// Supported texture extensions (lowercase, with dot).
-constexpr const char* kSupportedExtensions[] = {
-    ".blp", ".bmp", ".dds", ".jpg", ".jpeg", ".png", ".tex", ".texture", ".tga",
-};
-
+/// True if @p name ends in an extension of an archive-browsable texture format
+/// (FmtCap::Archive in the format registry).  Case-insensitive.
 bool isSupportedExtension(std::string_view name) {
     auto dot = name.rfind('.');
     if (dot == std::string_view::npos)
         return false;
-    auto ext = name.substr(dot);
-    for (const char* s : kSupportedExtensions) {
-        std::string_view sv(s);
-        if (ext.size() != sv.size())
-            continue;
-        bool match = true;
-        for (size_t i = 0; i < ext.size(); ++i) {
-            if (std::tolower(static_cast<unsigned char>(ext[i])) !=
-                std::tolower(static_cast<unsigned char>(sv[i]))) {
-                match = false;
-                break;
-            }
-        }
-        if (match)
-            return true;
-    }
-    return false;
+    std::string ext;
+    for (char c : name.substr(dot))
+        ext += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return textures::formatHasCap(textures::classifyExtension(ext), textures::FmtCap::Archive);
 }
 
 } // anonymous namespace

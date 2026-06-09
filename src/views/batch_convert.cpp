@@ -21,35 +21,36 @@ namespace {
 
 using whiteout::i32;
 
-// ── Output format table ────────────────────────────────────────────────
+namespace tex = whiteout::textures;
+using TFF = tex::TextureFileFormat;
 
-constexpr const char* OUTPUT_FORMAT_NAMES[] = {"BLP",  "BMP", "DDS", "JPEG",
-                                               "PNG",  "TGA", "TIFF", "D2R"};
+// ── Output format table (registry-driven) ──────────────────────────────
+
+/// Output formats offered in batch mode, in registry (FmtCap::BatchOut) order.
+/// The index lines up with BatchPrefs::output_format, which is persisted in the
+/// INI — so the slice order must stay stable (enforced by format_registry.cpp).
+const std::vector<const char*>& outputFormatNames() {
+    static const std::vector<const char*> names = [] {
+        std::vector<const char*> v;
+        for (const auto& row : tex::formatTable())
+            if (row.has(tex::FmtCap::BatchOut))
+                v.push_back(row.shortName);
+        return v;
+    }();
+    return names;
+}
 
 // ── BLP / DDS name arrays live in save_dialog.h
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 bool matchesFilter(const std::string& ext, const whiteout::textool::BatchPrefs& p) {
-    if (ext == ".blp")
-        return p.filter_blp;
-    if (ext == ".bmp")
-        return p.filter_bmp;
-    if (ext == ".dds")
-        return p.filter_dds;
-    if (ext == ".jpg" || ext == ".jpeg")
-        return p.filter_jpeg;
-    if (ext == ".png")
-        return p.filter_png;
-    if (ext == ".tex")
-        return p.filter_tex;
-    if (ext == ".texture")
-        return p.filter_d2r;
-    if (ext == ".tga")
-        return p.filter_tga;
-    if (ext == ".tif" || ext == ".tiff")
-        return p.filter_tiff;
-    return false;
+    const auto fmt = tex::classifyExtension(ext);
+    if (!tex::formatHasCap(fmt, tex::FmtCap::BatchIn))
+        return false;
+    const bool* flag =
+        whiteout::textool::batch_filter_flag(const_cast<whiteout::textool::BatchPrefs&>(p), fmt);
+    return flag && *flag;
 }
 
 void drawDdsFormatCombo(const char* label, i32& fmt, const i32* allowed, i32 count) {
@@ -149,22 +150,19 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
     }
 
     ImGui::Text("Read Formats:");
-    ImGui::Checkbox("BLP", &prefs_.filter_blp);
-    ImGui::SameLine();
-    ImGui::Checkbox("BMP", &prefs_.filter_bmp);
-    ImGui::SameLine();
-    ImGui::Checkbox("DDS", &prefs_.filter_dds);
-    ImGui::SameLine();
-    ImGui::Checkbox("JPEG", &prefs_.filter_jpeg);
-    ImGui::Checkbox("PNG", &prefs_.filter_png);
-    ImGui::SameLine();
-    ImGui::Checkbox("TEX", &prefs_.filter_tex);
-    ImGui::SameLine();
-    ImGui::Checkbox("TGA", &prefs_.filter_tga);
-    ImGui::SameLine();
-    ImGui::Checkbox("TIFF", &prefs_.filter_tiff);
-    ImGui::SameLine();
-    ImGui::Checkbox("D2R", &prefs_.filter_d2r);
+    // One checkbox per BatchIn-capable format, 4 per row, driven by the registry.
+    i32 shown = 0;
+    for (const auto& row : tex::formatTable()) {
+        if (!row.has(tex::FmtCap::BatchIn))
+            continue;
+        bool* flag = whiteout::textool::batch_filter_flag(prefs_, row.fmt);
+        if (!flag)
+            continue;
+        if (shown % 4 != 0)
+            ImGui::SameLine();
+        ImGui::Checkbox(row.shortName, flag);
+        ++shown;
+    }
 
     ImGui::Spacing();
     ImGui::Checkbox("Scan subdirectories", &prefs_.recursive);
@@ -198,21 +196,21 @@ std::vector<AppCommand> BatchConvert::draw(SDL_Window* window, BatchPrefs& prefs
         ImGui::PopStyleColor();
     }
 
-    ImGui::Combo("Format", &prefs_.output_format, OUTPUT_FORMAT_NAMES,
-                 static_cast<i32>(std::size(OUTPUT_FORMAT_NAMES)));
+    ImGui::Combo("Format", &prefs_.output_format, outputFormatNames().data(),
+                 static_cast<i32>(outputFormatNames().size()));
 
     // ── Format-specific options ────────────────────────────────────────
 
-    switch (prefs_.output_format) {
-    case 0: // BLP
+    switch (tex::capSliceAt(tex::FmtCap::BatchOut, prefs_.output_format)) {
+    case TFF::BLP:
         drawBlpOptions();
         break;
 
-    case 2: // DDS
+    case TFF::DDS:
         drawDdsOptions();
         break;
 
-    case 3: // JPEG
+    case TFF::JPEG:
         ImGui::SeparatorText("JPEG Options");
         ImGui::SliderInt("Quality", &prefs_.jpeg_quality, 1, 100);
         ImGui::Checkbox("Progressive", &prefs_.jpeg_progressive);

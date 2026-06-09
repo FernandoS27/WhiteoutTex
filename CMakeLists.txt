@@ -18,6 +18,7 @@ add_executable(WhiteoutTex
     src/app.cpp
     src/preferences.cpp
     src/texture_converter.cpp
+    src/format_registry.cpp
     src/thread_pool_manager.cpp
     src/services/texture_service.cpp
     src/services/casc_service.cpp
@@ -96,6 +97,7 @@ if(WHITEOUT_BUILD_CLI)
     add_executable(WhiteoutTexCLI
         src/cli_main.cpp
         src/texture_converter.cpp
+        src/format_registry.cpp
         src/thread_pool_manager.cpp
         src/psd/parser.cpp
         src/psd/writer.cpp

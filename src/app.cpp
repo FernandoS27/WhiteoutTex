@@ -5,6 +5,7 @@
 #include "common_types.h"
 #include "views/dialogs.h"
 #include "views/menu_bar.h"
+#include "views/save_helpers.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -40,21 +41,6 @@ void rememberParentDir(const std::string& path, std::string& out) {
     if (!parent.empty())
         out = (parent / "").string();
 }
-
-constexpr SDL_DialogFileFilter OPEN_FILTERS[] = {
-    {"All Supported Images", "blp;bmp;dds;jpg;jpeg;png;psd;tex;texture;tga;tif;tiff"},
-    {"BLP (Blizzard Picture)", "blp"},
-    {"BMP (Bitmap)", "bmp"},
-    {"D2R (Diablo II Resurrected)", "texture"},
-    {"DDS (DirectDraw Surface)", "dds"},
-    {"JPEG", "jpg;jpeg"},
-    {"PNG", "png"},
-    {"PSD (Adobe Photoshop)", "psd"},
-    {"TEX (Blizzard Proprietary)", "tex"},
-    {"TGA (Targa)", "tga"},
-    {"TIFF (Tagged Image File Format)", "tif;tiff"},
-    {"All Files", "*"},
-};
 
 namespace tex = whiteout::textures;
 
@@ -345,9 +331,12 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                     const char* default_dir = save_prefs_.last_open_dir.empty()
                                                   ? nullptr
                                                   : save_prefs_.last_open_dir.c_str();
+                    const auto& open_filters = views::dialogFiltersFor(
+                        tex::FmtCap::Read, /*allSupported=*/true, /*allFiles=*/true);
                     SDL_ShowOpenFileDialog(file_dialog_callback, &open_dialog_state_, window_,
-                                           OPEN_FILTERS, static_cast<i32>(std::size(OPEN_FILTERS)),
-                                           default_dir, false);
+                                           open_filters.data(),
+                                           static_cast<i32>(open_filters.size()), default_dir,
+                                           false);
                 },
                 [&](ShowSaveDialogCmd&) {
                     bool is_multi_layer = false;

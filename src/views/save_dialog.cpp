@@ -29,28 +29,28 @@ using namespace models;
 void SaveDialog::buildFilterOrder(const SavePrefs& prefs, bool is_multi_layer) {
     is_multi_layer_ = is_multi_layer;
 
+    // Base list of writable formats, in registry (FmtCap::Write) order.
+    const auto& base = dialogFiltersFor(tex::FmtCap::Write, /*allSupported=*/false,
+                                        /*allFiles=*/false);
+    active_filters_.clear();
+    filter_map_.clear();
+
     if (is_multi_layer) {
         // Only DDS supports multi-layer textures (2D array, cube, cube array).
-        // DDS is at index 2 in SAVE_FILTERS.
-        constexpr i32 kDdsIndex = 2;
-        active_filters_[0] = SAVE_FILTERS[kDdsIndex];
-        filter_map_[0] = kDdsIndex;
-        active_filter_count_ = 1;
+        const i32 dds = tex::capSliceIndex(tex::FmtCap::Write, TFF::DDS);
+        active_filters_.push_back(base[dds]);
+        filter_map_.push_back(dds);
         return;
     }
 
-    active_filter_count_ = SAVE_FILTER_COUNT;
-    const i32 preferred = std::clamp(prefs.last_filter, 0, SAVE_FILTER_COUNT - 1);
-    filter_map_[0] = preferred;
-    i32 slot = 1;
-    for (i32 i = 0; i < SAVE_FILTER_COUNT; ++i) {
-        if (i != preferred) {
-            filter_map_[slot++] = i;
-        }
-    }
-    for (i32 i = 0; i < SAVE_FILTER_COUNT; ++i) {
-        active_filters_[i] = SAVE_FILTERS[filter_map_[i]];
-    }
+    const i32 count = static_cast<i32>(base.size());
+    const i32 preferred = std::clamp(prefs.last_filter, 0, count - 1);
+    filter_map_.push_back(preferred);
+    for (i32 i = 0; i < count; ++i)
+        if (i != preferred)
+            filter_map_.push_back(i);
+    for (i32 idx : filter_map_)
+        active_filters_.push_back(base[idx]);
 }
 
 // ============================================================================
@@ -62,7 +62,7 @@ void SaveDialog::onFileChosen(const std::string& path, i32 filter_idx, SavePrefs
     // Append extension if missing
     std::string final_path = path;
     if (std::filesystem::path(final_path).extension().empty() && filter_idx >= 0 &&
-        filter_idx < SAVE_FILTER_COUNT) {
+        filter_idx < static_cast<i32>(active_filters_.size())) {
         std::string_view pat = active_filters_[filter_idx].pattern;
         auto sep = pat.find(';');
         final_path += '.';
@@ -73,7 +73,7 @@ void SaveDialog::onFileChosen(const std::string& path, i32 filter_idx, SavePrefs
     opts_.target_format = TC::classifyPath(final_path);
 
     // Map reordered index back to original
-    if (filter_idx >= 0 && filter_idx < SAVE_FILTER_COUNT) {
+    if (filter_idx >= 0 && filter_idx < static_cast<i32>(filter_map_.size())) {
         prefs.last_filter = filter_map_[filter_idx];
     }
 
