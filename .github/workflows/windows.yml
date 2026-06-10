@@ -94,6 +94,19 @@ jobs:
           # Bundled docs (mirrors the CMake POST_BUILD copy).
           Copy-Item LICENSE.md,LICENSE-AI.md,README.md,THIRD_PARTY.md $stage/
 
+          # Localization catalogs (lang/*.ini) and the bundled CJK fonts
+          # (fonts/*.ttf), next to the exe where SDL_GetBasePath() resolves
+          # them at runtime (mirrors the CMake WhiteoutTexAssets copy).
+          Copy-Item resources/lang  $stage/lang  -Recurse
+          Copy-Item resources/fonts $stage/fonts -Recurse
+
+          # Community CASC listfile, next to the exe as listfile.csv where
+          # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath().
+          # Always pull the latest release so new game files resolve.
+          curl.exe -L --fail `
+            -o "$stage/listfile.csv" `
+            https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv
+
           # Real-ESRGAN model weights, into models/ next to the exe (where
           # SDL_GetBasePath() resolves the upscaler's model dir on Windows).
           # Weights are platform-independent; pulled from the official

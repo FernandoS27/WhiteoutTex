@@ -134,6 +134,23 @@ jobs:
             -exec cp -v {} "${APP}/Contents/Resources/models/" \;
           rm -rf "${mtmp}"
 
+          # Localization catalogs (lang/*.ini) and the bundled CJK fonts
+          # (fonts/*.ttf). On macOS bundles SDL_GetBasePath() returns
+          # Contents/Resources/, so the app loads lang/ and fonts/ from there
+          # (mirrors the CMake WhiteoutTexAssets copy). Staged before codesign
+          # so the signature covers them.
+          cp -Rv resources/lang  "${APP}/Contents/Resources/lang"
+          cp -Rv resources/fonts "${APP}/Contents/Resources/fonts"
+
+          # Community CASC listfile as listfile.csv where
+          # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath()
+          # (Contents/Resources/ for a macOS bundle). Always pull the latest
+          # release so new game files resolve. Staged before codesign so the
+          # signature covers it.
+          curl -L --fail \
+            -o "${APP}/Contents/Resources/listfile.csv" \
+            https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv
+
           # Vulkan on macOS is provided by MoltenVK. The loader (libvulkan,
           # bundled by dylibbundler since the binary links it) discovers an ICD
           # via the bundle's Resources/vulkan/icd.d directory, so ship MoltenVK

@@ -113,6 +113,19 @@ jobs:
             -exec cp -v {} "${APPDIR}/usr/bin/models/" \;
           rm -rf "${mtmp}"
 
+          # Localization catalogs (lang/*.ini) and the bundled CJK fonts
+          # (fonts/*.ttf), next to the binary where SDL_GetBasePath() resolves
+          # them at runtime (mirrors the CMake WhiteoutTexAssets copy).
+          cp -av resources/lang  "${APPDIR}/usr/bin/lang"
+          cp -av resources/fonts "${APPDIR}/usr/bin/fonts"
+
+          # Community CASC listfile, next to the binary as listfile.csv where
+          # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath().
+          # Always pull the latest release so new game files resolve.
+          curl -L --fail \
+            -o "${APPDIR}/usr/bin/listfile.csv" \
+            https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv
+
           # SDL3 is built in-tree as a shared library; linuxdeploy bundles
           # transitive deps but needs the primary .so available to ldd.
           find build/externals/SDL -maxdepth 2 -name 'libSDL3.so*' \
