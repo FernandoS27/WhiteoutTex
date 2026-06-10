@@ -178,6 +178,28 @@ void append_save_prefs(const std::string& ini_path, const SavePrefs& prefs) {
     out << "MipmapCustomCount=" << prefs.mipmap_custom_count << "\n";
 }
 
+AppPrefs load_app_prefs(const std::string& ini_path) {
+    AppPrefs prefs;
+    visitIniSection(ini_path, "[WhiteoutTex][AppPrefs]", [&](const std::string& line) {
+        i32 iv = 0;
+        if (line.starts_with("Language="))
+            prefs.language = i18n::languageFromCode(line.substr(9), prefs.language);
+        else if (std::sscanf(line.c_str(), "LanguageChosen=%d", &iv) == 1)
+            prefs.language_chosen = iv != 0;
+    });
+    return prefs;
+}
+
+void append_app_prefs(const std::string& ini_path, const AppPrefs& prefs) {
+    std::ofstream out(ini_path, std::ios::app);
+    if (!out.is_open()) {
+        return;
+    }
+    out << "\n[WhiteoutTex][AppPrefs]\n";
+    out << "Language=" << i18n::languageCode(prefs.language) << "\n";
+    out << "LanguageChosen=" << (prefs.language_chosen ? 1 : 0) << "\n";
+}
+
 BatchPrefs load_batch_prefs(const std::string& ini_path) {
     BatchPrefs prefs;
     visitIniSection(ini_path, "[WhiteoutTex][BatchPrefs]", [&](const std::string& line) {

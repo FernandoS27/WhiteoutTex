@@ -71,6 +71,8 @@ private:
 
     // Paths & preferences
     std::string imgui_ini_path_;
+    std::string lang_dir_;
+    AppPrefs app_prefs_;
     SavePrefs save_prefs_;
     BatchPrefs batch_prefs_;
     RecentFiles recent_files_;

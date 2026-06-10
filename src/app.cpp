@@ -212,6 +212,29 @@ void App::initImGui() {
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
 
+    // Fonts: the default font covers Latin (incl. Latin-1 accents for ES/DE/FR/IT).
+    // Merge CJK fonts so the non-Latin languages render.  Noto Sans SC already
+    // covers Cyrillic (Russian), Simplified + Traditional Han and Japanese kana;
+    // Noto Sans KR adds Korean Hangul.  With ImGui 1.92's RendererHasTextures
+    // backend, glyphs rasterize on demand — no glyph ranges or atlas rebuilds are
+    // needed, so this one-time merge serves every language.
+    io.Fonts->AddFontDefault();
+    const std::filesystem::path fonts_dir =
+        std::filesystem::path(lang_dir_).parent_path() / "fonts";
+    for (const char* font_file : {"NotoSansSC-Regular.ttf", "NotoSansKR-Regular.ttf"}) {
+        const std::filesystem::path font_path = fonts_dir / font_file;
+        if (std::filesystem::exists(font_path)) {
+            ImFontConfig cfg;
+            cfg.MergeMode = true;
+            // Build a stable narrow string for ImGui (UTF-8 path on disk).
+            const std::string font_str = font_path.string();
+            io.Fonts->AddFontFromFileTTF(font_str.c_str(), 0.0f, &cfg);
+        } else {
+            SDL_Log("CJK font not found at %s; some glyphs may not render.",
+                    font_path.string().c_str());
+        }
+    }
+
     ImGui_ImplSDL3_InitForSDLRenderer(window_, renderer_);
     ImGui_ImplSDLRenderer3_Init(renderer_);
 }
@@ -226,6 +249,7 @@ void App::shutdown() {
     if (final_w > 0 && final_h > 0) {
         append_saved_host_window_size(imgui_ini_path_, final_w, final_h);
     }
+    append_app_prefs(imgui_ini_path_, app_prefs_);
     append_save_prefs(imgui_ini_path_, save_prefs_);
     append_batch_prefs(imgui_ini_path_, batch_prefs_);
     append_recent_files(imgui_ini_path_, recent_files_);
@@ -394,6 +418,11 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                 },
                 [&](ShowAboutCmd&) { ui_.show_about = true; },
                 [&](ClearRecentFilesCmd&) { recent_files_.paths.clear(); },
+                [&](SetLanguageCmd& c) {
+                    app_prefs_.language = c.language;
+                    app_prefs_.language_chosen = true;
+                    i18n::Localizer::instance().setLanguage(c.language);
+                },
                 [&](LoadCascTextureCmd& c) {
                     TextureLoadResult load_result;
                     if (c.is_d4_tex) {
@@ -485,12 +514,20 @@ i32 App::run(i32 argc, char** argv) {
     if (!initSDL())
         return 1;
 
-    // Prepare INI path
+    // Prepare INI + resource paths (next to the executable).
     if (const char* base_path = SDL_GetBasePath(); base_path) {
-        imgui_ini_path_ = (std::filesystem::path(base_path) / "config.ini").string();
+        const std::filesystem::path base(base_path);
+        imgui_ini_path_ = (base / "config.ini").string();
+        lang_dir_ = (base / "lang").string();
     } else {
         imgui_ini_path_ = "config.ini";
+        lang_dir_ = "lang";
     }
+
+    app_prefs_ = load_app_prefs(imgui_ini_path_);
+    i18n::Localizer::instance().load(lang_dir_, app_prefs_.language);
+    // First run (no language chosen yet) → prompt the user to pick one.
+    ui_.show_language_prompt = !app_prefs_.language_chosen;
 
     save_prefs_ = load_save_prefs(imgui_ini_path_);
     batch_prefs_ = load_batch_prefs(imgui_ini_path_);
@@ -557,8 +594,8 @@ i32 App::run(i32 argc, char** argv) {
 #else
                 false;
 #endif
-            auto cmds =
-                drawMenuBar(tex_state_.texture.has_value(), recent_files_.paths, kHasUpscaler);
+            auto cmds = drawMenuBar(tex_state_.texture.has_value(), recent_files_.paths,
+                                    kHasUpscaler, app_prefs_.language);
             dispatchCommands(cmds);
         }
 
@@ -602,14 +639,14 @@ i32 App::run(i32 argc, char** argv) {
 
         // Right panel: image preview
         ImGui::BeginChild("##ImagePanel", ImVec2(0.0f, available_height), ImGuiChildFlags_Borders);
-        ImGui::SeparatorText("Image Preview");
+        ImGui::SeparatorText(i18n::tr("app.image_preview"));
 
         if (viewer_.hasImage()) {
             viewer_.draw(renderer_);
         } else if (!tex_state_.status_message.empty()) {
             ImGui::TextWrapped("%s", tex_state_.status_message.c_str());
         } else {
-            ImGui::Text("No image loaded. Use File > Open to load a texture.");
+            ImGui::TextUnformatted(i18n::tr("app.no_image_loaded"));
         }
         ImGui::EndChild();
 
@@ -631,6 +668,10 @@ i32 App::run(i32 argc, char** argv) {
             dispatchCommands(cmds);
         }
 
+        {
+            auto cmds = drawLanguagePrompt(ui_.show_language_prompt, app_prefs_.language);
+            dispatchCommands(cmds);
+        }
         drawAboutDialog(ui_.show_about);
         drawResultDialog(ui_);
         {

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common_types.h"
+#include "localization.h"
 
 #include <algorithm>
 #include <string>
@@ -159,6 +160,20 @@ struct BatchPrefs {
     // Transformation pipeline
     std::vector<TransformStep> transform_pipeline;
 };
+
+/// Application-wide preferences persisted in the [WhiteoutTex][AppPrefs] section.
+struct AppPrefs {
+    i18n::Language language = i18n::Language::English;
+    /// False until the user has explicitly chosen a language at least once.
+    /// Drives the first-run language picker.
+    bool language_chosen = false;
+};
+
+/// Load the [WhiteoutTex][AppPrefs] section.
+AppPrefs load_app_prefs(const std::string& ini_path);
+
+/// Append the [WhiteoutTex][AppPrefs] section.
+void append_app_prefs(const std::string& ini_path, const AppPrefs& prefs);
 
 /// Load the [WhiteoutTex][SavePrefs] section.
 SavePrefs load_save_prefs(const std::string& ini_path);

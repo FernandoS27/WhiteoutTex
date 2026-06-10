@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "localization.h"
 #include "models/commands.h"
 #include "preferences.h"
 #include "texture_converter.h"
@@ -24,33 +25,34 @@ namespace whiteout::textool::views {
 /// (FmtCap::Write) via dialogFiltersFor() in save_helpers.h — there is no
 /// hand-maintained array here.
 
-/// Entry mapping a human-readable name to a TextureKind enum value.
+/// Entry mapping a localization key to a TextureKind enum value.  Use
+/// kindLabel() / textureKindName() to obtain the translated display string.
 struct KindEntry {
-    const char* name;
+    const char* key; ///< Localization key, e.g. "kind.diffuse".
     whiteout::textures::TextureKind kind;
 };
 
 /// Kinds selectable in the top-level Kind combo (excludes deprecated ORM and internal Unused).
 inline constexpr KindEntry kSelectableKinds[] = {
     // clang-format off
-    {"Other",              whiteout::textures::TextureKind::Other},
-    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
-    {"Normal",             whiteout::textures::TextureKind::Normal},
-    {"Specular",           whiteout::textures::TextureKind::Specular},
-    {"Albedo",             whiteout::textures::TextureKind::Albedo},
-    {"Roughness",          whiteout::textures::TextureKind::Roughness},
-    {"Metalness",          whiteout::textures::TextureKind::Metalness},
-    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
-    {"Gloss",              whiteout::textures::TextureKind::Gloss},
-    {"Emissive",           whiteout::textures::TextureKind::Emissive},
-    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
-    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
-    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
-    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
-    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
-    {"Environment (PBR)",  whiteout::textures::TextureKind::EnvironmentPBR},
-    {"Environment (Legacy)", whiteout::textures::TextureKind::EnvironmentLegacy},
-    {"Multi-Kind",         whiteout::textures::TextureKind::Multikind},
+    {"kind.other",              whiteout::textures::TextureKind::Other},
+    {"kind.diffuse",            whiteout::textures::TextureKind::Diffuse},
+    {"kind.normal",             whiteout::textures::TextureKind::Normal},
+    {"kind.specular",           whiteout::textures::TextureKind::Specular},
+    {"kind.albedo",             whiteout::textures::TextureKind::Albedo},
+    {"kind.roughness",          whiteout::textures::TextureKind::Roughness},
+    {"kind.metalness",          whiteout::textures::TextureKind::Metalness},
+    {"kind.ao",                 whiteout::textures::TextureKind::AmbientOcclusion},
+    {"kind.gloss",              whiteout::textures::TextureKind::Gloss},
+    {"kind.emissive",           whiteout::textures::TextureKind::Emissive},
+    {"kind.alpha_mask",         whiteout::textures::TextureKind::AlphaMask},
+    {"kind.binary_mask",        whiteout::textures::TextureKind::BinaryMask},
+    {"kind.transparency_mask",  whiteout::textures::TextureKind::TransparencyMask},
+    {"kind.blend_mask",         whiteout::textures::TextureKind::BlendMask},
+    {"kind.lightmap",           whiteout::textures::TextureKind::Lightmap},
+    {"kind.env_pbr",            whiteout::textures::TextureKind::EnvironmentPBR},
+    {"kind.env_legacy",         whiteout::textures::TextureKind::EnvironmentLegacy},
+    {"kind.multikind",          whiteout::textures::TextureKind::Multikind},
     // clang-format on
 };
 inline constexpr i32 kSelectableKindCount = static_cast<i32>(std::size(kSelectableKinds));
@@ -58,35 +60,40 @@ inline constexpr i32 kSelectableKindCount = static_cast<i32>(std::size(kSelectab
 /// Kinds selectable per-channel inside a Multikind texture.
 inline constexpr KindEntry kChannelKinds[] = {
     // clang-format off
-    {"Unused",             whiteout::textures::TextureKind::Unused},
-    {"Roughness",          whiteout::textures::TextureKind::Roughness},
-    {"Metalness",          whiteout::textures::TextureKind::Metalness},
-    {"Ambient Occlusion",  whiteout::textures::TextureKind::AmbientOcclusion},
-    {"Gloss",              whiteout::textures::TextureKind::Gloss},
-    {"Albedo",             whiteout::textures::TextureKind::Albedo},
-    {"Diffuse",            whiteout::textures::TextureKind::Diffuse},
-    {"Normal",             whiteout::textures::TextureKind::Normal},
-    {"Specular",           whiteout::textures::TextureKind::Specular},
-    {"Emissive",           whiteout::textures::TextureKind::Emissive},
-    {"Alpha Mask",         whiteout::textures::TextureKind::AlphaMask},
-    {"Binary Mask",        whiteout::textures::TextureKind::BinaryMask},
-    {"Transparency Mask",  whiteout::textures::TextureKind::TransparencyMask},
-    {"Blend Mask",         whiteout::textures::TextureKind::BlendMask},
-    {"Lightmap",           whiteout::textures::TextureKind::Lightmap},
+    {"kind.unused",             whiteout::textures::TextureKind::Unused},
+    {"kind.roughness",          whiteout::textures::TextureKind::Roughness},
+    {"kind.metalness",          whiteout::textures::TextureKind::Metalness},
+    {"kind.ao",                 whiteout::textures::TextureKind::AmbientOcclusion},
+    {"kind.gloss",              whiteout::textures::TextureKind::Gloss},
+    {"kind.albedo",             whiteout::textures::TextureKind::Albedo},
+    {"kind.diffuse",            whiteout::textures::TextureKind::Diffuse},
+    {"kind.normal",             whiteout::textures::TextureKind::Normal},
+    {"kind.specular",           whiteout::textures::TextureKind::Specular},
+    {"kind.emissive",           whiteout::textures::TextureKind::Emissive},
+    {"kind.alpha_mask",         whiteout::textures::TextureKind::AlphaMask},
+    {"kind.binary_mask",        whiteout::textures::TextureKind::BinaryMask},
+    {"kind.transparency_mask",  whiteout::textures::TextureKind::TransparencyMask},
+    {"kind.blend_mask",         whiteout::textures::TextureKind::BlendMask},
+    {"kind.lightmap",           whiteout::textures::TextureKind::Lightmap},
     // clang-format on
 };
 inline constexpr i32 kChannelKindCount = static_cast<i32>(std::size(kChannelKinds));
 
-/// Look up the display name for any TextureKind value.
+/// Translated display label for a kind-table entry.
+inline const char* kindLabel(const KindEntry& e) {
+    return i18n::tr(e.key);
+}
+
+/// Look up the translated display name for any TextureKind value.
 inline const char* textureKindName(whiteout::textures::TextureKind k) {
     for (const auto& e : kSelectableKinds)
         if (e.kind == k)
-            return e.name;
+            return i18n::tr(e.key);
     if (k == whiteout::textures::TextureKind::Unused)
-        return "Unused";
+        return i18n::tr("kind.unused");
     if (k == whiteout::textures::TextureKind::ORM)
-        return "ORM (Legacy)";
-    return "Unknown";
+        return i18n::tr("kind.orm");
+    return i18n::tr("kind.unknown");
 }
 
 /// Human-readable names for BLP encoding indices (0–6).
@@ -148,12 +155,13 @@ inline whiteout::textures::PixelFormat blpDxtPixelFormat(i32 index) noexcept {
 /// @p maxMips   Maximum possible mip count for the current texture
 ///              (pass 0 if unknown, e.g. batch mode without a loaded texture).
 inline void drawMipmapModeUI(bool& generate, MipmapMode& mode, i32& customCount, i32 maxMips = 0) {
-    ImGui::Checkbox("Generate Mipmaps", &generate);
+    ImGui::Checkbox(i18n::tr("save.gen_mipmaps"), &generate);
     if (!generate)
         return;
-    constexpr const char* MIPMAP_MODE_NAMES[] = {"Keep Original", "Maximum", "Custom"};
+    const char* MIPMAP_MODE_NAMES[] = {i18n::tr("save.mip_mode_keep"), i18n::tr("save.mip_mode_max"),
+                                       i18n::tr("save.mip_mode_custom")};
     i32 modeIdx = static_cast<i32>(mode);
-    if (ImGui::Combo("Mipmap Mode", &modeIdx, MIPMAP_MODE_NAMES,
+    if (ImGui::Combo(i18n::tr("save.mipmap_mode"), &modeIdx, MIPMAP_MODE_NAMES,
                      static_cast<i32>(std::size(MIPMAP_MODE_NAMES)))) {
         mode = static_cast<MipmapMode>(modeIdx);
     }
@@ -161,11 +169,11 @@ inline void drawMipmapModeUI(bool& generate, MipmapMode& mode, i32& customCount,
         const i32 lo = 1;
         const i32 hi = maxMips > 0 ? maxMips : 16;
         customCount = std::clamp(customCount, lo, hi);
-        ImGui::InputInt("Mipmap Count", &customCount);
+        ImGui::InputInt(i18n::tr("save.mipmap_count"), &customCount);
         customCount = std::clamp(customCount, lo, hi);
         if (maxMips > 0) {
             ImGui::SameLine();
-            ImGui::TextDisabled("(max %d)", maxMips);
+            ImGui::TextDisabled(i18n::tr("save.mipmap_max"), maxMips);
         }
     }
 }

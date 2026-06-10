@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "localization.h"
 #include "models/app_state.h"
 #include "models/commands.h"
 
@@ -18,6 +19,12 @@ namespace whiteout::textool::views {
 
 /// Draw the About WhiteoutTex popup.
 void drawAboutDialog(bool& show);
+
+/// Draw the first-run language picker (modal, no dismiss — the user must choose).
+/// @param show     Trigger/visibility flag; cleared once a language is picked.
+/// @param current  Currently active language (for the selection highlight).
+/// Returns SetLanguageCmd when the user picks a language.
+std::vector<models::AppCommand> drawLanguagePrompt(bool& show, i18n::Language current);
 
 /// Draw the generic result popup (success/error message).
 void drawResultDialog(models::UIFlags& ui);

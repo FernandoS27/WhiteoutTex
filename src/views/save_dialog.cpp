@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Fernando Sahmkow
 
+#include "localization.h"
 #include "save_dialog.h"
 #include "save_helpers.h"
 #include "thread_pool_manager.h"
@@ -21,6 +22,7 @@ using TC = tex::TextureConverter;
 namespace whiteout::textool::views {
 
 using namespace models;
+using i18n::tr;
 
 // ============================================================================
 // Filter ordering
@@ -103,15 +105,15 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
     }
     centerNextWindow();
     if (ImGui::BeginPopupModal("Overwrite?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("File already exists:\n  %s\n\nOverwrite?", opts_.save_path.c_str());
+        ImGui::Text(tr("save.overwrite_exists"), opts_.save_path.c_str());
         ImGui::Separator();
-        if (ImGui::Button("Yes", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("save.yes"), ImVec2(120, 0))) {
             opts_.confirm_overwrite = false;
             opts_.show_dialog = true;
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("No", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("save.no"), ImVec2(120, 0))) {
             opts_.confirm_overwrite = false;
             ImGui::CloseCurrentPopup();
         }
@@ -125,11 +127,11 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
     centerNextWindow();
     if (ImGui::BeginPopupModal("Save Options", &opts_.show_dialog,
                                ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Saving to: %s", opts_.save_path.c_str());
-        ImGui::Text("Format: %s", TC::fileFormatName(opts_.target_format));
+        ImGui::Text(tr("save.saving_to"), opts_.save_path.c_str());
+        ImGui::Text(tr("save.format"), TC::fileFormatName(opts_.target_format));
         if (is_multi_layer_)
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
-                               "Multi-layer textures can only be saved as DDS.");
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s",
+                               tr("save.multilayer_dds_only"));
         ImGui::Separator();
 
         // Format-specific options
@@ -143,9 +145,9 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
             break;
 
         case TFF::JPEG:
-            ImGui::SeparatorText("JPEG Options");
-            ImGui::SliderInt("Quality", &opts_.prefs.jpeg_quality, 1, 100);
-            ImGui::Checkbox("Progressive", &opts_.prefs.jpeg_progressive);
+            ImGui::SeparatorText(tr("save.jpeg_options"));
+            ImGui::SliderInt(tr("save.quality"), &opts_.prefs.jpeg_quality, 1, 100);
+            ImGui::Checkbox(tr("save.progressive"), &opts_.prefs.jpeg_progressive);
             break;
 
         default:
@@ -153,14 +155,14 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
         }
 
         // Common options
-        ImGui::SeparatorText("Common Options");
+        ImGui::SeparatorText(tr("save.common_options"));
         {
             auto cur = static_cast<tex::TextureKind>(opts_.texture_kind);
             const char* preview = textureKindName(cur);
-            if (ImGui::BeginCombo("Texture Kind", preview)) {
+            if (ImGui::BeginCombo(tr("save.texture_kind"), preview)) {
                 for (i32 i = 0; i < kSelectableKindCount; ++i) {
                     bool selected = (kSelectableKinds[i].kind == cur);
-                    if (ImGui::Selectable(kSelectableKinds[i].name, selected))
+                    if (ImGui::Selectable(kindLabel(kSelectableKinds[i]), selected))
                         opts_.texture_kind = static_cast<i32>(kSelectableKinds[i].kind);
                     if (selected)
                         ImGui::SetItemDefaultFocus();
@@ -181,7 +183,7 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
         const bool save_blocked = is_multi_layer_ && opts_.target_format != TFF::DDS;
         if (save_blocked)
             ImGui::BeginDisabled();
-        if (ImGui::Button("Save", ImVec2(120, 0)) && loaded_texture) {
+        if (ImGui::Button(tr("save.save"), ImVec2(120, 0)) && loaded_texture) {
             std::string status = performSave(converter, *loaded_texture, prefs);
             if (!status.empty()) {
                 bool ok = status.starts_with("Saved:");
@@ -193,7 +195,7 @@ std::vector<AppCommand> SaveDialog::draw(TC& converter, const tex::Texture* load
         if (save_blocked)
             ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("save.cancel"), ImVec2(120, 0))) {
             opts_.show_dialog = false;
             ImGui::CloseCurrentPopup();
         }
@@ -214,7 +216,7 @@ void SaveDialog::drawBlpOptions() {
 }
 
 void SaveDialog::drawDdsOptions() {
-    ImGui::SeparatorText("DDS Options");
+    ImGui::SeparatorText(tr("save.dds_options"));
 
     const auto tk_kind = static_cast<tex::TextureKind>(opts_.texture_kind);
     const i32* allowed;
@@ -224,7 +226,7 @@ void SaveDialog::drawDdsOptions() {
 
     char preset_label[128];
     {
-        i32 n = std::snprintf(preset_label, sizeof(preset_label), "Preset: %s — ",
+        i32 n = std::snprintf(preset_label, sizeof(preset_label), tr("save.preset"),
                               textureKindName(static_cast<tex::TextureKind>(opts_.texture_kind)));
         for (i32 i = 0; i < allowed_count && n < (i32)sizeof(preset_label) - 1; ++i) {
             if (i > 0)
@@ -235,7 +237,7 @@ void SaveDialog::drawDdsOptions() {
     }
     ImGui::TextDisabled("%s", preset_label);
 
-    if (ImGui::BeginCombo("Pixel Format", DDS_FORMAT_NAMES[opts_.prefs.dds_format])) {
+    if (ImGui::BeginCombo(tr("save.pixel_format"), DDS_FORMAT_NAMES[opts_.prefs.dds_format])) {
         for (i32 i = 0; i < allowed_count; ++i) {
             bool selected = (opts_.prefs.dds_format == allowed[i]);
             if (ImGui::Selectable(DDS_FORMAT_NAMES[allowed[i]], selected))
@@ -246,7 +248,7 @@ void SaveDialog::drawDdsOptions() {
         ImGui::EndCombo();
     }
     if (tk_kind == tex::TextureKind::Normal) {
-        ImGui::Checkbox("Invert Y Channel", &opts_.prefs.dds_invert_y);
+        ImGui::Checkbox(tr("save.invert_y"), &opts_.prefs.dds_invert_y);
     }
 }
 

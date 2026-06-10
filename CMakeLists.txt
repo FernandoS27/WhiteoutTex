@@ -17,6 +17,7 @@ add_executable(WhiteoutTex
     src/main.cpp
     src/app.cpp
     src/preferences.cpp
+    src/localization.cpp
     src/texture_converter.cpp
     src/format_registry.cpp
     src/thread_pool_manager.cpp
@@ -89,6 +90,22 @@ add_custom_command(TARGET WhiteoutTex POST_BUILD
         $<TARGET_FILE_DIR:WhiteoutTex>
 )
 
+# Localization catalogs (lang/*.ini) and the bundled CJK fonts (fonts/*.ttf) are
+# loaded at runtime relative to the executable; mirror them next to the binary.
+# Use an ALL custom target (not a POST_BUILD step) so edits to the catalogs/fonts
+# propagate on every build, even when no C++ source changed and the exe is not
+# relinked.  copy_directory_if_different keeps it a no-op when nothing changed.
+add_custom_target(WhiteoutTexAssets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_SOURCE_DIR}/resources/lang"
+        "$<TARGET_FILE_DIR:WhiteoutTex>/lang"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_SOURCE_DIR}/resources/fonts"
+        "$<TARGET_FILE_DIR:WhiteoutTex>/fonts"
+    VERBATIM
+)
+add_dependencies(WhiteoutTexAssets WhiteoutTex)
+
 # ============================================================================
 # WhiteoutTexCLI — optional command-line tool
 # ============================================================================
@@ -98,6 +115,7 @@ if(WHITEOUT_BUILD_CLI)
         src/cli_main.cpp
         src/texture_converter.cpp
         src/format_registry.cpp
+        src/localization.cpp
         src/thread_pool_manager.cpp
         src/psd/parser.cpp
         src/psd/writer.cpp

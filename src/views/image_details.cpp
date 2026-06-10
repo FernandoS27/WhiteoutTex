@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "image_details.h"
+#include "localization.h"
 #include "save_helpers.h"
 
 #include <imgui.h>
@@ -12,6 +13,7 @@ using TC = tex::TextureConverter;
 namespace whiteout::textool::views {
 
 using namespace models;
+using i18n::tr;
 
 // ============================================================================
 // Details panel
@@ -26,30 +28,30 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
     std::vector<AppCommand> commands;
 
     ImGui::BeginChild("##TextPanel", ImVec2(width, height), ImGuiChildFlags_Borders);
-    ImGui::SeparatorText("Image Details");
+    ImGui::SeparatorText(tr("details.image_details"));
 
     if (texture) {
         const auto& t = *texture;
 
-        ImGui::SeparatorText("File");
-        ImGui::Text("Path: %s", path.c_str());
-        ImGui::Text("File Format: %s", TC::fileFormatName(file_format));
+        ImGui::SeparatorText(tr("details.file"));
+        ImGui::Text(tr("details.path"), path.c_str());
+        ImGui::Text(tr("details.file_format"), TC::fileFormatName(file_format));
 
-        ImGui::SeparatorText("Texture");
-        ImGui::Text("Dimensions: %u x %u", t.width(), t.height());
+        ImGui::SeparatorText(tr("details.texture"));
+        ImGui::Text(tr("details.dimensions"), t.width(), t.height());
         if (t.depth() > 1) {
-            ImGui::Text("Depth: %u", t.depth());
+            ImGui::Text(tr("details.depth"), t.depth());
         }
-        ImGui::Text("Type: %s", TC::textureTypeName(t.type()));
-        ImGui::Text("Pixel Format: %s", TC::pixelFormatName(source_fmt));
+        ImGui::Text(tr("details.type"), TC::textureTypeName(t.type()));
+        ImGui::Text(tr("details.pixel_format"), TC::pixelFormatName(source_fmt));
 
         {
             auto cur_kind = t.kind();
             const char* preview = textureKindName(cur_kind);
-            if (ImGui::BeginCombo("Kind", preview)) {
+            if (ImGui::BeginCombo(tr("details.kind"), preview)) {
                 for (i32 i = 0; i < kSelectableKindCount; ++i) {
                     bool selected = (kSelectableKinds[i].kind == cur_kind);
-                    if (ImGui::Selectable(kSelectableKinds[i].name, selected)) {
+                    if (ImGui::Selectable(kindLabel(kSelectableKinds[i]), selected)) {
                         texture->setKind(kSelectableKinds[i].kind);
                         commands.push_back(RefreshDisplayCmd{});
                     }
@@ -61,7 +63,8 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
         }
 
         if (texture->kind() == tex::TextureKind::Multikind) {
-            static const char* kChLabels[] = {"R Channel", "G Channel", "B Channel", "A Channel"};
+            const char* kChLabels[] = {tr("details.channel_r"), tr("details.channel_g"),
+                                       tr("details.channel_b"), tr("details.channel_a")};
             for (i32 ci = 0; ci < 4; ++ci) {
                 auto ch = kRGBAChannels[ci];
                 auto ch_kind = texture->channelKind(ch);
@@ -70,7 +73,7 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
                 if (ImGui::BeginCombo(kChLabels[ci], ch_preview)) {
                     for (i32 ki = 0; ki < kChannelKindCount; ++ki) {
                         bool sel = (kChannelKinds[ki].kind == ch_kind);
-                        if (ImGui::Selectable(kChannelKinds[ki].name, sel)) {
+                        if (ImGui::Selectable(kindLabel(kChannelKinds[ki]), sel)) {
                             texture->setChannelKind(ch, kChannelKinds[ki].kind);
                             commands.push_back(RefreshDisplayCmd{});
                         }
@@ -82,31 +85,31 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
             }
         }
 
-        ImGui::Text("sRGB: %s", t.isSrgb() ? "Yes" : "No");
+        ImGui::Text(tr("details.srgb"), t.isSrgb() ? tr("details.yes") : tr("details.no"));
 
-        ImGui::SeparatorText("Mip Chain");
-        ImGui::Text("Mip Levels: %u", t.mipCount());
-        ImGui::Text("Layers: %u", t.layerCount());
+        ImGui::SeparatorText(tr("details.mip_chain"));
+        ImGui::Text(tr("details.mip_levels"), t.mipCount());
+        ImGui::Text(tr("details.layers"), t.layerCount());
 
         {
             const i32 maxMips = static_cast<i32>(tex::computeMaxMipCount(t.width(), t.height()));
             drawMipmapModeUI(generate_mips_, mipmap_mode_, mipmap_custom_count_, maxMips);
         }
-        if (ImGui::Button("Regenerate Mipmaps")) {
+        if (ImGui::Button(tr("details.regenerate_mipmaps"))) {
             const auto mipCount = effectiveMipCount(mipmap_mode_, mipmap_custom_count_, *texture);
             commands.push_back(RegenerateMipmapsCmd{mipCount});
         }
 
-        if (t.mipCount() > 0 && ImGui::TreeNode("Mip Level Details")) {
+        if (t.mipCount() > 0 && ImGui::TreeNode(tr("details.mip_level_details"))) {
             for (u32 mip = 0; mip < t.mipCount(); ++mip) {
                 const auto& ml = t.mipLevel(mip);
-                ImGui::Text("Mip %u: %u x %u  (%llu bytes)", mip, ml.width, ml.height,
+                ImGui::Text(tr("details.mip_entry"), mip, ml.width, ml.height,
                             static_cast<unsigned long long>(ml.size));
             }
             ImGui::TreePop();
         }
 
-        ImGui::SeparatorText("Downscale");
+        ImGui::SeparatorText(tr("details.downscale"));
         {
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
             ImGui::Combo("##DownscaleLevel", &downscale_level_, kDownscaleOptions,
@@ -117,18 +120,18 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
             const bool can_downscale = new_w >= 1 && new_h >= 1;
             if (!can_downscale)
                 ImGui::BeginDisabled();
-            if (ImGui::Button("Downscale")) {
+            if (ImGui::Button(tr("details.downscale_button"))) {
                 commands.push_back(DownscaleCmd{levels});
             }
             if (!can_downscale) {
                 ImGui::EndDisabled();
-                ImGui::TextWrapped("Image is too small to downscale further.");
+                ImGui::TextWrapped("%s", tr("details.too_small_to_downscale"));
             }
         }
 
 #ifdef WHITEOUT_HAS_UPSCALER
         if (!upscale_models_.empty()) {
-            ImGui::SeparatorText("Upscale");
+            ImGui::SeparatorText(tr("details.upscale"));
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
             if (upscale_in_progress_)
                 ImGui::BeginDisabled();
@@ -143,19 +146,19 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
                 }
                 ImGui::EndCombo();
             }
-            ImGui::Checkbox("Upscale Alpha", &upscale_alpha_);
+            ImGui::Checkbox(tr("details.upscale_alpha"), &upscale_alpha_);
             ImGui::SameLine();
-            if (ImGui::Button("Upscale")) {
+            if (ImGui::Button(tr("details.upscale_button"))) {
                 commands.push_back(StartUpscaleCmd{upscale_model_index_, upscale_alpha_});
             }
             if (upscale_in_progress_) {
                 ImGui::EndDisabled();
-                ImGui::TextUnformatted("Upscaling...");
+                ImGui::TextUnformatted(tr("details.upscaling"));
             }
         }
 #endif
     } else {
-        ImGui::TextWrapped("No image loaded. Use File > Open to load a texture.");
+        ImGui::TextWrapped("%s", tr("details.no_image_loaded"));
     }
     ImGui::EndChild();
 
@@ -172,11 +175,11 @@ std::vector<AppCommand> ImageDetails::drawMipList(const tex::Texture& texture, i
     std::vector<AppCommand> commands;
 
     ImGui::BeginChild("##MipList", ImVec2(width, height), ImGuiChildFlags_Borders);
-    ImGui::SeparatorText("Mip Levels");
+    ImGui::SeparatorText(tr("details.mip_levels_header"));
     for (u32 mip = 0; mip < texture.mipCount(); ++mip) {
         const auto& ml = texture.mipLevel(mip);
         char label[64];
-        std::snprintf(label, sizeof(label), "Mip %u  (%u x %u)", mip, ml.width, ml.height);
+        std::snprintf(label, sizeof(label), tr("details.mip_list_entry"), mip, ml.width, ml.height);
         if (ImGui::Selectable(label, selected_mip == static_cast<i32>(mip))) {
             commands.push_back(SelectMipCmd{static_cast<i32>(mip)});
         }

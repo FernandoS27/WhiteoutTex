@@ -5,6 +5,18 @@ copyright notices and license terms are reproduced here.
 
 ---
 
+## Noto Sans (CJK)
+
+Bundled to render non-Latin UI languages: `fonts/NotoSansSC-Regular.ttf` (Cyrillic,
+Simplified + Traditional Chinese, Japanese kana) and `fonts/NotoSansKR-Regular.ttf`
+(Korean Hangul).
+
+- **Project:** Noto Fonts / Google Fonts
+- **Repository:** <https://github.com/notofonts/noto-cjk>
+- **License:** SIL Open Font License, Version 1.1 (see `fonts/OFL.txt` next to the executable)
+
+---
+
 ## Dear ImGui
 
 - **Repository:** <https://github.com/ocornut/imgui>

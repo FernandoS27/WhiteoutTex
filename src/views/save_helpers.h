@@ -9,6 +9,7 @@
 
 #include "common_types.h"
 #include "format_registry.h"
+#include "localization.h"
 #include "save_dialog.h"
 #include "texture_converter.h"
 
@@ -294,15 +295,20 @@ inline void applyGuessedKind(whiteout::textures::Texture& tex, const std::string
 /// Used by both SaveDialog and BatchConvert.
 inline void drawBlpOptionsUI(i32& blp_version, i32& blp_encoding, bool& blp_dither,
                              f32& blp_dither_strength, i32& jpeg_quality, bool& jpeg_progressive) {
-    ImGui::SeparatorText("BLP Options");
-    ImGui::Combo("BLP Version", &blp_version, "BLP1 (Warcraft 3 Classic)\0BLP2 (WoW)\0");
+    ImGui::SeparatorText(i18n::tr("save.blp_options"));
+    {
+        const char* version_items[] = {i18n::tr("save.blp_version_blp1"),
+                                       i18n::tr("save.blp_version_blp2")};
+        ImGui::Combo(i18n::tr("save.blp_version"), &blp_version, version_items,
+                     static_cast<i32>(std::size(version_items)));
+    }
     {
         const i32* enc_allowed;
         i32 enc_count;
         blpAllowedEncodings(blp_version, enc_allowed, enc_count);
         validateBlpEncoding(blp_version, blp_encoding);
 
-        if (ImGui::BeginCombo("Encoding", BLP_ENCODING_NAMES[blp_encoding])) {
+        if (ImGui::BeginCombo(i18n::tr("save.encoding"), BLP_ENCODING_NAMES[blp_encoding])) {
             for (i32 i = 0; i < enc_count; ++i) {
                 bool selected = (blp_encoding == enc_allowed[i]);
                 if (ImGui::Selectable(BLP_ENCODING_NAMES[enc_allowed[i]], selected))
@@ -314,13 +320,13 @@ inline void drawBlpOptionsUI(i32& blp_version, i32& blp_encoding, bool& blp_dith
         }
     }
     if (blp_encoding == 2) {
-        ImGui::Checkbox("Dither", &blp_dither);
+        ImGui::Checkbox(i18n::tr("save.dither"), &blp_dither);
         if (blp_dither)
-            ImGui::SliderFloat("Dither Strength", &blp_dither_strength, 0.0f, 1.0f);
+            ImGui::SliderFloat(i18n::tr("save.dither_strength"), &blp_dither_strength, 0.0f, 1.0f);
     }
     if (blp_encoding == 3) {
-        ImGui::SliderInt("JPEG Quality", &jpeg_quality, 1, 100);
-        ImGui::Checkbox("JPEG Progressive", &jpeg_progressive);
+        ImGui::SliderInt(i18n::tr("save.jpeg_quality"), &jpeg_quality, 1, 100);
+        ImGui::Checkbox(i18n::tr("save.jpeg_progressive"), &jpeg_progressive);
     }
 }
 

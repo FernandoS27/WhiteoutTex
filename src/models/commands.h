@@ -8,6 +8,7 @@
 ///        Each struct represents a single user intent. Combined into AppCommand variant.
 
 #include "common_types.h"
+#include "localization.h"
 
 #include <string>
 #include <variant>
@@ -82,6 +83,11 @@ struct ShowAboutCmd {};
 /// Request to clear the recent-files list.
 struct ClearRecentFilesCmd {};
 
+/// Request to switch the active UI language.
+struct SetLanguageCmd {
+    i18n::Language language;
+};
+
 // ── Data-carrying commands from views ──────────────────────────────────
 
 /// Load a texture extracted from a CASC archive.
@@ -130,6 +136,7 @@ using AppCommand = std::variant<
     ShowUpscaleDialogCmd,
     ShowAboutCmd,
     ClearRecentFilesCmd,
+    SetLanguageCmd,
     LoadCascTextureCmd,
     ApplyBC3NSwapCmd,
     LoadD4PayloadCmd

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Fernando Sahmkow
 
+#include "localization.h"
 #include "save_dialog.h" // centerNextWindow()
 #include "views/dialogs.h"
 
@@ -48,6 +49,7 @@ constexpr const char* kLicenseText =
 namespace whiteout::textool::views {
 
 using namespace models;
+using i18n::tr;
 
 // ============================================================================
 // About dialog
@@ -55,24 +57,53 @@ using namespace models;
 
 void drawAboutDialog(bool& show) {
     if (show) {
-        ImGui::OpenPopup("About WhiteoutTex");
+        ImGui::OpenPopup(tr("dialog.about.title"));
         show = false;
     }
     centerNextWindow();
-    if (ImGui::BeginPopupModal("About WhiteoutTex", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal(tr("dialog.about.title"), nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::SeparatorText("WhiteoutTex");
-        ImGui::TextUnformatted("A texture viewer and converter for game assets.");
+        ImGui::TextUnformatted(tr("dialog.about.description"));
         ImGui::Spacing();
-        ImGui::SeparatorText("License");
+        ImGui::SeparatorText(tr("dialog.about.license_header"));
         ImGui::TextUnformatted(kLicenseText);
         ImGui::Spacing();
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 120.0f) * 0.5f +
                              ImGui::GetCursorPosX());
-        if (ImGui::Button("Close", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.about.close"), ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
+}
+
+// ============================================================================
+// First-run language picker
+// ============================================================================
+
+std::vector<AppCommand> drawLanguagePrompt(bool& show, i18n::Language current) {
+    std::vector<AppCommand> commands;
+    if (show)
+        ImGui::OpenPopup("##LanguagePrompt");
+    centerNextWindow();
+    // No p_open and no close button: the user must pick a language to dismiss it.
+    if (ImGui::BeginPopupModal("##LanguagePrompt", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted(tr("langprompt.title"));
+        ImGui::Separator();
+        for (const auto& e : i18n::languages()) {
+            const bool selected = e.lang == current;
+            if (ImGui::Selectable(e.endonym, selected)) {
+                commands.push_back(SetLanguageCmd{e.lang});
+                show = false;
+                ImGui::CloseCurrentPopup();
+            }
+        }
+        ImGui::Separator();
+        ImGui::TextDisabled("%s", tr("langprompt.help"));
+        ImGui::EndPopup();
+    }
+    return commands;
 }
 
 // ============================================================================
@@ -88,16 +119,16 @@ void drawResultDialog(UIFlags& ui) {
     if (ImGui::BeginPopupModal("##ResultDialog", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         const bool success = ui.result_popup_success;
         if (success) {
-            ImGui::TextColored(kSuccessColor, "Success");
+            ImGui::TextColored(kSuccessColor, "%s", tr("dialog.result.success"));
         } else {
-            ImGui::TextColored(kErrorColor, "Error");
+            ImGui::TextColored(kErrorColor, "%s", tr("dialog.result.error"));
         }
         ImGui::Separator();
         ImGui::TextUnformatted(ui.result_popup_message.c_str());
         ImGui::Spacing();
         ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - 120.0f) * 0.5f +
                              ImGui::GetCursorPosX());
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.result.ok"), ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -112,20 +143,21 @@ std::vector<AppCommand> drawBC3NDialog(bool& show) {
     std::vector<AppCommand> commands;
 
     if (show) {
-        ImGui::OpenPopup("BC3N Normal Map");
+        ImGui::OpenPopup(tr("dialog.bc3n.title"));
         show = false;
     }
     centerNextWindow();
-    if (ImGui::BeginPopupModal("BC3N Normal Map", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("This DDS uses BC3 compression and is identified as a Normal map.");
-        ImGui::TextUnformatted("Treat it as BC3N (X stored in alpha, Y stored in green)?");
+    if (ImGui::BeginPopupModal(tr("dialog.bc3n.title"), nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted(tr("dialog.bc3n.line1"));
+        ImGui::TextUnformatted(tr("dialog.bc3n.line2"));
         ImGui::Spacing();
-        if (ImGui::Button("Yes", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.bc3n.yes"), ImVec2(120, 0))) {
             commands.push_back(ApplyBC3NSwapCmd{});
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("No", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.bc3n.no"), ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -142,22 +174,22 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
     std::vector<AppCommand> commands;
 
     if (ui.show_d4_payload_dialog) {
-        ImGui::OpenPopup("Diablo IV Payload Required");
+        ImGui::OpenPopup(tr("dialog.d4.title"));
         ui.show_d4_payload_dialog = false;
     }
     centerNextWindow();
-    if (ImGui::BeginPopupModal("Diablo IV Payload Required", nullptr,
+    if (ImGui::BeginPopupModal(tr("dialog.d4.title"), nullptr,
                                ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("This is a Diablo IV TEX file. Pixel data lives in a separate");
-        ImGui::TextUnformatted("payload file that could not be found automatically.");
+        ImGui::TextUnformatted(tr("dialog.d4.line1"));
+        ImGui::TextUnformatted(tr("dialog.d4.line2"));
         ImGui::Spacing();
-        ImGui::TextDisabled("Meta: %s", ui.pending_d4_meta_path.c_str());
+        ImGui::TextDisabled(tr("dialog.d4.meta"), ui.pending_d4_meta_path.c_str());
         ImGui::Spacing();
-        ImGui::TextUnformatted("Payload file path:");
+        ImGui::TextUnformatted(tr("dialog.d4.payload_label"));
         ImGui::SetNextItemWidth(600.0f);
         ImGui::InputText("##d4_payload", ui.d4_payload_path_buf, sizeof(ui.d4_payload_path_buf));
         ImGui::Spacing();
-        ImGui::TextUnformatted("Low-res payload file path (Optional):");
+        ImGui::TextUnformatted(tr("dialog.d4.paylow_label"));
         ImGui::SetNextItemWidth(600.0f);
         ImGui::InputText("##d4_paylow", ui.d4_paylow_path_buf, sizeof(ui.d4_paylow_path_buf));
         ImGui::Spacing();
@@ -169,7 +201,7 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
             ImGui::CloseCurrentPopup();
         };
 
-        if (ImGui::Button("Load", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.d4.load"), ImVec2(120, 0))) {
             const std::string payload_path(ui.d4_payload_path_buf);
             const std::string paylow_path(ui.d4_paylow_path_buf);
             if (!payload_path.empty() && std::filesystem::exists(payload_path)) {
@@ -180,12 +212,12 @@ std::vector<AppCommand> drawD4PayloadDialog(UIFlags& ui) {
                                          : std::string{}});
             } else {
                 commands.push_back(
-                    ShowResultPopupCmd{"Payload file not found: " + payload_path, false});
+                    ShowResultPopupCmd{tr("dialog.d4.not_found") + payload_path, false});
             }
             closeDialog();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.d4.cancel"), ImVec2(120, 0))) {
             closeDialog();
         }
         ImGui::EndPopup();
@@ -210,15 +242,16 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show,
     std::vector<AppCommand> commands;
 
     if (show) {
-        ImGui::OpenPopup("AI Upscale");
+        ImGui::OpenPopup(tr("dialog.upscale.title"));
         show = false;
     }
     centerNextWindow();
-    if (ImGui::BeginPopupModal("AI Upscale", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal(tr("dialog.upscale.title"), nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
         if (!has_gpu) {
-            ImGui::TextColored(kErrorColor, "No Vulkan-capable GPU detected.");
+            ImGui::TextColored(kErrorColor, "%s", tr("dialog.upscale.no_gpu"));
             ImGui::Spacing();
-            if (ImGui::Button("Close", ImVec2(120, 0))) {
+            if (ImGui::Button(tr("dialog.upscale.close"), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -226,28 +259,29 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show,
         }
 
         if (upscaler_models.empty()) {
-            ImGui::TextColored(kErrorColor, "No models found.");
-            ImGui::TextUnformatted("Download models with:");
+            ImGui::TextColored(kErrorColor, "%s", tr("dialog.upscale.no_models"));
+            ImGui::TextUnformatted(tr("dialog.upscale.download_with"));
 #if defined(_WIN32)
             ImGui::TextDisabled("  .\\scripts\\download_models.ps1");
 #else
             ImGui::TextDisabled("  pwsh ./scripts/download_models.ps1");
 #endif
-            ImGui::TextUnformatted("Models directory:");
+            ImGui::TextUnformatted(tr("dialog.upscale.models_dir"));
             ImGui::TextDisabled("  %s", model_dir.string().c_str());
             ImGui::Spacing();
-            if (ImGui::Button("Close", ImVec2(120, 0))) {
+            if (ImGui::Button(tr("dialog.upscale.close"), ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
             return commands;
         }
 
-        ImGui::TextUnformatted("Upscale the current texture using Real-ESRGAN.");
+        ImGui::TextUnformatted(tr("dialog.upscale.intro"));
         ImGui::Spacing();
 
         // Model selector
-        if (ImGui::BeginCombo("Model", upscaler_models[selected_index].display_name.c_str())) {
+        if (ImGui::BeginCombo(tr("dialog.upscale.model"),
+                              upscaler_models[selected_index].display_name.c_str())) {
             for (i32 i = 0; i < static_cast<i32>(upscaler_models.size()); ++i) {
                 bool selected = (i == selected_index);
                 std::string label = upscaler_models[i].label();
@@ -262,7 +296,7 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show,
         if (tex_width > 0 && tex_height > 0) {
             i32 outw = tex_width * model.scale;
             i32 outh = tex_height * model.scale;
-            ImGui::Text("Output: %d x %d (%dx)", outw, outh, model.scale);
+            ImGui::Text(tr("dialog.upscale.output"), outw, outh, model.scale);
         }
 
         ImGui::Spacing();
@@ -274,13 +308,13 @@ std::vector<AppCommand> drawUpscaleDialog(bool& show,
 
         if (is_running)
             ImGui::BeginDisabled();
-        if (ImGui::Button("Upscale", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.upscale.upscale"), ImVec2(120, 0))) {
             if (tex_width > 0 && tex_height > 0) {
                 commands.push_back(StartUpscaleCmd{selected_index, false});
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Close", ImVec2(120, 0))) {
+        if (ImGui::Button(tr("dialog.upscale.close"), ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
         if (is_running)

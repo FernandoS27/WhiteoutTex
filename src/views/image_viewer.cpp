@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "image_viewer.h"
+#include "localization.h"
 #include "save_helpers.h"
 #include "services/texture_service.h"
 #include "thread_pool_manager.h"
@@ -20,6 +21,7 @@ namespace interfaces = whiteout::interfaces;
 namespace whiteout::textool::views {
 
 using namespace services;
+using i18n::tr;
 namespace {
 
 // ── Channel button colors ──────────────────────────────────────────────
@@ -191,11 +193,11 @@ void ImageViewer::draw(SDL_Renderer* renderer) {
 
 void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     // ---- Zoom controls (left) ----
-    if (ImGui::Button("Fit")) {
+    if (ImGui::Button(tr("viewer.fit"))) {
         auto_fit_ = true;
     }
     ImGui::SameLine(0.0f, 4.0f);
-    if (ImGui::Button("1:1")) {
+    if (ImGui::Button(tr("viewer.one_to_one"))) {
         auto_fit_ = false;
         zoom_scale_ = 1.0f;
         pan_offset_ = ImVec2{0.0f, 0.0f};
@@ -209,7 +211,7 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
         const ImVec4 active_col{0.30f, 0.55f, 0.30f, 1.0f};
         if (show_unwrap_)
             ImGui::PushStyleColor(ImGuiCol_Button, active_col);
-        if (ImGui::Button("Unwrap")) {
+        if (ImGui::Button(tr("viewer.unwrap"))) {
             show_unwrap_ = !show_unwrap_;
             if (show_unwrap_)
                 buildUnwrapTexture(renderer);
@@ -257,11 +259,11 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     if (!show_unwrap_ && (is_cube_array_ || is_2d_array_)) {
         ImGui::SetNextItemWidth(kArrayComboW);
         char arr_preview[16];
-        std::snprintf(arr_preview, sizeof(arr_preview), "Array %d", selected_array_index_);
+        std::snprintf(arr_preview, sizeof(arr_preview), tr("viewer.array"), selected_array_index_);
         if (ImGui::BeginCombo("##arr", arr_preview)) {
             for (i32 i = 0; i < array_size_; ++i) {
                 char item[16];
-                std::snprintf(item, sizeof(item), "Array %d", i);
+                std::snprintf(item, sizeof(item), tr("viewer.array"), i);
                 const bool is_selected = (i == selected_array_index_);
                 if (ImGui::Selectable(item, is_selected)) {
                     selected_array_index_ = i;

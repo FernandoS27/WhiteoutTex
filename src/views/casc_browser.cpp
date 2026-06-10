@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "casc_browser.h"
+#include "localization.h"
 #include "preferences.h"
 
 #include <algorithm>
@@ -19,6 +20,7 @@ namespace whiteout::textool::views {
 
 using namespace models;
 using namespace services;
+using i18n::tr;
 
 // ============================================================================
 // Online product / region tables
@@ -51,8 +53,8 @@ constexpr OnlineProduct kOnlineProducts[] = {
 };
 
 constexpr const char* kRegionCodes[] = {"us", "eu", "kr", "cn", "tw"};
-constexpr const char* kRegionNames[] = {
-    "US (Americas)", "EU (Europe)", "KR (Korea)", "CN (China)", "TW (Taiwan)"};
+constexpr const char* kRegionNameKeys[] = {
+    "region.us", "region.eu", "region.kr", "region.cn", "region.tw"};
 
 /// Returns a label for the given progress step.  Only the steps the library
 /// actually emits on the online path (0, 2, 6) are listed; everything else
@@ -61,11 +63,11 @@ constexpr const char* kRegionNames[] = {
 /// library never delivers.
 const char* connectStepLabel(int8_t step) {
     switch (step) {
-        case 0:  return "Loading build + CDN configs...";
-        case 2:  return "Loading archive indexes...";
-        case 6:  return "Downloading file list...";
-        case 7:  return "Downloading file list...";
-        default: return "Contacting Blizzard CDN...";
+        case 0:  return tr("casc.step_loading_configs");
+        case 2:  return tr("casc.step_loading_indexes");
+        case 6:  return tr("casc.step_downloading_list");
+        case 7:  return tr("casc.step_downloading_list");
+        default: return tr("casc.step_contacting_cdn");
     }
 }
 
@@ -392,17 +394,17 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
     const bool is_connecting = casc_service_.isConnecting();
 
     ImGui::SetNextWindowSize(ImVec2(700, 500), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Storage Browser", &show_window_)) {
+    if (ImGui::Begin(tr("casc.window_title"), &show_window_)) {
 
         // ── Mode toggle (Local / Online) — disabled while connecting ───
         if (is_connecting)
             ImGui::BeginDisabled();
 
         const BrowserMode prev_mode = mode_;
-        if (ImGui::RadioButton("Local",  mode_ == BrowserMode::Local))
+        if (ImGui::RadioButton(tr("casc.mode_local"),  mode_ == BrowserMode::Local))
             mode_ = BrowserMode::Local;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Online", mode_ == BrowserMode::Online))
+        if (ImGui::RadioButton(tr("casc.mode_online"), mode_ == BrowserMode::Online))
             mode_ = BrowserMode::Online;
         if (prev_mode != mode_) {
             casc_service_.close();
@@ -414,13 +416,13 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
 
         if (mode_ == BrowserMode::Local) {
             // ── Local: storage path row ────────────────────────────────
-            ImGui::Text("Storage Path:");
+            ImGui::TextUnformatted(tr("casc.storage_path"));
             ImGui::SameLine();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::InputText("##casc_path", storage_path_buf_, sizeof(storage_path_buf_));
 
             // ── Buttons row ────────────────────────────────────────────
-            if (ImGui::Button("Browse Folder...")) {
+            if (ImGui::Button(tr("casc.browse_folder"))) {
 #ifdef __APPLE__
                 // SDL's NSOpenPanel wrapper doesn't expose
                 // `treatsFilePackagesAsDirectories`, which blocks picking
@@ -435,7 +437,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
 #endif
             }
             ImGui::SameLine();
-            if (ImGui::Button("Browse Archive...")) {
+            if (ImGui::Button(tr("casc.browse_archive"))) {
                 static const SDL_DialogFileFilter kArchiveFilter[] = {
                     {"Blizzard Archives", "mpq;w3n;w3m;w3x;SC2Map;SC2Mod"},
                     {"All Files",         "*"},
@@ -445,7 +447,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
                                        nullptr, false);
             }
             ImGui::SameLine();
-            if (ImGui::Button("Recent...") && !recent_paths.paths.empty())
+            if (ImGui::Button(tr("casc.recent")) && !recent_paths.paths.empty())
                 ImGui::OpenPopup("##recent_paths");
             if (ImGui::BeginPopup("##recent_paths")) {
                 for (const auto& p : recent_paths.paths) {
@@ -455,7 +457,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
                 ImGui::EndPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Open")) {
+            if (ImGui::Button(tr("casc.open"))) {
                 openLocalStorage();
                 if (casc_service_.isOpen() || mpq_service_.isOpen()) {
                     recent_paths.push(std::string(storage_path_buf_));
@@ -463,7 +465,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
             }
         } else {
             // ── Online: product + region row ───────────────────────────
-            ImGui::Text("Product:");
+            ImGui::TextUnformatted(tr("casc.product_label"));
             ImGui::SameLine();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 260.0f);
             if (ImGui::BeginCombo("##casc_product",
@@ -480,10 +482,10 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
             }
             ImGui::SameLine();
             ImGui::SetNextItemWidth(130.0f);
-            if (ImGui::BeginCombo("##casc_region", kRegionNames[selected_region_idx_])) {
+            if (ImGui::BeginCombo("##casc_region", tr(kRegionNameKeys[selected_region_idx_]))) {
                 for (int i = 0; i < static_cast<int>(std::size(kRegionCodes)); ++i) {
                     const bool selected = (selected_region_idx_ == i);
-                    if (ImGui::Selectable(kRegionNames[i], selected))
+                    if (ImGui::Selectable(tr(kRegionNameKeys[i]), selected))
                         selected_region_idx_ = i;
                     if (selected)
                         ImGui::SetItemDefaultFocus();
@@ -491,7 +493,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
                 ImGui::EndCombo();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Connect")) {
+            if (ImGui::Button(tr("casc.connect"))) {
                 loadListfileFromExeDir();
                 status_.clear();
                 const char* product = kOnlineProducts[selected_product_idx_].product_code;
@@ -513,22 +515,22 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
         if (casc_service_.isOpen() || mpq_service_.isOpen()) {
             ImGui::Separator();
             if (!product_name_.empty()) {
-                ImGui::Text("Product: %s", product_name_.c_str());
+                ImGui::Text(tr("casc.product_value"), product_name_.c_str());
             }
             if (local_kind_ == LocalKind::Mpq) {
-                ImGui::Text("Textures: %zu", mpq_service_.files().size());
+                ImGui::Text(tr("casc.textures_count"), mpq_service_.files().size());
             } else {
-                ImGui::Text("Textures: %zu",
+                ImGui::Text(tr("casc.textures_count"),
                             casc_service_.files().size() + casc_service_.d4Entries().size());
                 if (casc_service_.isD4()) {
                     ImGui::SameLine();
-                    ImGui::TextDisabled("(%zu D4 TEX)", casc_service_.d4Entries().size());
+                    ImGui::TextDisabled(tr("casc.d4_tex_count"), casc_service_.d4Entries().size());
                 }
             }
             ImGui::Separator();
 
             // ── Search filter ──────────────────────────────────────────
-            ImGui::Text("Filter:");
+            ImGui::TextUnformatted(tr("casc.filter_label"));
             ImGui::SameLine();
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             if (ImGui::InputText("##casc_filter", search_buf_, sizeof(search_buf_))) {
@@ -558,7 +560,7 @@ std::vector<AppCommand> CascBrowser::draw(SDL_Window* window, RecentPaths& recen
             const u32    current = casc_service_.connectCurrent();
             const u32    total   = casc_service_.connectTotal();
 
-            ImGui::TextUnformatted("Connecting to Blizzard CDN");
+            ImGui::TextUnformatted(tr("casc.connecting_title"));
             ImGui::Separator();
             ImGui::TextUnformatted(connectStepLabel(step));
 

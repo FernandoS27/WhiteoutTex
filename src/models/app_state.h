@@ -54,6 +54,9 @@ struct TextureState {
 struct UIFlags {
     bool show_about = false;
 
+    // First-run language picker
+    bool show_language_prompt = false;
+
     // Generic result popup
     bool show_result_popup = false;
     bool result_popup_success = false;
