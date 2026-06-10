@@ -111,6 +111,11 @@ std::vector<UpscalerModel> Upscaler::availableModels(const std::filesystem::path
     return found;
 }
 
+std::vector<UpscalerModel> Upscaler::catalog() {
+    return std::vector<UpscalerModel>(
+        kBuiltinModels, kBuiltinModels + sizeof(kBuiltinModels) / sizeof(kBuiltinModels[0]));
+}
+
 i32 Upscaler::bestGpuIndex() {
     ensureGpuInstance();
     const i32 count = ncnn::get_gpu_count();

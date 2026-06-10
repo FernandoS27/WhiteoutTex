@@ -33,6 +33,12 @@ add_executable(WhiteoutTex
     src/views/menu_bar.cpp
     src/views/save_dialog.cpp
     src/views/save_helpers.cpp
+    src/views/pipeline_editor.cpp
+    src/pipeline/node.cpp
+    src/pipeline/node_graph.cpp
+    src/pipeline/node_registry.cpp
+    src/pipeline/builtin_nodes.cpp
+    src/pipeline/serialization.cpp
     src/psd/parser.cpp
     src/psd/writer.cpp
 )
@@ -65,7 +71,8 @@ elseif(APPLE)
 endif()
 
 target_include_directories(WhiteoutTex PRIVATE src)
-target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc whiteout_mpq Psd)
+target_link_libraries(WhiteoutTex PRIVATE DearImgui SDL3::SDL3 whiteout_casc whiteout_mpq Psd
+    ImGuiNodeEditor nlohmann_json)
 
 if(APPLE)
     target_sources(WhiteoutTex PRIVATE src/views/macos_folder_dialog.mm)
@@ -102,6 +109,11 @@ add_custom_target(WhiteoutTexAssets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_SOURCE_DIR}/resources/fonts"
         "$<TARGET_FILE_DIR:WhiteoutTex>/fonts"
+    # Pipeline preset images, loaded at runtime by Resource input nodes via a
+    # path relative to this folder.
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_SOURCE_DIR}/resources/presets"
+        "$<TARGET_FILE_DIR:WhiteoutTex>/presets"
     VERBATIM
 )
 add_dependencies(WhiteoutTexAssets WhiteoutTex)

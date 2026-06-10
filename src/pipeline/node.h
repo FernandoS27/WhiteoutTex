@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2026 Fernando Sahmkow
+
+#pragma once
+
+/**
+ * @file node.h
+ * @brief Abstract pipeline node.
+ *
+ * One abstract base + Template Method (evaluate()).  Input / Operation / Output
+ * differ only in which pins they declare and what evaluate() does, so the
+ * category is metadata (NodeCategory), NOT a class hierarchy.  Per-node editable
+ * settings are a flat list of Param descriptors so JSON (de)serialization and
+ * the future properties panel are generic — written once, not per node type.
+ *
+ * ImGui-free: node position is a plain Vec2, not ImVec2.  The editor view
+ * converts at the boundary.
+ */
+
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "common_types.h"
+#include "pipeline/pin.h"
+
+namespace whiteout::textool::pipeline {
+
+using NodeId = u32; ///< Stable per-graph node id (0 = unassigned).
+
+/// Palette grouping + a topology invariant: Input nodes have no input pins,
+/// Output nodes have no output pins.  Operations have both.
+enum class NodeCategory : u8 { Input, Operation, Output };
+
+/// A plain 2D point — keeps the model free of ImGui's ImVec2.
+struct Vec2 {
+    f32 x = 0.0f;
+    f32 y = 0.0f;
+};
+
+/// How a param is presented/edited in the node UI.
+enum class ParamWidget : u8 {
+    Scalar,       ///< Plain value; int/real/bool render inline (string: none yet).
+    Enum,         ///< i64 index into enum_labels -> combobox of those labels.
+    ResourcePath, ///< string path under resources/presets -> text field + picker.
+    Model,        ///< string AI-model id -> combobox of available upscaler models.
+};
+
+/// One editable node setting.  Reused by the generic serializer and the
+/// in-node widgets.  Scalar-only by construction (ParamValue).
+struct Param {
+    std::string name;
+    ParamValue value;
+    ParamWidget widget = ParamWidget::Scalar;
+    /// Option i18n keys for an Enum param (value is the i64 index into them).
+    /// Not serialized — re-declared by the node ctor; only the index round-trips.
+    std::vector<std::string> enum_labels;
+    /// Optional visibility gate: shown only when the enum param named
+    /// `visible_when` has selected index `visible_when_value`.  Empty = always.
+    std::string visible_when;
+    i64 visible_when_value = 0;
+};
+
+/// Evaluation environment (services for input/output nodes, etc.).  Execution
+/// is out of current scope; the type exists so evaluate() has a stable
+/// signature.  Concrete nodes stub evaluate() until the executor lands.
+struct EvalContext;
+
+class Node {
+public:
+    virtual ~Node() = default;
+
+    Node(const Node&) = delete;
+    Node& operator=(const Node&) = delete;
+
+    /// Template Method.  Inputs read their source into output pins; Operations
+    /// transform input pins -> output pins; Outputs consume input pins.
+    virtual void evaluate(EvalContext& ctx) = 0;
+
+    // ── Identity / placement ───────────────────────────────────────────
+    NodeId id() const noexcept { return id_; }
+    void setId(NodeId id) noexcept { id_ = id; }
+    const std::string& typeId() const noexcept { return type_id_; }
+    NodeCategory category() const noexcept { return category_; }
+    Vec2 position() const noexcept { return pos_; }
+    void setPosition(Vec2 p) noexcept { pos_ = p; }
+
+    // ── Pins / params ──────────────────────────────────────────────────
+    std::span<const Pin> inputs() const noexcept { return inputs_; }
+    std::span<const Pin> outputs() const noexcept { return outputs_; }
+    std::span<Param> params() noexcept { return params_; }
+    std::span<const Param> params() const noexcept { return params_; }
+
+    const Pin* findPin(std::string_view name, bool is_input) const noexcept;
+    Param* findParam(std::string_view name) noexcept;
+
+protected:
+    Node(std::string type_id, NodeCategory category)
+        : type_id_(std::move(type_id)), category_(category) {}
+
+    // Declaration helpers for concrete-node constructors.
+    void addInput(std::string name, PinType type) {
+        inputs_.push_back({std::move(name), type, true});
+    }
+    void addOutput(std::string name, PinType type) {
+        outputs_.push_back({std::move(name), type, false});
+    }
+    void addParam(std::string name, ParamValue value) {
+        params_.push_back({std::move(name), std::move(value), ParamWidget::Scalar, {}, {}, 0});
+    }
+    /// Declare an enumeration param: an i64 index into @p labels (i18n keys).
+    void addEnumParam(std::string name, i64 default_index, std::vector<std::string> labels) {
+        params_.push_back(
+            {std::move(name), ParamValue{default_index}, ParamWidget::Enum, std::move(labels), {}, 0});
+    }
+    /// Declare a resource-path param: a string path relative to resources/presets.
+    void addResourceParam(std::string name) {
+        params_.push_back(
+            {std::move(name), ParamValue{std::string{}}, ParamWidget::ResourcePath, {}, {}, 0});
+    }
+    /// Declare an AI-model param: a string model id chosen from a runtime list.
+    void addModelParam(std::string name) {
+        params_.push_back(
+            {std::move(name), ParamValue{std::string{}}, ParamWidget::Model, {}, {}, 0});
+    }
+    /// Gate the most-recently-added param: shown only when the enum param
+    /// @p enum_param has selected index @p index.
+    void gateLastParam(std::string enum_param, i64 index) {
+        if (!params_.empty()) {
+            params_.back().visible_when = std::move(enum_param);
+            params_.back().visible_when_value = index;
+        }
+    }
+
+private:
+    NodeId id_ = 0;
+    std::string type_id_;
+    NodeCategory category_;
+    Vec2 pos_{};
+    std::vector<Pin> inputs_;
+    std::vector<Pin> outputs_;
+    std::vector<Param> params_;
+};
+
+} // namespace whiteout::textool::pipeline

@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "common_types.h"
+#include "pipeline/node_registry.h"
 #include "views/dialogs.h"
 #include "views/menu_bar.h"
 #include "views/save_helpers.h"
@@ -514,6 +515,9 @@ i32 App::run(i32 argc, char** argv) {
     if (!initSDL())
         return 1;
 
+    // Populate the pipeline node registry (palette source + deserialization).
+    pipeline::registerBuiltinNodes();
+
     // Prepare INI + resource paths (next to the executable).
     if (const char* base_path = SDL_GetBasePath(); base_path) {
         const std::filesystem::path base(base_path);
@@ -543,6 +547,15 @@ i32 App::run(i32 argc, char** argv) {
     // Discover available upscaler models and pass to image details panel.
     upscale_models_ = UpscalerService::availableModels();
     image_details_.setUpscalerModels(upscale_models_);
+    // The Upscale node's model combobox lists the FULL catalog (not just
+    // installed models): a pipeline is a recipe whose model files only need to
+    // exist when it runs, so all known models are selectable while authoring.
+    {
+        std::vector<views::ModelOption> opts;
+        for (const auto& m : Upscaler::catalog())
+            opts.push_back({m.file_stem, m.label()});
+        pipeline_editor_.setUpscalerModels(std::move(opts));
+    }
 #endif
 
     if (!initWindow())
@@ -608,47 +621,86 @@ i32 App::run(i32 argc, char** argv) {
                          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                          ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        const f32 available_width = ImGui::GetContentRegionAvail().x;
-        const f32 available_height = ImGui::GetContentRegionAvail().y;
-        const f32 left_panel_width = available_width * 0.4f;
-
-        const bool show_mip_list = tex_state_.texture && tex_state_.texture->mipCount() > 1;
-        const f32 mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
-        const f32 details_height = available_height - mip_list_height;
-
-        // Left column
-        ImGui::BeginGroup();
+        // Top-level vertical tabs. ImGui has no native vertical tab bar, so the
+        // tab strip is a narrow left column of selectables and the content area
+        // switches on the active index.  "Preview" hosts the texture details +
+        // image viewer; "Pipelines" hosts the node editor.
         {
-            auto cmds = image_details_.drawDetailsPanel(
-                tex_state_.texture ? &*tex_state_.texture : nullptr, tex_state_.path,
-                tex_state_.file_format, tex_state_.source_fmt, left_panel_width, details_height);
-            dispatchCommands(cmds);
+            struct MainTab {
+                const char* label_key;
+            };
+            static constexpr MainTab kTabs[] = {{"app.tab_preview"}, {"app.tab_pipelines"}};
+            constexpr int kTabCount = static_cast<int>(sizeof(kTabs) / sizeof(kTabs[0]));
+
+            const f32 full_height = ImGui::GetContentRegionAvail().y;
+            constexpr f32 kTabStripWidth = 110.0f;
+
+            // Vertical tab strip.
+            ImGui::BeginChild("##MainTabStrip", ImVec2(kTabStripWidth, full_height),
+                              ImGuiChildFlags_Borders);
+            for (int i = 0; i < kTabCount; ++i) {
+                if (ImGui::Selectable(i18n::tr(kTabs[i].label_key), ui_.active_main_tab == i,
+                                      ImGuiSelectableFlags_None, ImVec2(0.0f, 0.0f)))
+                    ui_.active_main_tab = i;
+            }
+            ImGui::EndChild();
+
+            ImGui::SameLine();
+
+            // Content area for the active tab.
+            ImGui::BeginChild("##MainTabContent", ImVec2(0.0f, full_height));
+            if (ui_.active_main_tab == 0) {
+                const f32 available_width = ImGui::GetContentRegionAvail().x;
+                const f32 available_height = ImGui::GetContentRegionAvail().y;
+                const f32 left_panel_width = available_width * 0.4f;
+
+                const bool show_mip_list =
+                    tex_state_.texture && tex_state_.texture->mipCount() > 1;
+                const f32 mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
+                const f32 details_height = available_height - mip_list_height;
+
+                // Left column
+                ImGui::BeginGroup();
+                {
+                    auto cmds = image_details_.drawDetailsPanel(
+                        tex_state_.texture ? &*tex_state_.texture : nullptr, tex_state_.path,
+                        tex_state_.file_format, tex_state_.source_fmt, left_panel_width,
+                        details_height);
+                    dispatchCommands(cmds);
+                }
+                if (show_mip_list) {
+                    auto cmds = image_details_.drawMipList(*tex_state_.texture,
+                                                           viewer_.selectedMip(),
+                                                           left_panel_width, mip_list_height);
+                    dispatchCommands(cmds);
+                }
+                ImGui::EndGroup();
+
+                ImGui::SameLine();
+
+                // Right panel: image preview
+                ImGui::BeginChild("##ImagePanel", ImVec2(0.0f, available_height),
+                                  ImGuiChildFlags_Borders);
+                ImGui::SeparatorText(i18n::tr("app.image_preview"));
+
+                if (viewer_.hasImage()) {
+                    viewer_.draw(renderer_);
+                } else if (!tex_state_.status_message.empty()) {
+                    ImGui::TextWrapped("%s", tex_state_.status_message.c_str());
+                } else {
+                    ImGui::TextUnformatted(i18n::tr("app.no_image_loaded"));
+                }
+                ImGui::EndChild();
+            } else {
+                pipeline_editor_.draw(window_);
+            }
+            ImGui::EndChild();
+        }
 
 #ifdef WHITEOUT_HAS_UPSCALER
-            pollUpscaleResult();
+        // Poll background upscale jobs every frame, regardless of active tab.
+        pollUpscaleResult();
 #endif
-        }
-        if (show_mip_list) {
-            auto cmds = image_details_.drawMipList(*tex_state_.texture, viewer_.selectedMip(),
-                                                   left_panel_width, mip_list_height);
-            dispatchCommands(cmds);
-        }
-        ImGui::EndGroup();
-
-        ImGui::SameLine();
-
-        // Right panel: image preview
-        ImGui::BeginChild("##ImagePanel", ImVec2(0.0f, available_height), ImGuiChildFlags_Borders);
-        ImGui::SeparatorText(i18n::tr("app.image_preview"));
-
-        if (viewer_.hasImage()) {
-            viewer_.draw(renderer_);
-        } else if (!tex_state_.status_message.empty()) {
-            ImGui::TextWrapped("%s", tex_state_.status_message.c_str());
-        } else {
-            ImGui::TextUnformatted(i18n::tr("app.no_image_loaded"));
-        }
-        ImGui::EndChild();
 
         ImGui::End();
 

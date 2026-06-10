@@ -73,6 +73,9 @@ struct UIFlags {
 
     // Upscale dialog trigger
     bool show_upscale_dialog = false;
+
+    // Selected main vertical tab (0 = Preview, 1 = Pipelines).
+    int active_main_tab = 0;
 };
 
 } // namespace whiteout::textool::models

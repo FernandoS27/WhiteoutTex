@@ -1,0 +1,216 @@
+{
+  "links": [
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        5,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "image"
+      ],
+      "to": [
+        5,
+        "related"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "image"
+      ],
+      "to": [
+        7,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        7,
+        "related"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "mipmap"
+      ],
+      "to": [
+        8,
+        "mipmap"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        8,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "mipmap"
+      ],
+      "to": [
+        9,
+        "mipmap"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "image"
+      ],
+      "to": [
+        9,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "image"
+      ],
+      "to": [
+        10,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "image"
+      ],
+      "to": [
+        10,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        10,
+        "image"
+      ],
+      "to": [
+        11,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "image"
+      ],
+      "to": [
+        12,
+        "image"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": 4,
+      "params": {},
+      "pos": [
+        92.0,
+        278.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 5,
+      "params": {},
+      "pos": [
+        440.0,
+        273.0
+      ],
+      "type": "op.matching_mipmap"
+    },
+    {
+      "id": 6,
+      "params": {
+        "path": "icon_bases/Classic/ATC_preset.dds"
+      },
+      "pos": [
+        98.0,
+        390.0
+      ],
+      "type": "input.resource"
+    },
+    {
+      "id": 7,
+      "params": {},
+      "pos": [
+        427.0,
+        422.0
+      ],
+      "type": "op.matching_mipmap"
+    },
+    {
+      "id": 8,
+      "params": {},
+      "pos": [
+        671.0,
+        54.0
+      ],
+      "type": "op.extract_mipmap"
+    },
+    {
+      "id": 9,
+      "params": {},
+      "pos": [
+        665.0,
+        545.0
+      ],
+      "type": "op.extract_mipmap"
+    },
+    {
+      "id": 10,
+      "params": {
+        "mode": 1
+      },
+      "pos": [
+        886.0,
+        273.0
+      ],
+      "type": "op.blend"
+    },
+    {
+      "id": 11,
+      "params": {
+        "count": 2,
+        "mode": 1
+      },
+      "pos": [
+        1108.0,
+        278.0
+      ],
+      "type": "op.regenerate_mipmaps"
+    },
+    {
+      "id": 12,
+      "params": {},
+      "pos": [
+        1348.0,
+        294.0
+      ],
+      "type": "output.standard"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

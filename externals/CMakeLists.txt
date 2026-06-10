@@ -30,5 +30,24 @@ target_include_directories(DearImgui PUBLIC
 
 target_link_libraries(DearImgui PUBLIC SDL3::SDL3)
 
+# nlohmann/json — header-only; an INTERFACE target carries the include dir so
+# both the GUI and the (ImGui-free) pipeline model / CLI can consume it.
+add_library(nlohmann_json INTERFACE)
+target_include_directories(nlohmann_json INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/json/single_include)
+
+# imgui-node-editor (thedmd) — node graph canvas for the Pipelines tab.
+# Built as a static lib linking DearImgui, mirroring the DearImgui block above.
+add_library(ImGuiNodeEditor STATIC
+    imgui-node-editor/imgui_node_editor.cpp
+    imgui-node-editor/imgui_node_editor_api.cpp
+    imgui-node-editor/imgui_canvas.cpp
+    imgui-node-editor/crude_json.cpp
+)
+target_include_directories(ImGuiNodeEditor PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui-node-editor
+)
+target_link_libraries(ImGuiNodeEditor PUBLIC DearImgui)
+
 # Real-ESRGAN AI Upscaler (optional — requires Vulkan SDK)
 add_subdirectory(upscaler)

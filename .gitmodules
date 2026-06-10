@@ -16,3 +16,9 @@
 [submodule "externals/cpp-httplib"]
 	path = externals/cpp-httplib
 	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "externals/json"]
+	path = externals/json
+	url = https://github.com/nlohmann/json.git
+[submodule "externals/imgui-node-editor"]
+	path = externals/imgui-node-editor
+	url = https://github.com/thedmd/imgui-node-editor.git

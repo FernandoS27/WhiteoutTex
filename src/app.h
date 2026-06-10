@@ -11,6 +11,7 @@
 #include "views/casc_browser.h"
 #include "views/image_details.h"
 #include "views/image_viewer.h"
+#include "views/pipeline_editor.h"
 #include "views/save_dialog.h"
 
 #ifdef WHITEOUT_HAS_UPSCALER
@@ -89,6 +90,7 @@ private:
     views::SaveDialog save_dialog_;
     views::BatchConvert batch_convert_;
     views::CascBrowser casc_browser_;
+    views::PipelineEditor pipeline_editor_;
     whiteout::textures::TextureConverter converter_;
 
     // Services

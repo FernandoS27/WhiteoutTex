@@ -59,6 +59,12 @@ public:
     /// Lists model presets whose .param and .bin files exist in @p model_dir.
     static std::vector<UpscalerModel> availableModels(const std::filesystem::path& model_dir);
 
+    /// Lists every known model preset, regardless of whether its files are
+    /// installed.  Used where a model is *referenced* rather than run — e.g.
+    /// authoring a pipeline, whose model files only need to exist at execution
+    /// time, possibly on another machine.
+    static std::vector<UpscalerModel> catalog();
+
     /// Returns the index of the best available GPU (prefers discrete, most VRAM).
     static i32 bestGpuIndex();
 
