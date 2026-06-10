@@ -9,6 +9,7 @@
 #include <deque>
 #include <fstream>
 #include <unordered_map>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -27,11 +28,20 @@ using pipeline::Param;
 
 namespace {
 
+// A single-channel plane in floating point — used to carry channel arithmetic
+// at full precision (and signed), quantized to R8 only at image boundaries.
+struct FChannel {
+    u32 w = 0, h = 0;
+    std::vector<float> data;
+};
+
 // ── Runtime pin value ───────────────────────────────────────────────────────
-// Images (RGBA / R) flow as Textures; Int pins as i64.  A node reads its inputs
-// from upstream outputs and writes its outputs here.
+// Images (RGBA / R) flow as Textures; channel arithmetic results as FChannel;
+// Int/Real pins as i64/f64.  A node reads its inputs from upstream outputs and
+// writes its outputs here.
 struct PinData {
     std::optional<tex::Texture> image;
+    std::optional<FChannel> fchan;
     std::optional<i64> integer;
     std::optional<f64> real;
 };
@@ -64,6 +74,12 @@ f64 paramReal(const Node& n, std::string_view name, f64 def) {
     const Param* p = findParam(n, name);
     if (p && std::holds_alternative<f64>(p->value))
         return std::get<f64>(p->value);
+    return def;
+}
+bool paramBool(const Node& n, std::string_view name, bool def) {
+    const Param* p = findParam(n, name);
+    if (p && std::holds_alternative<bool>(p->value))
+        return std::get<bool>(p->value);
     return def;
 }
 std::string paramStr(const Node& n, std::string_view name) {
@@ -257,66 +273,237 @@ double scalarOf(const PinData& d) {
     return 0.0;
 }
 
+bool isChannelLike(const PinData& d) {
+    return d.image.has_value() || d.fchan.has_value();
+}
+
+// Read a pin's channel as a NORMALIZED float plane: R8 bytes [0,255] -> [0,1].
+// Channel arithmetic works in normalized space so constants like 1.0 mean
+// full-scale (matching how channel math is normally expressed).
+FChannel toFChannel(const PinData& d) {
+    if (d.fchan)
+        return *d.fchan;
+    FChannel f;
+    if (d.image) {
+        f.w = d.image->width();
+        f.h = d.image->height();
+        std::span<const u8> s = d.image->mipData(0);
+        f.data.resize(s.size());
+        for (std::size_t i = 0; i < s.size(); ++i)
+            f.data[i] = s[i] / 255.0f;
+    }
+    return f;
+}
+
+// Quantize a normalized float plane ([0,1]) back to an R8 texture (* 255).
+tex::Texture fchanToR8(const FChannel& f) {
+    const u32 w = std::max(1u, f.w), h = std::max(1u, f.h);
+    tex::Texture out = tex::Texture::create2D(tex::PixelFormat::R8, w, h, 1);
+    std::span<u8> d = out.mipData(0);
+    for (std::size_t i = 0; i < d.size(); ++i)
+        d[i] = i < f.data.size() ? clamp8d(f.data[i] * 255.0f) : 0;
+    return out;
+}
+
+// Fetch an input channel as an R8 texture from either an image pin or a float
+// plane (lets channel-consuming ops accept arithmetic results).
+std::optional<tex::Texture> channelR8(const PinMap& in, const char* pin) {
+    const auto it = in.find(pin);
+    if (it == in.end())
+        return std::nullopt;
+    if (it->second.image) {
+        const tex::Texture& t = *it->second.image;
+        return t.format() == tex::PixelFormat::R8 ? t : t.copyAsFormat(tex::PixelFormat::R8);
+    }
+    if (it->second.fchan)
+        return fchanToR8(*it->second.fchan);
+    return std::nullopt;
+}
+
 enum class ArithOp { Add, Mul };
 
 PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
                     std::vector<std::string>& errors) {
     PinData out;
-    const auto apply = [op](double x, double y) { return op == ArithOp::Add ? x + y : x * y; };
-    const bool aCh = a.image.has_value(), bCh = b.image.has_value();
+    const auto apply = [op](float x, float y) { return op == ArithOp::Add ? x + y : x * y; };
+    const bool aCh = isChannelLike(a), bCh = isChannelLike(b);
 
+    // Channel arithmetic runs in float (signed, full precision); it is only
+    // quantized to bytes at an image boundary (Merge/Prims/output).
     if (aCh && bCh) { // channel ⊕ channel, element-wise (same size required)
-        const tex::Texture& ca = *a.image;
-        const tex::Texture& cb = *b.image;
-        if (ca.width() != cb.width() || ca.height() != cb.height()) {
+        FChannel fa = toFChannel(a), fb = toFChannel(b);
+        if (fa.w != fb.w || fa.h != fb.h) {
             errors.push_back("Arithmetic: channels differ in size; passing first through");
-            out.image = ca;
+            out.fchan = std::move(fa);
             return out;
         }
-        tex::Texture r = tex::Texture::create2D(tex::PixelFormat::R8, ca.width(), ca.height(), 1);
-        std::span<const u8> sa = ca.mipData(0), sb = cb.mipData(0);
-        std::span<u8> d = r.mipData(0);
-        for (std::size_t i = 0; i < d.size(); ++i)
-            d[i] = clamp8d(apply(i < sa.size() ? sa[i] : 0, i < sb.size() ? sb[i] : 0));
-        out.image = std::move(r);
+        for (std::size_t i = 0; i < fa.data.size(); ++i)
+            fa.data[i] = apply(fa.data[i], i < fb.data.size() ? fb.data[i] : 0.0f);
+        out.fchan = std::move(fa);
     } else if (aCh || bCh) { // channel ⊕ number, per element
-        const tex::Texture& ch = aCh ? *a.image : *b.image;
-        const double num = aCh ? scalarOf(b) : scalarOf(a);
-        tex::Texture r = tex::Texture::create2D(tex::PixelFormat::R8, ch.width(), ch.height(), 1);
-        std::span<const u8> s = ch.mipData(0);
-        std::span<u8> d = r.mipData(0);
-        for (std::size_t i = 0; i < d.size(); ++i)
-            d[i] = clamp8d(apply(s[i], num));
-        out.image = std::move(r);
+        FChannel f = toFChannel(aCh ? a : b);
+        const float num = static_cast<float>(scalarOf(aCh ? b : a));
+        for (float& v : f.data)
+            v = apply(v, num);
+        out.fchan = std::move(f);
     } else if (a.integer && b.integer) { // int ⊕ int -> int
         out.integer = op == ArithOp::Add ? (*a.integer + *b.integer) : (*a.integer * *b.integer);
     } else { // any real involved -> real
-        out.real = apply(scalarOf(a), scalarOf(b));
+        out.real = op == ArithOp::Add ? scalarOf(a) + scalarOf(b) : scalarOf(a) * scalarOf(b);
     }
     return out;
 }
 
-enum class UnaryOp { Negate, Sqrt };
+enum class UnaryOp { Negate, Sqrt, Reciprocal };
 
 PinData unaryArith(const PinData& a, UnaryOp op, std::vector<std::string>&) {
     PinData out;
-    const auto fn = [op](double x) {
-        return op == UnaryOp::Negate ? -x : std::sqrt(std::max(0.0, x));
+    const auto fn = [op](float x) -> float {
+        switch (op) {
+        case UnaryOp::Negate: return -x;
+        case UnaryOp::Sqrt: return std::sqrt(std::max(0.0f, x));
+        case UnaryOp::Reciprocal: return x != 0.0f ? 1.0f / x : 0.0f;
+        }
+        return x;
     };
-    if (a.image) { // element-wise on the channel
-        const tex::Texture& ch = *a.image;
-        tex::Texture r = tex::Texture::create2D(tex::PixelFormat::R8, ch.width(), ch.height(), 1);
-        std::span<const u8> s = ch.mipData(0);
-        std::span<u8> d = r.mipData(0);
-        for (std::size_t i = 0; i < d.size(); ++i)
-            d[i] = clamp8d(fn(s[i]));
-        out.image = std::move(r);
+    if (isChannelLike(a)) { // element-wise on the channel, in float
+        FChannel f = toFChannel(a);
+        for (float& v : f.data)
+            v = fn(v);
+        out.fchan = std::move(f);
     } else if (a.integer && op == UnaryOp::Negate) {
         out.integer = -*a.integer; // negate keeps integers integral
     } else {
-        out.real = fn(scalarOf(a)); // sqrt (or negate of a real) -> real
+        out.real = fn(static_cast<float>(scalarOf(a))); // sqrt / reciprocal -> real
     }
     return out;
+}
+
+// ── Convolution filters (operate on RGBA8 mip 0, edge-clamped) ─────────────
+// Separable Gaussian blur with the given radius (sigma ≈ radius/2).
+tex::Texture gaussianBlur(const tex::Texture& rgba8, int radius) {
+    radius = std::clamp(radius, 1, 16);
+    const int w = static_cast<int>(rgba8.width()), h = static_cast<int>(rgba8.height());
+    const double sigma = std::max(0.5, radius / 2.0);
+    std::vector<double> k(2 * radius + 1);
+    double ksum = 0.0;
+    for (int i = -radius; i <= radius; ++i) {
+        const double v = std::exp(-(i * i) / (2.0 * sigma * sigma));
+        k[i + radius] = v;
+        ksum += v;
+    }
+    for (double& v : k)
+        v /= ksum;
+
+    std::span<const u8> src = rgba8.mipData(0);
+    std::vector<u8> tmp(src.begin(), src.end());
+    const auto idx = [w](int x, int y, int c) { return (static_cast<std::size_t>(y) * w + x) * 4 + c; };
+
+    // Horizontal pass: src -> tmp.
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            for (int c = 0; c < 4; ++c) {
+                double acc = 0.0;
+                for (int i = -radius; i <= radius; ++i)
+                    acc += k[i + radius] * src[idx(std::clamp(x + i, 0, w - 1), y, c)];
+                tmp[idx(x, y, c)] = clamp8d(acc);
+            }
+
+    // Vertical pass: tmp -> out.
+    tex::Texture out = tex::Texture::create2D(tex::PixelFormat::RGBA8, w, h, 1);
+    std::span<u8> d = out.mipData(0);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            for (int c = 0; c < 4; ++c) {
+                double acc = 0.0;
+                for (int i = -radius; i <= radius; ++i)
+                    acc += k[i + radius] * tmp[idx(x, std::clamp(y + i, 0, h - 1), c)];
+                d[idx(x, y, c)] = clamp8d(acc);
+            }
+    return out;
+}
+
+// Unsharp 3x3 sharpen on RGB (alpha preserved).  center = 1+4s, neighbours = -s.
+tex::Texture sharpen(const tex::Texture& rgba8, double strength) {
+    const int w = static_cast<int>(rgba8.width()), h = static_cast<int>(rgba8.height());
+    std::span<const u8> s = rgba8.mipData(0);
+    tex::Texture out = tex::Texture::create2D(tex::PixelFormat::RGBA8, w, h, 1);
+    std::span<u8> d = out.mipData(0);
+    const auto at = [&](int x, int y, int c) {
+        return static_cast<double>(s[(static_cast<std::size_t>(std::clamp(y, 0, h - 1)) * w +
+                                      std::clamp(x, 0, w - 1)) *
+                                         4 +
+                                     c]);
+    };
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const std::size_t i = (static_cast<std::size_t>(y) * w + x) * 4;
+            for (int c = 0; c < 3; ++c) {
+                const double v = (1.0 + 4.0 * strength) * at(x, y, c) - strength * at(x - 1, y, c) -
+                                 strength * at(x + 1, y, c) - strength * at(x, y - 1, c) -
+                                 strength * at(x, y + 1, c);
+                d[i + c] = clamp8d(v);
+            }
+            d[i + 3] = s[i + 3]; // preserve alpha
+        }
+    return out;
+}
+
+// Sobel edge magnitude on a single channel (R8 in/out).
+tex::Texture sobel(const tex::Texture& r8) {
+    const int w = static_cast<int>(r8.width()), h = static_cast<int>(r8.height());
+    std::span<const u8> s = r8.mipData(0); // R8: 1 byte per pixel
+    const auto at = [&](int x, int y) {
+        return static_cast<double>(
+            s[static_cast<std::size_t>(std::clamp(y, 0, h - 1)) * w + std::clamp(x, 0, w - 1)]);
+    };
+    tex::Texture out = tex::Texture::create2D(tex::PixelFormat::R8, w, h, 1);
+    std::span<u8> d = out.mipData(0);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const double gx = -at(x - 1, y - 1) - 2 * at(x - 1, y) - at(x - 1, y + 1) +
+                              at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1);
+            const double gy = -at(x - 1, y - 1) - 2 * at(x, y - 1) - at(x + 1, y - 1) +
+                              at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1);
+            d[static_cast<std::size_t>(y) * w + x] = clamp8d(std::sqrt(gx * gx + gy * gy));
+        }
+    return out;
+}
+
+enum class DerivMode { Quad = 0, Sobel = 1 };
+
+// Partial derivatives of a single channel, in NORMALIZED float ([0,1] input).
+// Output is a SIGNED gradient (0 = flat, >0 rising, <0 falling) carried as a
+// float plane so the sign survives downstream arithmetic (essential for
+// normal-map math).  Quad = central difference (2-tap); Sobel = 3x3 kernel,
+// scaled by 1/8 so its flat-ramp response matches Quad.
+std::pair<FChannel, FChannel> derivativesF(const FChannel& src, DerivMode mode) {
+    const int w = std::max(1, static_cast<int>(src.w)), h = std::max(1, static_cast<int>(src.h));
+    const auto at = [&](int x, int y) -> float {
+        const std::size_t i = static_cast<std::size_t>(std::clamp(y, 0, h - 1)) * w +
+                              std::clamp(x, 0, w - 1);
+        return i < src.data.size() ? src.data[i] : 0.0f;
+    };
+    FChannel dx, dy;
+    dx.w = dy.w = static_cast<u32>(w);
+    dx.h = dy.h = static_cast<u32>(h);
+    dx.data.resize(static_cast<std::size_t>(w) * h);
+    dy.data.resize(static_cast<std::size_t>(w) * h);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            const std::size_t i = static_cast<std::size_t>(y) * w + x;
+            if (mode == DerivMode::Sobel) {
+                const float tl = at(x - 1, y - 1), l = at(x - 1, y), bl = at(x - 1, y + 1);
+                const float t = at(x, y - 1), b = at(x, y + 1);
+                const float tr = at(x + 1, y - 1), r = at(x + 1, y), br = at(x + 1, y + 1);
+                dx.data[i] = ((tr + 2.0f * r + br) - (tl + 2.0f * l + bl)) * (1.0f / 8.0f);
+                dy.data[i] = ((bl + 2.0f * b + br) - (tl + 2.0f * t + tr)) * (1.0f / 8.0f);
+            } else {
+                dx.data[i] = (at(x + 1, y) - at(x - 1, y)) * 0.5f;
+                dy.data[i] = (at(x, y + 1) - at(x, y - 1)) * 0.5f;
+            }
+        }
+    return {std::move(dx), std::move(dy)};
 }
 
 // ── Per-node execution ──────────────────────────────────────────────────────
@@ -344,10 +531,41 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             else
                 errors.push_back("Resource input: failed to load '" + rel + "'");
         }
+    } else if (type == "input.real") {
+        double v = paramReal(n, "value", 0.0);
+        if (paramBool(n, "clamp", false)) {
+            const double mn = paramReal(n, "min", 0.0), mx = paramReal(n, "max", 1.0);
+            v = std::clamp(v, std::min(mn, mx), std::max(mn, mx));
+        }
+        out["value"].real = v;
+    } else if (type == "input.integer") {
+        i64 v = paramInt(n, "value", 0);
+        if (paramBool(n, "clamp", false)) {
+            const i64 mn = paramInt(n, "min", 0), mx = paramInt(n, "max", 255);
+            v = std::clamp(v, std::min(mn, mx), std::max(mn, mx));
+        }
+        out["value"].integer = v;
+    } else if (type == "input.channel") {
+        // A function input; no channel source when run as a standard pipeline.
     } else if (type == "input.const_int") {
         out["value"].integer = paramInt(n, "value", 0);
     } else if (type == "input.const_real") {
         out["value"].real = paramReal(n, "value", 0.0);
+    } else if (type == "input.const_channel") {
+        int cw = 64, ch = 64;
+        double value = 0.0;
+        if (const auto it = in.find("width"); it != in.end())
+            cw = static_cast<int>(std::lround(scalarOf(it->second)));
+        if (const auto it = in.find("height"); it != in.end())
+            ch = static_cast<int>(std::lround(scalarOf(it->second)));
+        if (const auto it = in.find("value"); it != in.end())
+            value = scalarOf(it->second);
+        cw = std::clamp(cw, 1, 8192);
+        ch = std::clamp(ch, 1, 8192);
+        tex::Texture plane = tex::Texture::create2D(tex::PixelFormat::R8, cw, ch, 1);
+        std::span<u8> d = plane.mipData(0);
+        std::fill(d.begin(), d.end(), clamp8d(value));
+        out["channel"].image = std::move(plane);
     } else if (type == "op.extract_channel") {
         if (const tex::Texture* img = inImage("image"))
             out["channel"].image = extractChannel(*img, static_cast<int>(paramInt(n, "channel", 0)));
@@ -357,11 +575,23 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             invertChannel(work, static_cast<int>(paramInt(n, "channel", 0)));
             out["image"].image = std::move(work);
         }
+    } else if (type == "op.fill_channel") {
+        if (const tex::Texture* img = inImage("image")) {
+            double value = 0.0;
+            if (const auto it = in.find("value"); it != in.end())
+                value = scalarOf(it->second);
+            tex::Texture work = toRGBA8(*img);
+            const u8 v = clamp8d(value);
+            const int c = std::clamp(static_cast<int>(paramInt(n, "channel", 0)), 0, 3);
+            std::span<u8> d = work.data();
+            for (std::size_t i = static_cast<std::size_t>(c); i < d.size(); i += 4)
+                d[i] = v;
+            out["image"].image = std::move(work);
+        }
     } else if (type == "op.invert") {
-        if (const tex::Texture* img = inImage("channel")) {
-            tex::Texture work = *img;
-            invertR8(work);
-            out["channel"].image = std::move(work);
+        if (auto ch = channelR8(in, "channel")) {
+            invertR8(*ch);
+            out["channel"].image = std::move(*ch);
         }
     } else if (type == "op.blend") {
         // blend(bottom, top) composites the top layer over the bottom.
@@ -381,14 +611,15 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["image"].image = toRGBA8(*top);
         }
     } else if (type == "op.merge_channels") {
-        const tex::Texture* r = inImage("red");
-        const tex::Texture* g = inImage("green");
-        const tex::Texture* b = inImage("blue");
-        const tex::Texture* a = inImage("alpha");
+        auto r = channelR8(in, "red");
+        auto g = channelR8(in, "green");
+        auto b = channelR8(in, "blue");
+        auto a = channelR8(in, "alpha");
         if (r || g || b || a)
-            out["image"].image = mergeChannels(r, g, b, a);
+            out["image"].image = mergeChannels(r ? &*r : nullptr, g ? &*g : nullptr,
+                                                b ? &*b : nullptr, a ? &*a : nullptr);
     } else if (type == "op.prims") {
-        if (const tex::Texture* ch = inImage("channel"))
+        if (auto ch = channelR8(in, "channel"))
             out["image"].image = prims(*ch);
     } else if (type == "op.luma") {
         if (const tex::Texture* img = inImage("image"))
@@ -403,11 +634,38 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["result"] = ia->second; // single operand -> passthrough
         else if (ib != in.end())
             out["result"] = ib->second;
-    } else if (type == "op.negate" || type == "op.sqrt") {
-        if (const auto it = in.find("value"); it != in.end())
-            out["result"] =
-                unaryArith(it->second, type == "op.negate" ? UnaryOp::Negate : UnaryOp::Sqrt,
-                           errors);
+    } else if (type == "op.negate" || type == "op.sqrt" || type == "op.reciprocal") {
+        if (const auto it = in.find("value"); it != in.end()) {
+            const UnaryOp uo = type == "op.negate"  ? UnaryOp::Negate
+                               : type == "op.sqrt"  ? UnaryOp::Sqrt
+                                                    : UnaryOp::Reciprocal;
+            out["result"] = unaryArith(it->second, uo, errors);
+        }
+    } else if (type == "op.derivatives") {
+        if (const auto it = in.find("channel"); it != in.end()) {
+            const auto mode = static_cast<DerivMode>(paramInt(n, "mode", 0));
+            auto [dx, dy] = derivativesF(toFChannel(it->second), mode);
+            out["dx"].fchan = std::move(dx);
+            out["dy"].fchan = std::move(dy);
+        }
+    } else if (type == "op.gaussian_blur") {
+        if (const tex::Texture* img = inImage("image")) {
+            double radius = 2.0; // default when the radius pin is unconnected
+            if (const auto it = in.find("radius"); it != in.end())
+                radius = scalarOf(it->second);
+            out["image"].image =
+                gaussianBlur(toRGBA8(*img), static_cast<int>(std::lround(radius)));
+        }
+    } else if (type == "op.sharpen") {
+        if (const tex::Texture* img = inImage("image")) {
+            double strength = 1.0; // default when the strength pin is unconnected
+            if (const auto it = in.find("strength"); it != in.end())
+                strength = scalarOf(it->second);
+            out["image"].image = sharpen(toRGBA8(*img), strength);
+        }
+    } else if (type == "op.sobel") {
+        if (auto c8 = channelR8(in, "channel"))
+            out["channel"].image = sobel(*c8);
     } else if (type == "op.matching_mipmap") {
         const tex::Texture* base = inImage("base");
         const tex::Texture* rel = inImage("related");
@@ -488,6 +746,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
         }
     } else if (type == "output.standard") {
         // Captured by the caller from this node's input.
+    } else if (type == "output.real" || type == "output.integer" || type == "output.channel") {
+        // Function-pipeline outputs; inert when run as a standard pipeline.
     } else {
         errors.push_back("Unknown node type '" + type + "' skipped");
     }

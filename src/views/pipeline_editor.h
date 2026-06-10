@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "common_types.h"
+#include "models/commands.h"
 #include "pipeline/node_graph.h"
 
 struct SDL_Window;
@@ -49,9 +50,9 @@ public:
         upscaler_models_ = std::move(models);
     }
 
-    /// Provide the runnable pipeline file names shown by the Subpipeline node's
-    /// combobox.
-    void setPipelines(std::vector<std::string> pipelines) {
+    /// Provide the runnable pipelines shown by the Subpipeline node's combobox
+    /// (displays each pipeline's name, stores its file).
+    void setPipelines(std::vector<models::PipelineInfo> pipelines) {
         pipelines_ = std::move(pipelines);
     }
 
@@ -102,7 +103,7 @@ private:
     FolderState load_dialog_result_;
 
     std::vector<ModelOption> upscaler_models_;
-    std::vector<std::string> pipelines_; ///< Pipeline file names for Subpipeline nodes.
+    std::vector<models::PipelineInfo> pipelines_; ///< Pipelines for Subpipeline nodes.
 
     // Pending position for the next spawned node (view-space), so palette spawns
     // don't stack on top of each other.

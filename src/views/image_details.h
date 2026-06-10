@@ -48,9 +48,9 @@ public:
     std::vector<models::AppCommand> drawMipList(const whiteout::textures::Texture& texture,
                                                 i32 selected_mip, f32 width, f32 height);
 
-    /// Set the runnable standard pipelines (file names within the pipelines
-    /// folder) shown by the Pipeline section's combobox.
-    void setPipelines(std::vector<std::string> pipelines);
+    /// Set the runnable standard pipelines shown by the Pipeline section's
+    /// combobox (displays each pipeline's name, runs its file).
+    void setPipelines(std::vector<models::PipelineInfo> pipelines);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).
@@ -61,7 +61,7 @@ public:
 
 private:
     // Pipeline runner
-    std::vector<std::string> pipelines_;
+    std::vector<models::PipelineInfo> pipelines_;
     i32 pipeline_index_ = 0;
     // Mipmap regeneration options
     bool generate_mips_ = true;

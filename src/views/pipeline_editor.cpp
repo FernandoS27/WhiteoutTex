@@ -49,8 +49,12 @@ bool paramVisible(Node* n, const Param& p) {
     if (p.visible_when.empty())
         return true;
     Param* gate = n->findParam(p.visible_when);
-    if (gate && std::holds_alternative<i64>(gate->value))
-        return std::get<i64>(gate->value) == p.visible_when_value;
+    if (gate) {
+        if (std::holds_alternative<i64>(gate->value))
+            return std::get<i64>(gate->value) == p.visible_when_value;
+        if (std::holds_alternative<bool>(gate->value))
+            return std::get<bool>(gate->value) == (p.visible_when_value != 0);
+    }
     return true;
 }
 
@@ -123,6 +127,7 @@ const char* nodeTitle(const Node* n) {
 ImVec4 categoryColor(NodeCategory c) {
     switch (c) {
     case NodeCategory::Input: return ImVec4(0.30f, 0.66f, 0.38f, 1.0f);     // green
+    case NodeCategory::Constant: return ImVec4(0.62f, 0.42f, 0.78f, 1.0f);  // violet
     case NodeCategory::Operation: return ImVec4(0.29f, 0.51f, 0.82f, 1.0f); // blue
     case NodeCategory::Output: return ImVec4(0.85f, 0.55f, 0.26f, 1.0f);    // amber
     }
@@ -146,6 +151,35 @@ ImVec4 pinTypeColor(PinType t) {
 ImVec4 withAlpha(ImVec4 c, float a) {
     c.w = a;
     return c;
+}
+
+// Draw a pin connector icon and reserve its layout box.  Inputs get a filled
+// circle, outputs a right-pointing arrow — both outlined and tinted by type.
+void drawPinIcon(bool is_input, ImU32 color, bool connected, float size = 14.0f) {
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    ImGui::Dummy(ImVec2(size, size));
+    const ImVec2 c(p.x + size * 0.5f, p.y + size * 0.5f);
+    const float r = size * 0.34f;
+    const ImU32 outline = IM_COL32(12, 12, 16, 235);
+    if (is_input) {
+        if (connected)
+            dl->AddCircleFilled(c, r, color, 20);
+        else {
+            dl->AddCircleFilled(c, r, IM_COL32(35, 38, 44, 255), 20);
+            dl->AddCircle(c, r, color, 20, 2.0f);
+        }
+        dl->AddCircle(c, r, outline, 20, 1.0f);
+    } else {
+        const ImVec2 a(c.x - r, c.y - r), b(c.x - r, c.y + r), tip(c.x + r * 1.15f, c.y);
+        if (connected)
+            dl->AddTriangleFilled(a, b, tip, color);
+        else {
+            dl->AddTriangleFilled(a, b, tip, IM_COL32(35, 38, 44, 255));
+            dl->AddTriangle(a, b, tip, color, 2.0f);
+        }
+        dl->AddTriangle(a, b, tip, outline, 1.0f);
+    }
 }
 
 // Absolute path of the bundled presets folder (copied next to the exe on
@@ -343,11 +377,23 @@ void PipelineEditor::draw(SDL_Window* window) {
 void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     ImGui::BeginChild("##PipelinePalette", ImVec2(width, 0.0f), ImGuiChildFlags_Borders);
 
+    // Pipeline name (shown in pickers instead of the file name).
+    ImGui::TextUnformatted(i18n::tr("pipeline.name"));
+    {
+        char name_buf[128];
+        std::snprintf(name_buf, sizeof(name_buf), "%s", graph_.name().c_str());
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText("##pipelinename", name_buf, sizeof(name_buf)))
+            graph_.setName(name_buf);
+    }
+    ImGui::Spacing();
+
     // Pipeline type selector (Standard = one std input/output; Varying = many).
     // A plain ImGui combo — it lives in a normal window, so no Suspend/Resume.
     ImGui::TextUnformatted(i18n::tr("pipeline.type"));
     const char* type_items[] = {i18n::tr("pipeline.type.standard"),
-                                i18n::tr("pipeline.type.varying")};
+                                i18n::tr("pipeline.type.varying"),
+                                i18n::tr("pipeline.type.function")};
     int type_cur = static_cast<int>(graph_.pipelineType());
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     if (ImGui::Combo("##pipelinetype", &type_cur, type_items,
@@ -375,6 +421,7 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     };
     static constexpr Section kSections[] = {
         {NodeCategory::Input, "pipeline.category.input"},
+        {NodeCategory::Constant, "pipeline.category.constants"},
         {NodeCategory::Operation, "pipeline.category.operation"},
         {NodeCategory::Output, "pipeline.category.output"},
     };
@@ -433,30 +480,95 @@ void PipelineEditor::drawNodes() {
         const ImVec2 header_max = ImGui::GetItemRectMax();
         ImGui::Dummy(ImVec2(0.0f, 3.0f));
 
-        // 2) Pins.
-        ImGui::BeginGroup(); // input pins (left)
+        // 2) Pins — inputs flush-left (circle), outputs flush-right (arrow).
+        //    The pin row is stretched to the node's content width (driven by the
+        //    widest of title/options) so the output column reaches the right
+        //    border and the input column sits on the left border.
+        constexpr float kIcon = 14.0f;
+        constexpr float kGap = 6.0f;
+        const ImVec4 kPinLabel(0.85f, 0.86f, 0.88f, 1.0f);
+        const auto inputConnected = [&](const std::string& pin) {
+            return graph_.isInputConnected({n->id(), pin});
+        };
+        const auto outputConnected = [&](const std::string& pin) {
+            for (const auto& l : graph_.links())
+                if (l.from.node == n->id() && l.from.pin == pin)
+                    return true;
+            return false;
+        };
+
         const auto inputs = n->inputs();
+        const auto outputs = n->outputs();
+
+        // Output column width (widest label + gap + icon).
+        float out_col_w = 0.0f;
+        for (const auto& o : outputs)
+            out_col_w = std::max(out_col_w, ImGui::CalcTextSize(o.name.c_str()).x + kGap + kIcon);
+
+        // Target content width: title vs. the (estimated) option-row widths, so
+        // the pin row can be padded to span the whole node.
+        float content_w = header_max.x - header_min.x;
+        {
+            const ImGuiStyle& st = ImGui::GetStyle();
+            for (const auto& p : n->params()) {
+                if (!paramVisible(n, p))
+                    continue;
+                float w = ImGui::CalcTextSize(i18n::tr(("pipeline.param." + p.name).c_str())).x +
+                          ImGui::CalcTextSize(":").x + st.ItemSpacing.x;
+                switch (p.widget) {
+                case ParamWidget::Enum: w += 110.0f; break;
+                case ParamWidget::Model:
+                case ParamWidget::Pipeline: w += 150.0f; break;
+                case ParamWidget::ResourcePath: w += 150.0f + kGap + 28.0f; break;
+                case ParamWidget::Scalar:
+                    w += std::holds_alternative<std::string>(p.value) ? 144.0f : 94.0f;
+                    break;
+                }
+                content_w = std::max(content_w, w);
+            }
+        }
+
+        ImGui::BeginGroup(); // input pins (left): [icon] label
         for (std::size_t i = 0; i < inputs.size(); ++i) {
             ed::BeginPin(ed::PinId(encodePin(n->id(), false, i)), ed::PinKind::Input);
-            ImGui::PushStyleColor(ImGuiCol_Text, pinTypeColor(inputs[i].type));
-            ImGui::Text("-> %s", inputs[i].name.c_str());
-            ImGui::PopStyleColor();
+            ed::PinPivotAlignment(ImVec2(0.0f, 0.5f)); // link attaches at the icon
+            ed::PinPivotSize(ImVec2(0.0f, 0.0f));
+            drawPinIcon(true, ImColor(pinTypeColor(inputs[i].type)),
+                        inputConnected(inputs[i].name), kIcon);
+            ImGui::SameLine(0.0f, kGap);
+            ImGui::TextColored(kPinLabel, "%s", inputs[i].name.c_str());
             ed::EndPin();
         }
+        if (inputs.empty())
+            ImGui::Dummy(ImVec2(0.0f, 0.0f));
         ImGui::EndGroup();
+        const float in_col_w = ImGui::GetItemRectSize().x;
 
-        ImGui::SameLine();
+        if (!outputs.empty()) {
+            // Spacer pushes the output column to the right border.
+            const float spacer = std::max(26.0f, content_w - in_col_w - out_col_w);
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::Dummy(ImVec2(spacer, 1.0f));
+            ImGui::SameLine(0.0f, 0.0f);
 
-        ImGui::BeginGroup(); // output pins (right)
-        const auto outputs = n->outputs();
-        for (std::size_t i = 0; i < outputs.size(); ++i) {
-            ed::BeginPin(ed::PinId(encodePin(n->id(), true, i)), ed::PinKind::Output);
-            ImGui::PushStyleColor(ImGuiCol_Text, pinTypeColor(outputs[i].type));
-            ImGui::Text("%s ->", outputs[i].name.c_str());
-            ImGui::PopStyleColor();
-            ed::EndPin();
+            ImGui::BeginGroup(); // output pins: label [icon], right-aligned
+            for (std::size_t i = 0; i < outputs.size(); ++i) {
+                ed::BeginPin(ed::PinId(encodePin(n->id(), true, i)), ed::PinKind::Output);
+                ed::PinPivotAlignment(ImVec2(1.0f, 0.5f));
+                ed::PinPivotSize(ImVec2(0.0f, 0.0f));
+                const float row_w = ImGui::CalcTextSize(outputs[i].name.c_str()).x + kGap + kIcon;
+                if (row_w < out_col_w) {
+                    ImGui::Dummy(ImVec2(out_col_w - row_w, 1.0f));
+                    ImGui::SameLine(0.0f, 0.0f);
+                }
+                ImGui::TextColored(kPinLabel, "%s", outputs[i].name.c_str());
+                ImGui::SameLine(0.0f, kGap);
+                drawPinIcon(false, ImColor(pinTypeColor(outputs[i].type)),
+                            outputConnected(outputs[i].name), kIcon);
+                ed::EndPin();
+            }
+            ImGui::EndGroup();
         }
-        ImGui::EndGroup();
 
         // Editable parameters inside the node body.  Popup-based widgets (enum /
         // model combobox, resource picker) only draw a trigger here; the popup
@@ -527,8 +639,12 @@ void PipelineEditor::drawNodes() {
                 if (!std::holds_alternative<std::string>(p.value))
                     break;
                 const std::string& cur = std::get<std::string>(p.value);
-                const std::string shown =
-                    cur.empty() ? "-" : std::filesystem::path(cur).stem().string();
+                std::string shown = cur.empty() ? std::string("-") : cur;
+                for (const auto& info : pipelines_)
+                    if (info.file == cur) {
+                        shown = info.display_name;
+                        break;
+                    }
                 ImGui::AlignTextToFramePadding();
                 ImGui::Text("%s:", plabel);
                 ImGui::SameLine();
@@ -574,8 +690,14 @@ void PipelineEditor::drawNodes() {
                     bool v = std::get<bool>(p.value);
                     if (ImGui::Checkbox(("##sb_" + sfx).c_str(), &v))
                         std::get<bool>(p.value) = v;
+                } else if (std::holds_alternative<std::string>(p.value)) {
+                    std::string& s = std::get<std::string>(p.value);
+                    char buf[128];
+                    std::snprintf(buf, sizeof(buf), "%s", s.c_str());
+                    ImGui::SetNextItemWidth(140.0f);
+                    if (ImGui::InputText(("##ss_" + sfx).c_str(), buf, sizeof(buf)))
+                        s = buf;
                 }
-                // Plain string scalars have no in-node widget yet.
                 break;
             }
             }
@@ -660,10 +782,9 @@ void PipelineEditor::drawNodes() {
                         std::string& cur = std::get<std::string>(p.value);
                         if (pipelines_.empty())
                             ImGui::TextDisabled("%s", i18n::tr("pipeline.resource.no_pipeline"));
-                        for (const auto& name : pipelines_) {
-                            const std::string label = std::filesystem::path(name).stem().string();
-                            if (ImGui::Selectable(label.c_str(), name == cur))
-                                cur = name;
+                        for (const auto& info : pipelines_) {
+                            if (ImGui::Selectable(info.display_name.c_str(), info.file == cur))
+                                cur = info.file;
                         }
                         ImGui::EndPopup();
                     }

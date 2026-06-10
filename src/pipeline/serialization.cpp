@@ -46,7 +46,10 @@ void paramFromJson(ParamValue& slot, const json& j, std::string_view ctx,
 json toJson(const NodeGraph& graph) {
     json doc;
     doc["version"] = kPipelineSchemaVersion;
-    doc["type"] = graph.pipelineType() == PipelineType::Varying ? "varying" : "standard";
+    doc["name"] = graph.name();
+    doc["type"] = graph.pipelineType() == PipelineType::Function ? "function"
+                  : graph.pipelineType() == PipelineType::Varying ? "varying"
+                                                                  : "standard";
 
     json nodes = json::array();
     for (const auto& n : graph.nodes()) {
@@ -89,9 +92,11 @@ bool fromJson(const json& doc, NodeGraph& graph, std::vector<std::string>* warni
 
     graph.clear();
 
-    graph.setPipelineType(doc.value("type", std::string{"standard"}) == "varying"
-                              ? PipelineType::Varying
-                              : PipelineType::Standard);
+    graph.setName(doc.value("name", std::string{}));
+    const std::string ptype = doc.value("type", std::string{"standard"});
+    graph.setPipelineType(ptype == "function" ? PipelineType::Function
+                          : ptype == "varying" ? PipelineType::Varying
+                                               : PipelineType::Standard);
 
     // ── Nodes (construct-then-populate) ────────────────────────────────
     for (const auto& jn : doc.value("nodes", json::array())) {

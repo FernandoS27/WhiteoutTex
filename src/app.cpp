@@ -496,7 +496,25 @@ void App::runPipeline(const std::string& name) {
         return;
     }
 
-    // Execute: current image is the Standard Input; output replaces it.
+    // If the pipeline has Real Input parameters, prompt for them first;
+    // otherwise run immediately.
+    const bool has_params = std::any_of(graph.nodes().begin(), graph.nodes().end(),
+                                        [](const std::unique_ptr<pipeline::Node>& nd) {
+                                            return nd->typeId() == "input.real";
+                                        });
+    if (has_params) {
+        param_graph_ = std::move(graph);
+        param_dialog_request_ = true;
+    } else {
+        executePipelineGraph(graph);
+    }
+}
+
+void App::executePipelineGraph(pipeline::NodeGraph& graph) {
+    if (!tex_state_.texture)
+        return;
+
+    // Current image is the Standard Input; output replaces it.
     const std::filesystem::path presets =
         pipelines_dir_.empty()
             ? std::filesystem::path("presets")
@@ -520,6 +538,79 @@ void App::runPipeline(const std::string& name) {
     ui_.result_popup_message = std::move(msg);
     ui_.result_popup_success = result.output.has_value();
     ui_.show_result_popup = true;
+}
+
+void App::drawPipelineParamDialog() {
+    if (param_dialog_request_) {
+        ImGui::OpenPopup("##PipelineParams");
+        param_dialog_request_ = false;
+    }
+    if (!param_graph_)
+        return;
+
+    // Reads a node param (variant) with a default.
+    const auto readReal = [](pipeline::Node* nd, const char* nm, double def) {
+        if (auto* p = nd->findParam(nm); p && std::holds_alternative<f64>(p->value))
+            return std::get<f64>(p->value);
+        return def;
+    };
+    const auto readBool = [](pipeline::Node* nd, const char* nm, bool def) {
+        if (auto* p = nd->findParam(nm); p && std::holds_alternative<bool>(p->value))
+            return std::get<bool>(p->value);
+        return def;
+    };
+    const auto readStr = [](pipeline::Node* nd, const char* nm) {
+        if (auto* p = nd->findParam(nm); p && std::holds_alternative<std::string>(p->value))
+            return std::get<std::string>(p->value);
+        return std::string{};
+    };
+
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 0.0f), ImGuiCond_Appearing);
+    if (ImGui::BeginPopupModal("##PipelineParams", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted(i18n::tr("pipeline.params_title"));
+        ImGui::Separator();
+
+        int idx = 0;
+        for (const auto& up : param_graph_->nodes()) {
+            pipeline::Node* nd = up.get();
+            if (nd->typeId() != "input.real")
+                continue;
+            std::string label = readStr(nd, "name");
+            if (label.empty())
+                label = "value";
+            label += "##rp" + std::to_string(idx++);
+
+            pipeline::Param* vp = nd->findParam("value");
+            if (!vp || !std::holds_alternative<f64>(vp->value))
+                continue;
+            float v = static_cast<float>(std::get<f64>(vp->value));
+            ImGui::SetNextItemWidth(200.0f);
+            if (readBool(nd, "clamp", false)) {
+                float mn = static_cast<float>(readReal(nd, "min", 0.0));
+                float mx = static_cast<float>(readReal(nd, "max", 1.0));
+                if (mx < mn)
+                    std::swap(mn, mx);
+                if (ImGui::SliderFloat(label.c_str(), &v, mn, mx))
+                    std::get<f64>(vp->value) = v;
+            } else {
+                if (ImGui::InputFloat(label.c_str(), &v))
+                    std::get<f64>(vp->value) = v;
+            }
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button(i18n::tr("pipeline.params_run"), ImVec2(120.0f, 0.0f))) {
+            executePipelineGraph(*param_graph_);
+            param_graph_.reset();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(i18n::tr("app.cancel"), ImVec2(120.0f, 0.0f))) {
+            param_graph_.reset();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 void App::processOpenResult() {
@@ -599,17 +690,35 @@ i32 App::run(i32 argc, char** argv) {
         pipelines_dir_ = "pipelines";
     }
 
-    // Discover runnable standard pipelines (*.json) next to the executable.
+    // Discover runnable standard pipelines (*.json) next to the executable,
+    // reading each one's display name from its "name" field.
     {
         std::error_code ec;
         for (std::filesystem::directory_iterator it(pipelines_dir_, ec), end; it != end;
              it.increment(ec)) {
             if (ec)
                 break;
-            if (it->is_regular_file(ec) && to_lower(it->path().extension().string()) == ".json")
-                pipeline_files_.push_back(it->path().filename().string());
+            if (!it->is_regular_file(ec) || to_lower(it->path().extension().string()) != ".json")
+                continue;
+            models::PipelineInfo info;
+            info.file = it->path().filename().string();
+            std::ifstream pf(it->path(), std::ios::binary);
+            if (pf) {
+                try {
+                    nlohmann::json doc;
+                    pf >> doc;
+                    info.display_name = doc.value("name", std::string{});
+                } catch (const nlohmann::json::exception&) {
+                }
+            }
+            if (info.display_name.empty())
+                info.display_name = it->path().stem().string();
+            pipeline_files_.push_back(std::move(info));
         }
-        std::sort(pipeline_files_.begin(), pipeline_files_.end());
+        std::sort(pipeline_files_.begin(), pipeline_files_.end(),
+                  [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
+                      return a.display_name < b.display_name;
+                  });
     }
     image_details_.setPipelines(pipeline_files_);
     pipeline_editor_.setPipelines(pipeline_files_);
@@ -812,6 +921,7 @@ i32 App::run(i32 argc, char** argv) {
         }
         drawAboutDialog(ui_.show_about);
         drawResultDialog(ui_);
+        drawPipelineParamDialog();
         {
             auto cmds = drawBC3NDialog(ui_.show_bc3n_dialog);
             dispatchCommands(cmds);

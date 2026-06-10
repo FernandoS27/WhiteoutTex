@@ -29,9 +29,10 @@ namespace whiteout::textool::pipeline {
 
 using NodeId = u32; ///< Stable per-graph node id (0 = unassigned).
 
-/// Palette grouping + a topology invariant: Input nodes have no input pins,
-/// Output nodes have no output pins.  Operations have both.
-enum class NodeCategory : u8 { Input, Operation, Output };
+/// Palette grouping.  Input/Constant nodes are sources, Output nodes are sinks,
+/// Operations transform.  (Constant Channel is a Constant that still takes
+/// width/height/value inputs, so the "sources have no inputs" rule is loose.)
+enum class NodeCategory : u8 { Input, Constant, Operation, Output };
 
 /// A plain 2D point — keeps the model free of ImGui's ImVec2.
 struct Vec2 {

@@ -16,7 +16,7 @@ using i18n::tr;
 
 std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::string>& recent_paths,
                                     bool has_upscaler, i18n::Language current_language,
-                                    const std::vector<std::string>& pipelines) {
+                                    const std::vector<models::PipelineInfo>& pipelines) {
     std::vector<AppCommand> commands;
 
     if (!ImGui::BeginMainMenuBar())
@@ -56,11 +56,9 @@ std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::str
         }
         // Run a standard pipeline on the current image (output replaces it).
         if (ImGui::BeginMenu(tr("menu.tools.pipeline"), has_texture && !pipelines.empty())) {
-            for (const auto& name : pipelines) {
-                // Show the file stem; the command carries the full file name.
-                std::string label = std::filesystem::path(name).stem().string();
-                if (ImGui::MenuItem(label.c_str()))
-                    commands.push_back(RunPipelineCmd{name});
+            for (const auto& info : pipelines) {
+                if (ImGui::MenuItem(info.display_name.c_str()))
+                    commands.push_back(RunPipelineCmd{info.file});
             }
             ImGui::EndMenu();
         }

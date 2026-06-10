@@ -137,18 +137,16 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
             if (pipeline_index_ < 0 || pipeline_index_ >= static_cast<i32>(pipelines_.size()))
                 pipeline_index_ = 0;
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
-            const std::string preview =
-                std::filesystem::path(pipelines_[pipeline_index_]).stem().string();
-            if (ImGui::BeginCombo("##PipelineSel", preview.c_str())) {
+            if (ImGui::BeginCombo("##PipelineSel",
+                                  pipelines_[pipeline_index_].display_name.c_str())) {
                 for (i32 i = 0; i < static_cast<i32>(pipelines_.size()); ++i) {
-                    const std::string label = std::filesystem::path(pipelines_[i]).stem().string();
-                    if (ImGui::Selectable(label.c_str(), i == pipeline_index_))
+                    if (ImGui::Selectable(pipelines_[i].display_name.c_str(), i == pipeline_index_))
                         pipeline_index_ = i;
                 }
                 ImGui::EndCombo();
             }
             if (ImGui::Button(tr("details.run_pipeline")))
-                commands.push_back(RunPipelineCmd{pipelines_[pipeline_index_]});
+                commands.push_back(RunPipelineCmd{pipelines_[pipeline_index_].file});
         }
 
 #ifdef WHITEOUT_HAS_UPSCALER
@@ -211,7 +209,7 @@ std::vector<AppCommand> ImageDetails::drawMipList(const tex::Texture& texture, i
     return commands;
 }
 
-void ImageDetails::setPipelines(std::vector<std::string> pipelines) {
+void ImageDetails::setPipelines(std::vector<models::PipelineInfo> pipelines) {
     pipelines_ = std::move(pipelines);
     if (pipeline_index_ >= static_cast<i32>(pipelines_.size()))
         pipeline_index_ = 0;

@@ -18,6 +18,8 @@
 #include "services/upscaler_service.h"
 #endif
 
+#include <optional>
+
 #include <string>
 
 #include <SDL3/SDL.h>
@@ -67,8 +69,15 @@ private:
     void applyLoadResult(const std::string& path, services::TextureLoadResult result);
 
     /// Run a standard pipeline (file name within pipelines_dir_) on the current
-    /// image, replacing it with the result.
+    /// image, replacing it with the result.  Prompts for Real Input parameters
+    /// first if the pipeline has any.
     void runPipeline(const std::string& name);
+
+    /// Execute an already-loaded pipeline graph on the current image.
+    void executePipelineGraph(pipeline::NodeGraph& graph);
+
+    /// Modal that collects Real Input parameter values before running.
+    void drawPipelineParamDialog();
 
     // SDL
     SDL_Window* window_ = nullptr;
@@ -77,8 +86,12 @@ private:
     // Paths & preferences
     std::string imgui_ini_path_;
     std::string lang_dir_;
-    std::string pipelines_dir_;                 ///< resources/pipelines next to the exe.
-    std::vector<std::string> pipeline_files_;   ///< *.json names found in pipelines_dir_.
+    std::string pipelines_dir_;                       ///< resources/pipelines next to the exe.
+    std::vector<models::PipelineInfo> pipeline_files_; ///< Pipelines found in pipelines_dir_.
+
+    // Pending parameterized pipeline run (Real Input prompt).
+    std::optional<pipeline::NodeGraph> param_graph_;
+    bool param_dialog_request_ = false;
     AppPrefs app_prefs_;
     SavePrefs save_prefs_;
     BatchPrefs batch_prefs_;

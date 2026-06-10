@@ -89,6 +89,7 @@ void NodeGraph::removeLink(LinkId id) {
 void NodeGraph::clear() {
     nodes_.clear();
     links_.clear();
+    name_.clear();
     type_ = PipelineType::Standard;
     next_node_id_ = 1;
     next_link_id_ = 1;

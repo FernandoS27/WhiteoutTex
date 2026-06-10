@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "name": "Invert Colors",
   "type": "standard",
   "nodes": [
     { "id": 1, "type": "input.standard", "pos": [40, 80], "params": {} },

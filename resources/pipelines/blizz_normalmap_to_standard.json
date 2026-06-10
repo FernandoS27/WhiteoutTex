@@ -1,0 +1,530 @@
+{
+  "links": [
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        4,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        5,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        6,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "channel"
+      ],
+      "to": [
+        7,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "channel"
+      ],
+      "to": [
+        8,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "channel"
+      ],
+      "to": [
+        8,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "result"
+      ],
+      "to": [
+        11,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "result"
+      ],
+      "to": [
+        13,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        14,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "result"
+      ],
+      "to": [
+        14,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        14,
+        "result"
+      ],
+      "to": [
+        15,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "result"
+      ],
+      "to": [
+        16,
+        "blue"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "image"
+      ],
+      "to": [
+        3,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        18,
+        "value"
+      ],
+      "to": [
+        19,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "result"
+      ],
+      "to": [
+        19,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "result"
+      ],
+      "to": [
+        16,
+        "green"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "result"
+      ],
+      "to": [
+        16,
+        "red"
+      ]
+    },
+    {
+      "from": [
+        20,
+        "result"
+      ],
+      "to": [
+        11,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "channel"
+      ],
+      "to": [
+        21,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        21,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "result"
+      ],
+      "to": [
+        24,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        24,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        24,
+        "result"
+      ],
+      "to": [
+        9,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        24,
+        "result"
+      ],
+      "to": [
+        9,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        25,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "result"
+      ],
+      "to": [
+        25,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "result"
+      ],
+      "to": [
+        20,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "result"
+      ],
+      "to": [
+        20,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        25,
+        "result"
+      ],
+      "to": [
+        26,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        26,
+        "b"
+      ]
+    }
+  ],
+  "name": "Blizz NM 2 Standard",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {},
+      "pos": [
+        90.0,
+        163.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 3,
+      "params": {},
+      "pos": [
+        2232.0,
+        275.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 4,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        344.0,
+        51.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 5,
+      "params": {
+        "channel": 3
+      },
+      "pos": [
+        344.0,
+        195.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 6,
+      "params": {
+        "channel": 1
+      },
+      "pos": [
+        328.0,
+        547.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 7,
+      "params": {},
+      "pos": [
+        1379.0,
+        307.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 8,
+      "params": {},
+      "pos": [
+        648.0,
+        206.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 9,
+      "params": {},
+      "pos": [
+        983.0,
+        638.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 11,
+      "params": {},
+      "pos": [
+        1287.0,
+        526.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 12,
+      "params": {
+        "value": 1.0
+      },
+      "pos": [
+        1178.0,
+        787.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 13,
+      "params": {},
+      "pos": [
+        1443.0,
+        563.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 14,
+      "params": {},
+      "pos": [
+        1623.0,
+        675.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 15,
+      "params": {},
+      "pos": [
+        1731.0,
+        499.0
+      ],
+      "type": "op.sqrt"
+    },
+    {
+      "id": 16,
+      "params": {},
+      "pos": [
+        1912.0,
+        244.0
+      ],
+      "type": "op.merge_channels"
+    },
+    {
+      "id": 18,
+      "params": {
+        "value": 1.0
+      },
+      "pos": [
+        1466.0,
+        51.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 19,
+      "params": {},
+      "pos": [
+        1634.0,
+        291.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 20,
+      "params": {},
+      "pos": [
+        1111.0,
+        430.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 21,
+      "params": {},
+      "pos": [
+        631.0,
+        702.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 22,
+      "params": {
+        "value": 2.0
+      },
+      "pos": [
+        394.0,
+        691.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 23,
+      "params": {
+        "value": -1.0
+      },
+      "pos": [
+        634.0,
+        819.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 24,
+      "params": {},
+      "pos": [
+        808.0,
+        707.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 25,
+      "params": {},
+      "pos": [
+        791.0,
+        382.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 26,
+      "params": {},
+      "pos": [
+        951.0,
+        478.0
+      ],
+      "type": "op.add"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

@@ -71,6 +71,7 @@
       "type": "op.prims"
     }
   ],
+  "name": "Grayscale",
   "type": "standard",
   "version": 1
 }

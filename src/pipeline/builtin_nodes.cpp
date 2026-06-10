@@ -46,6 +46,9 @@ const std::vector<std::string> kMipmapModes = {"pipeline.mipmode.current", "pipe
 const std::vector<std::string> kLumaMethods = {"pipeline.luma.rec709", "pipeline.luma.rec601",
                                                "pipeline.luma.average"};
 
+// Derivative kernels (i18n keys).  Quad = central difference, Sobel = 3x3.
+const std::vector<std::string> kDerivativeModes = {"pipeline.deriv.quad", "pipeline.deriv.sobel"};
+
 // ── Inputs ──────────────────────────────────────────────────────────────────
 
 // The pipeline's primary/standard input image (whatever it's applied to).
@@ -53,6 +56,49 @@ class StandardInputNode final : public Node {
 public:
     StandardInputNode() : Node("input.standard", NodeCategory::Input) {
         addOutput("image", PinType::RGBA);
+        addParam("name", std::string{"Input"}); // names this external image input
+    }
+};
+
+// A real-valued pipeline parameter, supplied when the pipeline is run (a field,
+// or a slider when clamped to [min, max]).  The in-node "value" is the default.
+class RealInputNode final : public Node {
+public:
+    RealInputNode() : Node("input.real", NodeCategory::Input) {
+        addOutput("value", PinType::Real);
+        addParam("name", std::string{"value"});
+        addParam("value", f64{0.0});
+        addParam("clamp", false);
+        addParam("min", f64{0.0});
+        gateLastParam("clamp", 1); // min shown only when clamp is on
+        addParam("max", f64{1.0});
+        gateLastParam("clamp", 1); // max shown only when clamp is on
+    }
+};
+
+// An integer-valued pipeline parameter, supplied when the pipeline is run.
+// The in-node "value" is the default; clamp bounds it to [min, max].
+class IntegerInputNode final : public Node {
+public:
+    IntegerInputNode() : Node("input.integer", NodeCategory::Input) {
+        addOutput("value", PinType::Int);
+        addParam("name", std::string{"value"});
+        addParam("value", i64{0});
+        addParam("clamp", false);
+        addParam("min", i64{0});
+        gateLastParam("clamp", 1); // min shown only when clamp is on
+        addParam("max", i64{255});
+        gateLastParam("clamp", 1); // max shown only when clamp is on
+    }
+};
+
+// A single-channel pipeline input, supplied when the pipeline is run as a
+// function.  Carries only a name (the channel data arrives at run time).
+class ChannelInputNode final : public Node {
+public:
+    ChannelInputNode() : Node("input.channel", NodeCategory::Input) {
+        addOutput("channel", PinType::R);
+        addParam("name", std::string{"channel"});
     }
 };
 
@@ -65,10 +111,12 @@ public:
     }
 };
 
+// ── Constants ───────────────────────────────────────────────────────────────
+
 // A constant integer value source (no inputs).
 class ConstantIntegerNode final : public Node {
 public:
-    ConstantIntegerNode() : Node("input.const_int", NodeCategory::Input) {
+    ConstantIntegerNode() : Node("input.const_int", NodeCategory::Constant) {
         addOutput("value", PinType::Int);
         addParam("value", i64{0});
     }
@@ -77,9 +125,20 @@ public:
 // A constant real (double) value source (no inputs).
 class ConstantRealNode final : public Node {
 public:
-    ConstantRealNode() : Node("input.const_real", NodeCategory::Input) {
+    ConstantRealNode() : Node("input.const_real", NodeCategory::Constant) {
         addOutput("value", PinType::Real);
         addParam("value", f64{0.0});
+    }
+};
+
+// A constant channel: width x height (Int) filled with a value (Real) -> R.
+class ConstantChannelNode final : public Node {
+public:
+    ConstantChannelNode() : Node("input.const_channel", NodeCategory::Constant) {
+        addInput("width", PinType::Int);
+        addInput("height", PinType::Int);
+        addInput("value", PinType::Real);
+        addOutput("channel", PinType::R);
     }
 };
 
@@ -100,6 +159,17 @@ class InvertChannelNode final : public Node {
 public:
     InvertChannelNode() : Node("op.invert_channel", NodeCategory::Operation) {
         addInput("image", PinType::RGBA);
+        addOutput("image", PinType::RGBA);
+        addEnumParam("channel", 0, kChannelLabels); // 0=R, 1=G, 2=B, 3=A
+    }
+};
+
+// RGBA + Real -> RGBA with the selected channel filled with the value.
+class FillChannelNode final : public Node {
+public:
+    FillChannelNode() : Node("op.fill_channel", NodeCategory::Operation) {
+        addInput("image", PinType::RGBA);
+        addInput("value", PinType::Real);
         addOutput("image", PinType::RGBA);
         addEnumParam("channel", 0, kChannelLabels); // 0=R, 1=G, 2=B, 3=A
     }
@@ -170,6 +240,25 @@ public:
     SquareRootNode() : Node("op.sqrt", NodeCategory::Operation) {
         addInput("value", PinType::Number);
         addOutput("result", PinType::Number);
+    }
+};
+
+class ReciprocalNode final : public Node {
+public:
+    ReciprocalNode() : Node("op.reciprocal", NodeCategory::Operation) {
+        addInput("value", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
+// A single channel (R) -> its partial derivatives in X and Y (both R).
+class DerivativesNode final : public Node {
+public:
+    DerivativesNode() : Node("op.derivatives", NodeCategory::Operation) {
+        addInput("channel", PinType::R);
+        addOutput("dx", PinType::R);
+        addOutput("dy", PinType::R);
+        addEnumParam("mode", 0, kDerivativeModes); // 0=Quad, 1=Sobel
     }
 };
 
@@ -259,6 +348,34 @@ public:
     }
 };
 
+// ── Filters (convolution) ──────────────────────────────────────────────────
+
+class GaussianBlurNode final : public Node {
+public:
+    GaussianBlurNode() : Node("op.gaussian_blur", NodeCategory::Operation) {
+        addInput("image", PinType::RGBA);
+        addInput("radius", PinType::Real); // default 2 when unconnected
+        addOutput("image", PinType::RGBA);
+    }
+};
+
+class SharpenNode final : public Node {
+public:
+    SharpenNode() : Node("op.sharpen", NodeCategory::Operation) {
+        addInput("image", PinType::RGBA);
+        addInput("strength", PinType::Real); // default 1 when unconnected
+        addOutput("image", PinType::RGBA);
+    }
+};
+
+class SobelNode final : public Node {
+public:
+    SobelNode() : Node("op.sobel", NodeCategory::Operation) {
+        addInput("channel", PinType::R);
+        addOutput("channel", PinType::R);
+    }
+};
+
 // ── Output ──────────────────────────────────────────────────────────────────
 
 // The pipeline's primary/standard output image (mirrors Standard Input).
@@ -266,6 +383,34 @@ class StandardOutputNode final : public Node {
 public:
     StandardOutputNode() : Node("output.standard", NodeCategory::Output) {
         addInput("image", PinType::RGBA);
+        addParam("name", std::string{"Output"}); // names this external image output
+    }
+};
+
+// A named real-valued pipeline output (for function pipelines).
+class RealOutputNode final : public Node {
+public:
+    RealOutputNode() : Node("output.real", NodeCategory::Output) {
+        addInput("value", PinType::Real);
+        addParam("name", std::string{"value"});
+    }
+};
+
+// A named integer-valued pipeline output (for function pipelines).
+class IntegerOutputNode final : public Node {
+public:
+    IntegerOutputNode() : Node("output.integer", NodeCategory::Output) {
+        addInput("value", PinType::Int);
+        addParam("name", std::string{"value"});
+    }
+};
+
+// A named single-channel pipeline output (for function pipelines).
+class ChannelOutputNode final : public Node {
+public:
+    ChannelOutputNode() : Node("output.channel", NodeCategory::Output) {
+        addInput("channel", PinType::R);
+        addParam("name", std::string{"channel"});
     }
 };
 
@@ -275,17 +420,27 @@ void registerBuiltinNodes() {
     auto& reg = NodeRegistry::instance();
     reg.registerType({"input.standard", NodeCategory::Input, "pipeline.node.standard_input",
                       [] { return std::make_unique<StandardInputNode>(); }});
+    reg.registerType({"input.real", NodeCategory::Input, "pipeline.node.real_input",
+                      [] { return std::make_unique<RealInputNode>(); }});
+    reg.registerType({"input.integer", NodeCategory::Input, "pipeline.node.integer_input",
+                      [] { return std::make_unique<IntegerInputNode>(); }});
+    reg.registerType({"input.channel", NodeCategory::Input, "pipeline.node.channel_input",
+                      [] { return std::make_unique<ChannelInputNode>(); }});
     reg.registerType({"input.resource", NodeCategory::Input, "pipeline.node.resource",
                       [] { return std::make_unique<ResourceInputNode>(); }});
-    reg.registerType({"input.const_int", NodeCategory::Input, "pipeline.node.const_int",
+    reg.registerType({"input.const_int", NodeCategory::Constant, "pipeline.node.const_int",
                       [] { return std::make_unique<ConstantIntegerNode>(); }});
-    reg.registerType({"input.const_real", NodeCategory::Input, "pipeline.node.const_real",
+    reg.registerType({"input.const_real", NodeCategory::Constant, "pipeline.node.const_real",
                       [] { return std::make_unique<ConstantRealNode>(); }});
+    reg.registerType({"input.const_channel", NodeCategory::Constant, "pipeline.node.const_channel",
+                      [] { return std::make_unique<ConstantChannelNode>(); }});
     reg.registerType({"op.extract_channel", NodeCategory::Operation,
                       "pipeline.node.extract_channel",
                       [] { return std::make_unique<ExtractChannelNode>(); }});
     reg.registerType({"op.invert_channel", NodeCategory::Operation, "pipeline.node.invert_channel",
                       [] { return std::make_unique<InvertChannelNode>(); }});
+    reg.registerType({"op.fill_channel", NodeCategory::Operation, "pipeline.node.fill_channel",
+                      [] { return std::make_unique<FillChannelNode>(); }});
     reg.registerType({"op.invert", NodeCategory::Operation, "pipeline.node.invert",
                       [] { return std::make_unique<InvertNode>(); }});
     reg.registerType({"op.merge_channels", NodeCategory::Operation,
@@ -303,6 +458,10 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<NegateNode>(); }});
     reg.registerType({"op.sqrt", NodeCategory::Operation, "pipeline.node.sqrt",
                       [] { return std::make_unique<SquareRootNode>(); }});
+    reg.registerType({"op.reciprocal", NodeCategory::Operation, "pipeline.node.reciprocal",
+                      [] { return std::make_unique<ReciprocalNode>(); }});
+    reg.registerType({"op.derivatives", NodeCategory::Operation, "pipeline.node.derivatives",
+                      [] { return std::make_unique<DerivativesNode>(); }});
     reg.registerType({"op.blend", NodeCategory::Operation, "pipeline.node.blend",
                       [] { return std::make_unique<BlendNode>(); }});
     reg.registerType({"op.matching_mipmap", NodeCategory::Operation,
@@ -319,8 +478,20 @@ void registerBuiltinNodes() {
     reg.registerType({"op.regenerate_mipmaps", NodeCategory::Operation,
                       "pipeline.node.regenerate_mipmaps",
                       [] { return std::make_unique<RegenerateMipmapsNode>(); }});
+    reg.registerType({"op.gaussian_blur", NodeCategory::Operation, "pipeline.node.gaussian_blur",
+                      [] { return std::make_unique<GaussianBlurNode>(); }});
+    reg.registerType({"op.sharpen", NodeCategory::Operation, "pipeline.node.sharpen",
+                      [] { return std::make_unique<SharpenNode>(); }});
+    reg.registerType({"op.sobel", NodeCategory::Operation, "pipeline.node.sobel",
+                      [] { return std::make_unique<SobelNode>(); }});
     reg.registerType({"output.standard", NodeCategory::Output, "pipeline.node.standard_output",
                       [] { return std::make_unique<StandardOutputNode>(); }});
+    reg.registerType({"output.real", NodeCategory::Output, "pipeline.node.real_output",
+                      [] { return std::make_unique<RealOutputNode>(); }});
+    reg.registerType({"output.integer", NodeCategory::Output, "pipeline.node.integer_output",
+                      [] { return std::make_unique<IntegerOutputNode>(); }});
+    reg.registerType({"output.channel", NodeCategory::Output, "pipeline.node.channel_output",
+                      [] { return std::make_unique<ChannelOutputNode>(); }});
 }
 
 } // namespace whiteout::textool::pipeline

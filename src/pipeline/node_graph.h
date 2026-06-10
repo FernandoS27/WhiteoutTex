@@ -27,8 +27,9 @@ namespace whiteout::textool::pipeline {
 using LinkId = u32;
 
 /// Contract of a pipeline's external interface.  Standard = exactly one
-/// Standard Input and one Standard Output; Varying = multiple inputs/outputs.
-enum class PipelineType : u8 { Standard, Varying };
+/// Standard Input and one Standard Output; Varying = multiple inputs/outputs;
+/// Function = a named, typed input/output set (callable like a function).
+enum class PipelineType : u8 { Standard, Varying, Function };
 
 /// Endpoint of a link: a specific pin on a specific node.
 struct PinRef {
@@ -49,6 +50,8 @@ public:
 
     NodeGraph(const NodeGraph&) = delete;
     NodeGraph& operator=(const NodeGraph&) = delete;
+    NodeGraph(NodeGraph&&) noexcept = default;
+    NodeGraph& operator=(NodeGraph&&) noexcept = default;
 
     // ── Nodes ──────────────────────────────────────────────────────────
     /// Construct a node by type-id via the registry and insert it.  Returns the
@@ -82,6 +85,11 @@ public:
     /// True if @p input (an input pin) already has an incoming link.
     bool isInputConnected(const PinRef& input) const;
 
+    // ── Pipeline metadata ──────────────────────────────────────────────
+    /// Human-readable pipeline name (shown in pickers instead of the file name).
+    const std::string& name() const noexcept { return name_; }
+    void setName(std::string name) { name_ = std::move(name); }
+
     // ── Pipeline type (external interface contract) ────────────────────
     PipelineType pipelineType() const noexcept { return type_; }
     void setPipelineType(PipelineType t) noexcept { type_ = t; }
@@ -97,6 +105,7 @@ public:
 private:
     std::vector<std::unique_ptr<Node>> nodes_;
     std::vector<Link> links_;
+    std::string name_;
     PipelineType type_ = PipelineType::Standard;
     NodeId next_node_id_ = 1;
     LinkId next_link_id_ = 1;

@@ -114,6 +114,13 @@ struct RunPipelineCmd {
     std::string name; ///< Pipeline file name (within the pipelines folder).
 };
 
+/// A discovered pipeline: its file name plus the display name read from the
+/// file's "name" field (falls back to the file stem).
+struct PipelineInfo {
+    std::string file;         ///< File name within the pipelines folder.
+    std::string display_name; ///< Shown in pickers.
+};
+
 // ============================================================================
 // Variant that unifies all command types
 // ============================================================================
