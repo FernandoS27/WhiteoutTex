@@ -3,8 +3,15 @@
 
 #include "app.h"
 #include "common_types.h"
+#include "pipeline/node_graph.h"
 #include "pipeline/node_registry.h"
+#include "pipeline/serialization.h"
+#include "services/pipeline_executor.h"
 #include "views/dialogs.h"
+
+#include <fstream>
+
+#include <nlohmann/json.hpp>
 #include "views/menu_bar.h"
 #include "views/save_helpers.h"
 
@@ -447,10 +454,72 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                         c.paylow_path.empty() ? std::string{} : c.paylow_path);
                     applyLoadResult(c.meta_path, std::move(result));
                 },
+                [&](RunPipelineCmd& c) { runPipeline(c.name); },
                 [&](OpenCascCmd&) { /* reserved for future use */ },
             },
             cmd);
     }
+}
+
+void App::runPipeline(const std::string& name) {
+    if (!tex_state_.texture)
+        return;
+
+    const std::filesystem::path file = pipelines_dir_.empty()
+                                           ? std::filesystem::path("pipelines") / name
+                                           : std::filesystem::path(pipelines_dir_) / name;
+
+    // Load + parse the pipeline graph.
+    std::ifstream f(file, std::ios::binary);
+    if (!f) {
+        ui_.result_popup_message = "Could not open pipeline: " + file.string();
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
+        return;
+    }
+    nlohmann::json doc;
+    try {
+        f >> doc;
+    } catch (const nlohmann::json::exception& e) {
+        ui_.result_popup_message = std::string("Invalid pipeline JSON: ") + e.what();
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
+        return;
+    }
+
+    pipeline::NodeGraph graph;
+    std::vector<std::string> warnings;
+    if (!pipeline::fromJson(doc, graph, &warnings)) {
+        ui_.result_popup_message = "Failed to load pipeline graph.";
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
+        return;
+    }
+
+    // Execute: current image is the Standard Input; output replaces it.
+    const std::filesystem::path presets =
+        pipelines_dir_.empty()
+            ? std::filesystem::path("presets")
+            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+    auto result = services::runStandardPipeline(graph, *tex_state_.texture, presets,
+                                                std::filesystem::path(pipelines_dir_),
+                                                texture_service_);
+
+    std::string msg;
+    if (result.output) {
+        tex_state_.texture = std::move(*result.output);
+        tex_state_.source_fmt = tex::PixelFormat::RGBA8;
+        viewer_.setTexture(*tex_state_.texture);
+        msg = "Pipeline applied.";
+    } else {
+        msg = "Pipeline produced no output.";
+    }
+    for (const auto& w : result.errors)
+        msg += "\n- " + w;
+
+    ui_.result_popup_message = std::move(msg);
+    ui_.result_popup_success = result.output.has_value();
+    ui_.show_result_popup = true;
 }
 
 void App::processOpenResult() {
@@ -523,10 +592,27 @@ i32 App::run(i32 argc, char** argv) {
         const std::filesystem::path base(base_path);
         imgui_ini_path_ = (base / "config.ini").string();
         lang_dir_ = (base / "lang").string();
+        pipelines_dir_ = (base / "pipelines").string();
     } else {
         imgui_ini_path_ = "config.ini";
         lang_dir_ = "lang";
+        pipelines_dir_ = "pipelines";
     }
+
+    // Discover runnable standard pipelines (*.json) next to the executable.
+    {
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(pipelines_dir_, ec), end; it != end;
+             it.increment(ec)) {
+            if (ec)
+                break;
+            if (it->is_regular_file(ec) && to_lower(it->path().extension().string()) == ".json")
+                pipeline_files_.push_back(it->path().filename().string());
+        }
+        std::sort(pipeline_files_.begin(), pipeline_files_.end());
+    }
+    image_details_.setPipelines(pipeline_files_);
+    pipeline_editor_.setPipelines(pipeline_files_);
 
     app_prefs_ = load_app_prefs(imgui_ini_path_);
     i18n::Localizer::instance().load(lang_dir_, app_prefs_.language);
@@ -608,7 +694,7 @@ i32 App::run(i32 argc, char** argv) {
                 false;
 #endif
             auto cmds = drawMenuBar(tex_state_.texture.has_value(), recent_files_.paths,
-                                    kHasUpscaler, app_prefs_.language);
+                                    kHasUpscaler, app_prefs_.language, pipeline_files_);
             dispatchCommands(cmds);
         }
 

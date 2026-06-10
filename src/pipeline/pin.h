@@ -45,8 +45,10 @@ using ImageRGBA = std::shared_ptr<const ImagePlane<4>>;
 using ImageRGB = std::shared_ptr<const ImagePlane<3>>;
 using ImageR = std::shared_ptr<const ImagePlane<1>>;
 
-/// The seven pin value kinds.  ORDER IS LOAD-BEARING: it must match the
+/// The pin value kinds.  Indices 0..6 are LOAD-BEARING: they match the
 /// alternative order of PinValue below (PinType == PinValue::index()).
+/// `Number` (7) is a connection-only polymorphic type used by arithmetic nodes
+/// (Integer / Real / single Channel); it has no PinValue alternative.
 enum class PinType : u8 {
     RGBA = 0,
     RGB = 1,
@@ -55,6 +57,7 @@ enum class PinType : u8 {
     Real = 4,
     Bool = 5,
     String = 6,
+    Number = 7,
 };
 
 /// Full pin payload — image handles plus scalars.
@@ -66,10 +69,20 @@ using PinValue = std::variant<ImageRGBA, ImageRGB, ImageR, // image planes
 /// so ParamValue deliberately omits the image alternatives.
 using ParamValue = std::variant<i64, f64, bool, std::string>;
 
-/// True if a value of @p from may feed an input pin of @p to.  Exact-match for
-/// now; convertibility (e.g. RGB -> RGBA) can be added as explicit rules later.
+/// True if a value of @p from may feed an input pin of @p to.  Exact-match,
+/// except `Number` interconnects with Int, Real, and R (single channel) — the
+/// polymorphic numeric/channel type arithmetic nodes use.
 constexpr bool pinTypesCompatible(PinType from, PinType to) noexcept {
-    return from == to;
+    if (from == to)
+        return true;
+    const auto numberLike = [](PinType t) {
+        return t == PinType::Int || t == PinType::Real || t == PinType::R || t == PinType::Number;
+    };
+    if (to == PinType::Number)
+        return numberLike(from);
+    if (from == PinType::Number)
+        return numberLike(to);
+    return false;
 }
 
 /// Human/JSON token for a pin type (stable; used in serialization & tooltips).
@@ -82,6 +95,7 @@ constexpr const char* pinTypeName(PinType t) noexcept {
     case PinType::Real: return "real";
     case PinType::Bool: return "bool";
     case PinType::String: return "string";
+    case PinType::Number: return "number";
     }
     return "unknown";
 }

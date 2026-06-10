@@ -138,6 +138,7 @@ ImVec4 pinTypeColor(PinType t) {
     case PinType::Real: return ImVec4(0.47f, 0.71f, 0.86f, 1.0f);   // blue
     case PinType::Bool: return ImVec4(0.82f, 0.78f, 0.47f, 1.0f);   // yellow
     case PinType::String: return ImVec4(0.75f, 0.55f, 0.80f, 1.0f); // purple
+    case PinType::Number: return ImVec4(0.55f, 0.82f, 0.80f, 1.0f); // teal
     }
     return ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 }
@@ -419,15 +420,20 @@ void PipelineEditor::drawNodes() {
         }
 
         ed::PushStyleColor(ed::StyleColor_NodeBorder, cat);
-        ed::PushStyleColor(ed::StyleColor_NodeBg, withAlpha(cat, 0.16f));
+        ed::PushStyleColor(ed::StyleColor_NodeBg, ImVec4(0.13f, 0.14f, 0.16f, 0.94f));
         ed::BeginNode(nid);
+        ImGui::BeginGroup(); // whole node content (measured to size the header bar)
 
-        // Title in the category colour.
-        ImGui::PushStyleColor(ImGuiCol_Text, cat);
+        // 1) Title bar — light text; the category-coloured header background is
+        //    painted behind it on the node draw list after EndNode (below).
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.96f, 0.97f, 0.98f, 1.0f));
         ImGui::TextUnformatted(nodeTitle(n));
         ImGui::PopStyleColor();
-        ImGui::Spacing();
+        const ImVec2 header_min = ImGui::GetItemRectMin();
+        const ImVec2 header_max = ImGui::GetItemRectMax();
+        ImGui::Dummy(ImVec2(0.0f, 3.0f));
 
+        // 2) Pins.
         ImGui::BeginGroup(); // input pins (left)
         const auto inputs = n->inputs();
         for (std::size_t i = 0; i < inputs.size(); ++i) {
@@ -457,9 +463,24 @@ void PipelineEditor::drawNodes() {
         // itself is opened after EndNode under Suspend/Resume (the node body is
         // in canvas space; popups must be placed in screen space).
         const auto params = n->params();
-        std::vector<std::size_t> open_combo;  // enum params clicked this frame
-        std::vector<std::size_t> open_model;  // model params clicked this frame
-        std::vector<std::size_t> open_picker; // resource params clicked this frame
+        std::vector<std::size_t> open_combo;    // enum params clicked this frame
+        std::vector<std::size_t> open_model;    // model params clicked this frame
+        std::vector<std::size_t> open_pipeline; // pipeline params clicked this frame
+        std::vector<std::size_t> open_picker;   // resource params clicked this frame
+
+        // 3) Options section — separated from the pins by a rule + faint panel.
+        bool has_options = false;
+        for (const auto& p : params)
+            if (paramVisible(n, p)) {
+                has_options = true;
+                break;
+            }
+        float options_top = 0.0f;
+        if (has_options) {
+            ImGui::Dummy(ImVec2(0.0f, 3.0f));
+            options_top = ImGui::GetCursorScreenPos().y;
+        }
+
         for (std::size_t pi = 0; pi < params.size(); ++pi) {
             Param& p = params[pi];
             if (!paramVisible(n, p))
@@ -500,6 +521,20 @@ void PipelineEditor::drawNodes() {
                 const std::string btn = std::string(shown) + "##mbtn_" + sfx;
                 if (ImGui::Button(btn.c_str(), ImVec2(150.0f, 0.0f)))
                     open_model.push_back(pi);
+                break;
+            }
+            case ParamWidget::Pipeline: {
+                if (!std::holds_alternative<std::string>(p.value))
+                    break;
+                const std::string& cur = std::get<std::string>(p.value);
+                const std::string shown =
+                    cur.empty() ? "-" : std::filesystem::path(cur).stem().string();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%s:", plabel);
+                ImGui::SameLine();
+                const std::string btn = shown + "##plbtn_" + sfx;
+                if (ImGui::Button(btn.c_str(), ImVec2(150.0f, 0.0f)))
+                    open_pipeline.push_back(pi);
                 break;
             }
             case ParamWidget::ResourcePath: {
@@ -546,8 +581,36 @@ void PipelineEditor::drawNodes() {
             }
         }
 
+        ImGui::EndGroup(); // whole node content
+        const ImVec2 content_min = ImGui::GetItemRectMin();
+        const ImVec2 content_max = ImGui::GetItemRectMax();
+
         ed::EndNode();
         ed::PopStyleColor(2);
+
+        // Paint the 3-part decoration on the node's background draw list:
+        // a category-coloured title bar, a rule under it, and a faint options
+        // panel.  Drawn after EndNode so the node rect is final; it sits over
+        // the node background but under the (already-drawn) content/text.
+        if (ImDrawList* dl = ed::GetNodeBackgroundDrawList(nid)) {
+            const ImVec4 pad = ed::GetStyle().NodePadding;
+            const float rounding = ed::GetStyle().NodeRounding;
+            const ImVec2 bmin(content_min.x - pad.x, content_min.y - pad.y);
+            const ImVec2 bmax(content_max.x + pad.z, content_max.y + pad.w);
+            const float header_bottom = header_max.y + 2.0f;
+
+            dl->AddRectFilled(bmin, ImVec2(bmax.x, header_bottom), ImColor(cat), rounding,
+                              ImDrawFlags_RoundCornersTop);
+            dl->AddLine(ImVec2(bmin.x, header_bottom), ImVec2(bmax.x, header_bottom),
+                        ImColor(0, 0, 0, 90), 1.0f);
+            if (has_options) {
+                const float oy = options_top - 2.0f;
+                dl->AddRectFilled(ImVec2(bmin.x, oy), bmax, ImColor(255, 255, 255, 14), rounding,
+                                  ImDrawFlags_RoundCornersBottom);
+                dl->AddLine(ImVec2(bmin.x, oy), ImVec2(bmax.x, oy), ImColor(255, 255, 255, 38),
+                            1.0f);
+            }
+        }
 
         // Deferred popups for this node's params (combobox dropdowns + resource
         // pickers), placed in screen space via Suspend/Resume.
@@ -585,6 +648,22 @@ void PipelineEditor::drawNodes() {
                         for (const auto& m : upscaler_models_) {
                             if (ImGui::Selectable(m.label.c_str(), m.id == cur))
                                 cur = m.id;
+                        }
+                        ImGui::EndPopup();
+                    }
+                } else if (p.widget == ParamWidget::Pipeline &&
+                           std::holds_alternative<std::string>(p.value)) {
+                    const std::string pop = "##plp_" + sfx;
+                    if (clicked(open_pipeline, pi))
+                        ImGui::OpenPopup(pop.c_str());
+                    if (ImGui::BeginPopup(pop.c_str())) {
+                        std::string& cur = std::get<std::string>(p.value);
+                        if (pipelines_.empty())
+                            ImGui::TextDisabled("%s", i18n::tr("pipeline.resource.no_pipeline"));
+                        for (const auto& name : pipelines_) {
+                            const std::string label = std::filesystem::path(name).stem().string();
+                            if (ImGui::Selectable(label.c_str(), name == cur))
+                                cur = name;
                         }
                         ImGui::EndPopup();
                     }

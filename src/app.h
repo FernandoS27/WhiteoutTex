@@ -66,6 +66,10 @@ private:
     /// Apply a TextureLoadResult to the application state.
     void applyLoadResult(const std::string& path, services::TextureLoadResult result);
 
+    /// Run a standard pipeline (file name within pipelines_dir_) on the current
+    /// image, replacing it with the result.
+    void runPipeline(const std::string& name);
+
     // SDL
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
@@ -73,6 +77,8 @@ private:
     // Paths & preferences
     std::string imgui_ini_path_;
     std::string lang_dir_;
+    std::string pipelines_dir_;                 ///< resources/pipelines next to the exe.
+    std::vector<std::string> pipeline_files_;   ///< *.json names found in pipelines_dir_.
     AppPrefs app_prefs_;
     SavePrefs save_prefs_;
     BatchPrefs batch_prefs_;

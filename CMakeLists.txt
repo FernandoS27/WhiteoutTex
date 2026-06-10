@@ -25,6 +25,7 @@ add_executable(WhiteoutTex
     src/services/casc_service.cpp
     src/services/mpq_service.cpp
     src/services/batch_service.cpp
+    src/services/pipeline_executor.cpp
     src/views/batch_convert.cpp
     src/views/casc_browser.cpp
     src/views/dialogs.cpp
@@ -114,6 +115,10 @@ add_custom_target(WhiteoutTexAssets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_SOURCE_DIR}/resources/presets"
         "$<TARGET_FILE_DIR:WhiteoutTex>/presets"
+    # Standard pipelines (*.json) runnable from Preview > Tools > Run Pipeline.
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_SOURCE_DIR}/resources/pipelines"
+        "$<TARGET_FILE_DIR:WhiteoutTex>/pipelines"
     VERBATIM
 )
 add_dependencies(WhiteoutTexAssets WhiteoutTex)

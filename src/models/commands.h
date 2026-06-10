@@ -109,6 +109,11 @@ struct LoadD4PayloadCmd {
     std::string paylow_path;
 };
 
+/// Run a standard pipeline (from resources/pipelines) on the current image.
+struct RunPipelineCmd {
+    std::string name; ///< Pipeline file name (within the pipelines folder).
+};
+
 // ============================================================================
 // Variant that unifies all command types
 // ============================================================================
@@ -139,7 +144,8 @@ using AppCommand = std::variant<
     SetLanguageCmd,
     LoadCascTextureCmd,
     ApplyBC3NSwapCmd,
-    LoadD4PayloadCmd
+    LoadD4PayloadCmd,
+    RunPipelineCmd
     // clang-format on
     >;
 

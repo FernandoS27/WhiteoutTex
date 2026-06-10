@@ -45,6 +45,7 @@ enum class ParamWidget : u8 {
     Enum,         ///< i64 index into enum_labels -> combobox of those labels.
     ResourcePath, ///< string path under resources/presets -> text field + picker.
     Model,        ///< string AI-model id -> combobox of available upscaler models.
+    Pipeline,     ///< string pipeline file name -> combobox of available pipelines.
 };
 
 /// One editable node setting.  Reused by the generic serializer and the
@@ -62,21 +63,16 @@ struct Param {
     i64 visible_when_value = 0;
 };
 
-/// Evaluation environment (services for input/output nodes, etc.).  Execution
-/// is out of current scope; the type exists so evaluate() has a stable
-/// signature.  Concrete nodes stub evaluate() until the executor lands.
-struct EvalContext;
-
+/// Node is PURE DATA: it declares pins/params and carries placement, but holds
+/// no execution logic.  Running a graph is the PipelineExecutor's job (it lives
+/// in services/ and interprets nodes by type id), so the model stays free of
+/// app/ImGui/Texture dependencies.
 class Node {
 public:
     virtual ~Node() = default;
 
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
-
-    /// Template Method.  Inputs read their source into output pins; Operations
-    /// transform input pins -> output pins; Outputs consume input pins.
-    virtual void evaluate(EvalContext& ctx) = 0;
 
     // ── Identity / placement ───────────────────────────────────────────
     NodeId id() const noexcept { return id_; }
@@ -123,6 +119,11 @@ protected:
     void addModelParam(std::string name) {
         params_.push_back(
             {std::move(name), ParamValue{std::string{}}, ParamWidget::Model, {}, {}, 0});
+    }
+    /// Declare a pipeline param: a string pipeline file name chosen at runtime.
+    void addPipelineParam(std::string name) {
+        params_.push_back(
+            {std::move(name), ParamValue{std::string{}}, ParamWidget::Pipeline, {}, {}, 0});
     }
     /// Gate the most-recently-added param: shown only when the enum param
     /// @p enum_param has selected index @p index.

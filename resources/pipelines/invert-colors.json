@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "type": "standard",
+  "nodes": [
+    { "id": 1, "type": "input.standard", "pos": [40, 80], "params": {} },
+    { "id": 2, "type": "op.invert_channel", "pos": [260, 80], "params": { "channel": 0 } },
+    { "id": 3, "type": "op.invert_channel", "pos": [480, 80], "params": { "channel": 1 } },
+    { "id": 4, "type": "op.invert_channel", "pos": [700, 80], "params": { "channel": 2 } },
+    { "id": 5, "type": "output.standard", "pos": [920, 80], "params": {} }
+  ],
+  "links": [
+    { "from": [1, "image"], "to": [2, "image"] },
+    { "from": [2, "image"], "to": [3, "image"] },
+    { "from": [3, "image"], "to": [4, "image"] },
+    { "from": [4, "image"], "to": [5, "image"] }
+  ]
+}

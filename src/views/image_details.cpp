@@ -5,6 +5,8 @@
 #include "localization.h"
 #include "save_helpers.h"
 
+#include <filesystem>
+
 #include <imgui.h>
 
 namespace tex = whiteout::textures;
@@ -129,6 +131,26 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
             }
         }
 
+        // Run a standard pipeline (from resources/pipelines) on this image.
+        if (!pipelines_.empty()) {
+            ImGui::SeparatorText(tr("details.pipeline"));
+            if (pipeline_index_ < 0 || pipeline_index_ >= static_cast<i32>(pipelines_.size()))
+                pipeline_index_ = 0;
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
+            const std::string preview =
+                std::filesystem::path(pipelines_[pipeline_index_]).stem().string();
+            if (ImGui::BeginCombo("##PipelineSel", preview.c_str())) {
+                for (i32 i = 0; i < static_cast<i32>(pipelines_.size()); ++i) {
+                    const std::string label = std::filesystem::path(pipelines_[i]).stem().string();
+                    if (ImGui::Selectable(label.c_str(), i == pipeline_index_))
+                        pipeline_index_ = i;
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::Button(tr("details.run_pipeline")))
+                commands.push_back(RunPipelineCmd{pipelines_[pipeline_index_]});
+        }
+
 #ifdef WHITEOUT_HAS_UPSCALER
         if (!upscale_models_.empty()) {
             ImGui::SeparatorText(tr("details.upscale"));
@@ -187,6 +209,12 @@ std::vector<AppCommand> ImageDetails::drawMipList(const tex::Texture& texture, i
     ImGui::EndChild();
 
     return commands;
+}
+
+void ImageDetails::setPipelines(std::vector<std::string> pipelines) {
+    pipelines_ = std::move(pipelines);
+    if (pipeline_index_ >= static_cast<i32>(pipelines_.size()))
+        pipeline_index_ = 0;
 }
 
 #ifdef WHITEOUT_HAS_UPSCALER

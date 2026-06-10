@@ -49,6 +49,12 @@ public:
         upscaler_models_ = std::move(models);
     }
 
+    /// Provide the runnable pipeline file names shown by the Subpipeline node's
+    /// combobox.
+    void setPipelines(std::vector<std::string> pipelines) {
+        pipelines_ = std::move(pipelines);
+    }
+
     /// Spawn a node of @p type_id at a cascading default position (used by a
     /// palette click).  Returns the new node id, or 0 if the type is unknown.
     pipeline::NodeId spawnNode(const char* type_id);
@@ -96,6 +102,7 @@ private:
     FolderState load_dialog_result_;
 
     std::vector<ModelOption> upscaler_models_;
+    std::vector<std::string> pipelines_; ///< Pipeline file names for Subpipeline nodes.
 
     // Pending position for the next spawned node (view-space), so palette spawns
     // don't stack on top of each other.
