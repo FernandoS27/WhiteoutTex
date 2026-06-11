@@ -72,26 +72,6 @@
     },
     {
       "from": [
-        13,
-        "image"
-      ],
-      "to": [
-        7,
-        "base"
-      ]
-    },
-    {
-      "from": [
-        13,
-        "image"
-      ],
-      "to": [
-        9,
-        "image"
-      ]
-    },
-    {
-      "from": [
         15,
         "image"
       ],
@@ -352,12 +332,272 @@
     },
     {
       "from": [
+        40,
+        "image"
+      ],
+      "to": [
+        41,
+        "Input"
+      ]
+    },
+    {
+      "from": [
+        41,
+        "Output"
+      ],
+      "to": [
+        42,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        41,
+        "Output"
+      ],
+      "to": [
+        43,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        42,
+        "width"
+      ],
+      "to": [
+        43,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        42,
+        "height"
+      ],
+      "to": [
+        43,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        42,
+        "width"
+      ],
+      "to": [
+        45,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        42,
+        "height"
+      ],
+      "to": [
+        45,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        45,
+        "result"
+      ],
+      "to": [
+        46,
+        "width"
+      ]
+    },
+    {
+      "from": [
+        45,
+        "result"
+      ],
+      "to": [
+        46,
+        "height"
+      ]
+    },
+    {
+      "from": [
+        43,
+        "false"
+      ],
+      "to": [
+        46,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        43,
+        "true"
+      ],
+      "to": [
+        44,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        44,
+        "result"
+      ],
+      "to": [
+        47,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        7,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        9,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        46,
+        "output"
+      ],
+      "to": [
+        44,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        50,
+        "image"
+      ],
+      "to": [
+        52,
+        "Input"
+      ]
+    },
+    {
+      "from": [
+        52,
+        "Output"
+      ],
+      "to": [
+        53,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        51,
+        "value"
+      ],
+      "to": [
+        55,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        52,
+        "Output"
+      ],
+      "to": [
+        55,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        53,
+        "width"
+      ],
+      "to": [
+        55,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        55,
+        "true"
+      ],
+      "to": [
+        56,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        56,
+        "image"
+      ],
+      "to": [
+        57,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        55,
+        "false"
+      ],
+      "to": [
+        57,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        57,
+        "result"
+      ],
+      "to": [
+        58,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        58,
+        "image"
+      ],
+      "to": [
+        59,
+        "image"
+      ]
+    },
+    {
+      "from": [
         4,
         "image"
       ],
       "to": [
         38,
         "Input"
+      ]
+    },
+    {
+      "from": [
+        48,
+        "value"
+      ],
+      "to": [
+        38,
+        "value"
       ]
     },
     {
@@ -399,8 +639,8 @@
         "name": "Base"
       },
       "pos": [
-        179.0,
-        261.0
+        97.0,
+        227.0
       ],
       "type": "input.standard"
     },
@@ -408,7 +648,7 @@
       "id": 5,
       "params": {},
       "pos": [
-        698.0,
+        712.0,
         275.0
       ],
       "type": "op.matching_mipmap"
@@ -417,8 +657,8 @@
       "id": 7,
       "params": {},
       "pos": [
-        685.0,
-        424.0
+        712.0,
+        419.0
       ],
       "type": "op.matching_mipmap"
     },
@@ -565,8 +805,8 @@
         "w": 1728.0
       },
       "pos": [
-        112.0,
-        1504.0
+        320.0,
+        1520.0
       ],
       "type": "frame.local"
     },
@@ -580,8 +820,8 @@
         "value": 0
       },
       "pos": [
-        169.0,
-        1715.0
+        377.0,
+        1731.0
       ],
       "type": "input.integer"
     },
@@ -592,8 +832,8 @@
         "epsilon": 1e-06
       },
       "pos": [
-        493.0,
-        1710.0
+        701.0,
+        1726.0
       ],
       "type": "ctrl.conditional"
     },
@@ -603,8 +843,8 @@
         "value": 0
       },
       "pos": [
-        266.0,
-        1923.0
+        474.0,
+        1939.0
       ],
       "type": "input.const_int"
     },
@@ -614,8 +854,8 @@
         "value": 1
       },
       "pos": [
-        778.0,
-        1571.0
+        986.0,
+        1587.0
       ],
       "type": "input.const_int"
     },
@@ -623,8 +863,8 @@
       "id": 25,
       "params": {},
       "pos": [
-        1319.0,
-        1587.0
+        1527.0,
+        1603.0
       ],
       "type": "op.add"
     },
@@ -632,8 +872,8 @@
       "id": 27,
       "params": {},
       "pos": [
-        826.0,
-        1683.0
+        1034.0,
+        1699.0
       ],
       "type": "op.bit_shr"
     },
@@ -657,8 +897,8 @@
         ]
       },
       "pos": [
-        1058.0,
-        1699.0
+        1266.0,
+        1715.0
       ],
       "type": "local.call"
     },
@@ -668,8 +908,8 @@
         "name": "value"
       },
       "pos": [
-        1624.0,
-        1763.0
+        1832.0,
+        1779.0
       ],
       "type": "output.integer"
     },
@@ -677,8 +917,8 @@
       "id": 30,
       "params": {},
       "pos": [
-        1448.0,
-        1763.0
+        1656.0,
+        1779.0
       ],
       "type": "ctrl.rendezvous"
     },
@@ -784,6 +1024,59 @@
     {
       "id": 38,
       "params": {
+        "frame": "EnsureImageIsProperSize"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Input",
+            "type": "rgba"
+          },
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Output",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        424.0,
+        243.0
+      ],
+      "type": "local.call"
+    },
+    {
+      "id": 39,
+      "params": {
+        "h": 565.0,
+        "name": "EnsureEvenImage",
+        "w": 2176.0
+      },
+      "pos": [
+        256.0,
+        2224.0
+      ],
+      "type": "frame.local"
+    },
+    {
+      "id": 40,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        327.0,
+        2435.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 41,
+      "params": {
         "frame": "EnsureImagePow2"
       },
       "pins": {
@@ -801,10 +1094,214 @@
         ]
       },
       "pos": [
-        420.0,
-        261.0
+        590.0,
+        2435.0
       ],
       "type": "local.call"
+    },
+    {
+      "id": 42,
+      "params": {},
+      "pos": [
+        864.0,
+        2554.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 43,
+      "params": {
+        "comparator": 0,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        1118.0,
+        2329.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 44,
+      "params": {},
+      "pos": [
+        1895.0,
+        2398.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 45,
+      "params": {},
+      "pos": [
+        1230.0,
+        2622.0
+      ],
+      "type": "op.min"
+    },
+    {
+      "id": 46,
+      "params": {
+        "filter": 0
+      },
+      "pos": [
+        1505.0,
+        2489.0
+      ],
+      "type": "op.scale_to"
+    },
+    {
+      "id": 47,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        2152.0,
+        2435.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 48,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "expected_dimension",
+        "value": 256
+      },
+      "pos": [
+        -7.0,
+        371.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 49,
+      "params": {
+        "h": 949.0,
+        "name": "EnsureImageIsProperSize",
+        "w": 2208.0
+      },
+      "pos": [
+        144.0,
+        2912.0
+      ],
+      "type": "frame.local"
+    },
+    {
+      "id": 50,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        193.0,
+        3315.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 51,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "value",
+        "value": 0
+      },
+      "pos": [
+        777.0,
+        3155.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 52,
+      "params": {
+        "frame": "EnsureEvenImage"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Input",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Output",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        466.0,
+        3315.0
+      ],
+      "type": "local.call"
+    },
+    {
+      "id": 53,
+      "params": {},
+      "pos": [
+        792.0,
+        3550.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 55,
+      "params": {
+        "comparator": 4,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        1064.0,
+        3347.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 56,
+      "params": {
+        "model": "realesrgan-x4plus-anime"
+      },
+      "pos": [
+        1378.0,
+        3251.0
+      ],
+      "type": "op.upscale"
+    },
+    {
+      "id": 57,
+      "params": {},
+      "pos": [
+        1672.0,
+        3411.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 58,
+      "params": {
+        "count": 1,
+        "mode": 2
+      },
+      "pos": [
+        1859.0,
+        3427.0
+      ],
+      "type": "op.regenerate_mipmaps"
+    },
+    {
+      "id": 59,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        2104.0,
+        3427.0
+      ],
+      "type": "output.standard"
     }
   ],
   "type": "function",

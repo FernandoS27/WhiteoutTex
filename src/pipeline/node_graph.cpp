@@ -123,9 +123,12 @@ f64 realParam(const Node& n, std::string_view name, f64 def) {
             return std::get<f64>(p.value);
     return def;
 }
-/// Frame / Local-Call nodes are transparent to frame membership.
-bool isFrameOrCall(const Node& n) {
-    return n.typeId() == "frame.local" || n.typeId() == "local.call";
+/// Only Frame containers are transparent to membership.  A Local-Call node IS a
+/// member of its enclosing frame (it's part of the frame's body and must run
+/// when the frame is invoked) — including a recursive call, whose termination is
+/// handled by the executor's depth guard + skip-when-inactive, like file calls.
+bool isFrameContainer(const Node& n) {
+    return n.typeId() == "frame.local";
 }
 } // namespace
 
@@ -162,8 +165,8 @@ std::vector<NodeId> NodeGraph::nodesInFrame(const Node& frame) const {
     std::vector<NodeId> members;
     for (const auto& up : nodes_) {
         const Node& n = *up;
-        if (isFrameOrCall(n))
-            continue; // frames and calls are transparent to membership
+        if (isFrameContainer(n))
+            continue; // frame containers are transparent to membership
         const Vec2 p = n.position();
         if (p.x >= fp.x && p.x <= fp.x + fw && p.y >= fp.y && p.y <= fp.y + fh)
             members.push_back(n.id());

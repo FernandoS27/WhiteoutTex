@@ -39,6 +39,21 @@ struct MultiPipelineRunResult {
     std::vector<std::string> errors;
 };
 
+/// A single port value for a debug run — an image (RGBA8/R8) or a scalar.
+struct PipelinePortValue {
+    std::optional<whiteout::textures::Texture> image; ///< RGBA8 image or R8 channel plane.
+    std::optional<i64> integer;
+    std::optional<f64> real;
+    bool empty() const { return !image && !integer && !real; }
+};
+
+/// Result of a debug run: every Output port's value (numeric or image), in
+/// interface order, plus non-fatal issues.
+struct PipelineDebugResult {
+    std::vector<std::pair<std::string, PipelinePortValue>> outputs;
+    std::vector<std::string> errors;
+};
+
 /// Execute @p graph as a Standard pipeline: @p input feeds Standard Input nodes,
 /// and the Standard Output node's incoming image is returned.
 /// @param presets_dir    resources/presets root for Resource input nodes.
@@ -56,6 +71,16 @@ PipelineRunResult runStandardPipeline(const pipeline::NodeGraph& graph,
 MultiPipelineRunResult runVaryingPipeline(
     const pipeline::NodeGraph& graph,
     const std::unordered_map<std::string, whiteout::textures::Texture>& inputs,
+    const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
+    TextureService& texture_service, int depth = 0);
+
+/// Debug-run @p graph binding @p inputs by port name, and return EVERY output
+/// port's value (numeric or image) in interface order — used by the editor's
+/// Debug button.  Works for Standard / Varying / Function pipelines and needs
+/// no image unless the graph has an image input port.
+PipelineDebugResult runPipelineDebug(
+    const pipeline::NodeGraph& graph,
+    const std::unordered_map<std::string, PipelinePortValue>& inputs,
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
     TextureService& texture_service, int depth = 0);
 

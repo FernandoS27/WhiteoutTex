@@ -72,6 +72,14 @@ public:
         return r;
     }
 
+    /// Returns true once after the user clicks the palette's Debug button,
+    /// signalling the app to open the debug-run dialog for the current graph.
+    bool takeDebugRequest() {
+        const bool r = debug_requested_;
+        debug_requested_ = false;
+        return r;
+    }
+
     /// Spawn a node of @p type_id at a cascading default position (used by a
     /// palette click).  Returns the new node id, or 0 if the type is unknown.
     pipeline::NodeId spawnNode(const char* type_id);
@@ -133,6 +141,7 @@ private:
     std::string drag_label_;
 
     bool refresh_requested_ = false; ///< Set by the palette Refresh button.
+    bool debug_requested_ = false;   ///< Set by the palette Debug button.
 
     std::vector<ModelOption> upscaler_models_;
     std::vector<models::PipelineInfo> pipelines_; ///< Pipelines for Subpipeline nodes.

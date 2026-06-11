@@ -33,6 +33,7 @@ add_executable(WhiteoutTex
     src/views/image_viewer.cpp
     src/views/menu_bar.cpp
     src/views/multi_pipeline_dialog.cpp
+    src/views/pipeline_debug_dialog.cpp
     src/views/save_dialog.cpp
     src/views/save_helpers.cpp
     src/views/pipeline_editor.cpp

@@ -429,6 +429,12 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     }
     ImGui::Spacing();
 
+    // Debug-run the current graph (opens a dialog to provide inputs / show
+    // results — no image required unless the graph has an image input).
+    if (ImGui::Button(i18n::tr("pipeline.debug"), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
+        debug_requested_ = true;
+    ImGui::Spacing();
+
     // Save/Load toolbar over the palette.  Two equal-width buttons on one row.
     const f32 avail = ImGui::GetContentRegionAvail().x;
     const f32 btn_w = (avail - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
@@ -440,6 +446,27 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     // Reload the pipeline catalog from disk (new/edited files, subpipelines).
     if (ImGui::Button(i18n::tr("pipeline.refresh"), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
         refresh_requested_ = true;
+
+    // Clear the whole canvas — prompts for confirmation first.
+    if (ImGui::Button(i18n::tr("pipeline.clear"), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
+        ImGui::OpenPopup("##clearcanvas");
+    {
+        const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (ImGui::BeginPopupModal("##clearcanvas", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextUnformatted(i18n::tr("pipeline.clear_confirm"));
+            ImGui::Separator();
+            if (ImGui::Button(i18n::tr("pipeline.clear_yes"), ImVec2(120.0f, 0.0f))) {
+                graph_.clear();
+                placed_.clear();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(i18n::tr("app.cancel"), ImVec2(120.0f, 0.0f)))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+    }
     ImGui::Spacing();
 
     ImGui::SeparatorText(i18n::tr("pipeline.palette"));

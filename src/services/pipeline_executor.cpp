@@ -1377,4 +1377,47 @@ MultiPipelineRunResult runVaryingPipeline(
     return result;
 }
 
+PipelineDebugResult runPipelineDebug(
+    const NodeGraph& graph, const std::unordered_map<std::string, PipelinePortValue>& inputs,
+    const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
+    TextureService& texture_service, int depth) {
+    PipelineDebugResult result;
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
+
+    // Bind each supplied value (image or scalar) to its named input port.
+    PinMap bound;
+    for (const auto& [name, v] : inputs) {
+        PinData d;
+        if (v.image)
+            d.image = *v.image;
+        else if (v.integer)
+            d.integer = *v.integer;
+        else if (v.real)
+            d.real = *v.real;
+        if (!d.image && !d.integer && !d.real)
+            continue; // unset input: leave the port unbound
+        bound[name] = std::move(d);
+    }
+
+    PinMap captured = runGraphPorts(graph, bound, env, result.errors);
+
+    // Emit every Output port (in interface order) with its captured value.
+    for (const pipeline::PipelinePort& port : graph.interface().outputs) {
+        PipelinePortValue out;
+        if (const auto it = captured.find(port.name); it != captured.end()) {
+            PinData& d = it->second;
+            if (d.image)
+                out.image = std::move(*d.image);
+            else if (d.fchan)
+                out.image = fchanToR8(*d.fchan); // show a channel plane as a grayscale image
+            else if (d.integer)
+                out.integer = *d.integer;
+            else if (d.real)
+                out.real = *d.real;
+        }
+        result.outputs.emplace_back(port.name, std::move(out));
+    }
+    return result;
+}
+
 } // namespace whiteout::textool::services

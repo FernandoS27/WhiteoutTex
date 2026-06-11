@@ -12,6 +12,7 @@
 #include "views/image_details.h"
 #include "views/image_viewer.h"
 #include "views/multi_pipeline_dialog.h"
+#include "views/pipeline_debug_dialog.h"
 #include "views/pipeline_editor.h"
 #include "views/save_dialog.h"
 
@@ -78,6 +79,10 @@ private:
     /// Execute an already-loaded pipeline graph on the current image.
     void executePipelineGraph(pipeline::NodeGraph& graph);
 
+    /// Run the editor's current graph with the debug dialog's inputs and show
+    /// every output value (numeric or image) in that dialog.
+    void runPipelineDebug();
+
     /// Modal that collects Real Input parameter values before running.
     void drawPipelineParamDialog();
 
@@ -129,6 +134,7 @@ private:
     views::CascBrowser casc_browser_;
     views::PipelineEditor pipeline_editor_;
     views::MultiPipelineDialog multi_pipeline_dialog_;
+    views::PipelineDebugDialog pipeline_debug_dialog_;
     whiteout::textures::TextureConverter converter_;
 
     // Services

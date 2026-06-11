@@ -559,8 +559,12 @@ void App::runPipeline(const std::string& name) {
 }
 
 void App::executePipelineGraph(pipeline::NodeGraph& graph) {
-    if (!tex_state_.texture)
+    if (!tex_state_.texture) {
+        ui_.result_popup_message = "Load an image first (Preview tab) to run a pipeline.";
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
         return;
+    }
 
     // Current image is the Standard Input; output replaces it.
     const std::filesystem::path presets =
@@ -586,6 +590,35 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     ui_.result_popup_message = std::move(msg);
     ui_.result_popup_success = result.output.has_value();
     ui_.show_result_popup = true;
+}
+
+void App::runPipelineDebug() {
+    // Build the input bindings from the debug dialog's fields.
+    std::unordered_map<std::string, services::PipelinePortValue> inputs;
+    for (const auto& row : pipeline_debug_dialog_.inputs()) {
+        services::PipelinePortValue v;
+        if (views::isImagePinType(row.type)) {
+            if (!row.path.empty()) {
+                auto load = texture_service_.loadFromFile(row.path);
+                if (load.texture)
+                    v.image = std::move(*load.texture);
+            }
+        } else if (row.type == pipeline::PinType::Int) {
+            v.integer = row.integer;
+        } else { // Real / Number
+            v.real = row.real;
+        }
+        if (!v.empty())
+            inputs.emplace(row.name, std::move(v));
+    }
+
+    const std::filesystem::path presets =
+        pipelines_dir_.empty()
+            ? std::filesystem::path("presets")
+            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+    auto result = services::runPipelineDebug(pipeline_editor_.graph(), inputs, presets,
+                                             std::filesystem::path(pipelines_dir_), texture_service_);
+    pipeline_debug_dialog_.setResult(std::move(result));
 }
 
 void App::scanPipelines() {
@@ -1064,6 +1097,9 @@ i32 App::run(i32 argc, char** argv) {
                 pipeline_editor_.draw(window_);
                 if (pipeline_editor_.takeRefreshRequest())
                     scanPipelines();
+                if (pipeline_editor_.takeDebugRequest())
+                    pipeline_debug_dialog_.open(pipeline_editor_.graph().name(),
+                                                pipeline_editor_.graph().interface());
             }
             ImGui::EndChild();
         }
@@ -1101,6 +1137,9 @@ i32 App::run(i32 argc, char** argv) {
         multi_pipeline_dialog_.draw(window_);
         if (multi_pipeline_dialog_.takeRunRequest())
             runMultiPipeline();
+        pipeline_debug_dialog_.draw(window_, renderer_);
+        if (pipeline_debug_dialog_.takeRunRequest())
+            runPipelineDebug();
         {
             auto cmds = drawBC3NDialog(ui_.show_bc3n_dialog);
             dispatchCommands(cmds);
