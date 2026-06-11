@@ -2,12 +2,21 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "services/batch_service.h"
+#include "pipeline/node_graph.h"
+#include "pipeline/serialization.h"
+#include "services/pipeline_executor.h"
+#include "services/texture_service.h"
 #include "thread_pool_manager.h"
 #include "views/save_helpers.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <unordered_map>
+#include <variant>
+
+#include <nlohmann/json.hpp>
 
 namespace tex = whiteout::textures;
 using TFF = tex::TextureFileFormat;
@@ -109,6 +118,7 @@ void BatchService::workerFunc() {
     namespace fs = std::filesystem;
 
     TC converter;
+    TextureService texture_service{converter}; // for Pipeline transform steps
     auto* pool = threadPoolManager().get();
     const i32 total = static_cast<i32>(job_.files.size());
 
@@ -183,6 +193,61 @@ void BatchService::workerFunc() {
                         break;
                     }
                     *loaded = std::move(out);
+                } else if (step.type == TransformType::Pipeline) {
+                    if (step.pipeline_file.empty()) {
+                        pipeline_failed = true;
+                        break;
+                    }
+                    const fs::path pf = fs::path(job_.pipelines_dir) / step.pipeline_file;
+                    nlohmann::json doc;
+                    pipeline::NodeGraph graph;
+                    bool ok = false;
+                    if (std::ifstream pfs(pf, std::ios::binary); pfs) {
+                        try {
+                            pfs >> doc;
+                            ok = pipeline::fromJson(doc, graph, nullptr);
+                        } catch (const nlohmann::json::exception&) {
+                        }
+                    }
+                    if (!ok) {
+                        pipeline_failed = true;
+                        break;
+                    }
+                    // Apply parameter overrides onto the pipeline's Real/Integer
+                    // Input nodes (matched by name).
+                    for (const auto& [pname, pval] : step.pipeline_params) {
+                        for (const auto& np : graph.nodes()) {
+                            const std::string& nt = np->typeId();
+                            if (nt != "input.real" && nt != "input.integer")
+                                continue;
+                            bool name_match = false;
+                            for (const auto& prm : np->params())
+                                if (prm.name == "name" &&
+                                    std::holds_alternative<std::string>(prm.value) &&
+                                    std::get<std::string>(prm.value) == pname) {
+                                    name_match = true;
+                                    break;
+                                }
+                            if (!name_match)
+                                continue;
+                            for (auto& prm : np->params())
+                                if (prm.name == "value") {
+                                    if (nt == "input.integer")
+                                        prm.value = static_cast<i64>(std::llround(pval));
+                                    else
+                                        prm.value = pval;
+                                }
+                        }
+                    }
+                    const fs::path presets =
+                        fs::path(job_.pipelines_dir).parent_path() / "presets";
+                    auto res = runStandardPipeline(graph, *loaded, presets,
+                                                   fs::path(job_.pipelines_dir), texture_service);
+                    if (!res.output) {
+                        pipeline_failed = true;
+                        break;
+                    }
+                    *loaded = std::move(*res.output);
                 }
 #ifdef WHITEOUT_HAS_UPSCALER
                 else if (step.type == TransformType::Upscale) {

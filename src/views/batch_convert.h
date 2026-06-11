@@ -13,6 +13,7 @@
 #endif
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <SDL3/SDL.h>
@@ -38,6 +39,11 @@ public:
     /// Set the list of available upscaler models for the transformation pipeline.
     void setUpscalerModels(std::vector<UpscalerModel> models);
 #endif
+
+    /// Provide the standard pipelines (and their folder + settable parameters)
+    /// selectable as a Pipeline transform step.
+    void setPipelines(std::vector<models::PipelineInfo> pipelines, std::string pipelines_dir,
+                      std::unordered_map<std::string, std::vector<models::PipelineParam>> params);
 
 private:
     static void SDLCALL folderDialogCallback(void* userdata, const char* const* filelist,
@@ -65,6 +71,12 @@ private:
 #ifdef WHITEOUT_HAS_UPSCALER
     std::vector<UpscalerModel> upscale_models_;
 #endif
+
+    // Standard pipelines selectable as a Pipeline transform step.
+    std::vector<models::PipelineInfo> pipelines_;
+    std::string pipelines_dir_;
+    /// Settable Real/Integer parameters per pipeline file.
+    std::unordered_map<std::string, std::vector<models::PipelineParam>> pipeline_params_;
 
     // Batch execution service
     services::BatchService batch_service_;

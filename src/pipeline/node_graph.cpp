@@ -171,6 +171,26 @@ std::vector<NodeId> NodeGraph::nodesInFrame(const Node& frame) const {
     return members;
 }
 
+PipelineType NodeGraph::nonFunctionType() const {
+    // Nodes inside a Local Pipeline frame belong to that frame, not this graph.
+    std::unordered_set<NodeId> framed;
+    for (const auto& up : nodes_)
+        if (up->typeId() == "frame.local")
+            for (NodeId id : nodesInFrame(*up))
+                framed.insert(id);
+
+    int standard_in = 0, standard_out = 0;
+    for (const auto& up : nodes_) {
+        if (framed.find(up->id()) != framed.end())
+            continue;
+        if (up->typeId() == "input.standard")
+            ++standard_in;
+        else if (up->typeId() == "output.standard")
+            ++standard_out;
+    }
+    return (standard_in == 1 && standard_out == 1) ? PipelineType::Standard : PipelineType::Varying;
+}
+
 PipelineInterface NodeGraph::localInterface(const Node& frame) const {
     const std::vector<NodeId> members = nodesInFrame(frame);
     PipelineInterface iface;

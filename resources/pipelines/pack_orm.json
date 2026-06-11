@@ -1,0 +1,207 @@
+{
+  "links": [
+    {
+      "from": [
+        36,
+        "image"
+      ],
+      "to": [
+        41,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        37,
+        "image"
+      ],
+      "to": [
+        42,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        38,
+        "image"
+      ],
+      "to": [
+        43,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        39,
+        "image"
+      ],
+      "to": [
+        44,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        41,
+        "channel"
+      ],
+      "to": [
+        40,
+        "red"
+      ]
+    },
+    {
+      "from": [
+        42,
+        "channel"
+      ],
+      "to": [
+        40,
+        "green"
+      ]
+    },
+    {
+      "from": [
+        43,
+        "channel"
+      ],
+      "to": [
+        40,
+        "blue"
+      ]
+    },
+    {
+      "from": [
+        44,
+        "channel"
+      ],
+      "to": [
+        40,
+        "alpha"
+      ]
+    },
+    {
+      "from": [
+        40,
+        "image"
+      ],
+      "to": [
+        45,
+        "image"
+      ]
+    }
+  ],
+  "name": "Pack ORM",
+  "nodes": [
+    {
+      "id": 36,
+      "params": {
+        "name": "AO Map"
+      },
+      "pos": [
+        183.0,
+        -61.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 37,
+      "params": {
+        "name": "Roughness Map"
+      },
+      "pos": [
+        177.0,
+        99.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 38,
+      "params": {
+        "name": "Metalness Map"
+      },
+      "pos": [
+        177.0,
+        259.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 39,
+      "params": {
+        "name": "Alpha Map"
+      },
+      "pos": [
+        177.0,
+        419.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 40,
+      "params": {},
+      "pos": [
+        872.0,
+        126.0
+      ],
+      "type": "op.merge_channels"
+    },
+    {
+      "id": 41,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        504.0,
+        -61.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 42,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        504.0,
+        99.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 43,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        504.0,
+        259.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 44,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        504.0,
+        419.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 45,
+      "params": {
+        "name": "ORM Map"
+      },
+      "pos": [
+        1176.0,
+        131.0
+      ],
+      "type": "output.standard"
+    }
+  ],
+  "type": "varying",
+  "version": 1
+}

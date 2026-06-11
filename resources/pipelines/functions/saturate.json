@@ -1,0 +1,126 @@
+{
+  "links": [
+    {
+      "from": [
+        56,
+        "value"
+      ],
+      "to": [
+        58,
+        "min"
+      ]
+    },
+    {
+      "from": [
+        57,
+        "value"
+      ],
+      "to": [
+        58,
+        "max"
+      ]
+    },
+    {
+      "from": [
+        51,
+        "value"
+      ],
+      "to": [
+        58,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        58,
+        "value"
+      ],
+      "to": [
+        55,
+        "value"
+      ]
+    }
+  ],
+  "name": "Saturate",
+  "nodes": [
+    {
+      "id": 51,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        209.0,
+        3.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 55,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1016.0,
+        3.0
+      ],
+      "type": "output.number"
+    },
+    {
+      "id": 56,
+      "params": {
+        "value": 0.0
+      },
+      "pos": [
+        362.0,
+        -141.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 57,
+      "params": {
+        "value": 1.0
+      },
+      "pos": [
+        431.0,
+        158.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 58,
+      "params": {
+        "pipeline": "functions/clamp.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "min",
+            "type": "number"
+          },
+          {
+            "name": "value",
+            "type": "number"
+          },
+          {
+            "name": "max",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "number"
+          }
+        ]
+      },
+      "pos": [
+        655.0,
+        -8.0
+      ],
+      "type": "op.subpipeline"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

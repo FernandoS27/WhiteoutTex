@@ -271,7 +271,7 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
             i32 type_int = 0;
             i32 n = 0;
             if (std::sscanf(p, "%d%n", &type_int, &n) == 1) {
-                step.type = static_cast<TransformType>(std::clamp(type_int, 0, 1));
+                step.type = static_cast<TransformType>(std::clamp(type_int, 0, 2));
                 p += n;
                 if (*p == ',')
                     ++p;
@@ -279,6 +279,28 @@ BatchPrefs load_batch_prefs(const std::string& ini_path) {
                     i32 lvl = 1;
                     if (std::sscanf(p, "%d", &lvl) == 1)
                         step.downscale_levels = std::clamp(lvl, 1, 2);
+                } else if (step.type == TransformType::Pipeline) {
+                    std::string rest(p); // <file>[|name=value]...
+                    while (!rest.empty() &&
+                           (rest.back() == '\r' || rest.back() == '\n' || rest.back() == ' '))
+                        rest.pop_back();
+                    const auto bar = rest.find('|');
+                    step.pipeline_file = bar == std::string::npos ? rest : rest.substr(0, bar);
+                    for (std::size_t pos = (bar == std::string::npos ? rest.size() : bar + 1);
+                         pos < rest.size();) {
+                        const auto next = rest.find('|', pos);
+                        const std::string token =
+                            rest.substr(pos, next == std::string::npos ? std::string::npos
+                                                                       : next - pos);
+                        if (const auto eq = token.find('='); eq != std::string::npos) {
+                            double pv = 0.0;
+                            if (std::sscanf(token.c_str() + eq + 1, "%lf", &pv) == 1)
+                                step.pipeline_params.push_back({token.substr(0, eq), pv});
+                        }
+                        if (next == std::string::npos)
+                            break;
+                        pos = next + 1;
+                    }
                 } else {
                     i32 mi = 0, ua = 0;
                     if (std::sscanf(p, "%d,%d", &mi, &ua) >= 1) {
@@ -333,6 +355,10 @@ void append_batch_prefs(const std::string& ini_path, const BatchPrefs& prefs) {
         out << "Transform=" << static_cast<i32>(step.type) << ",";
         if (step.type == TransformType::Downscale) {
             out << step.downscale_levels;
+        } else if (step.type == TransformType::Pipeline) {
+            out << step.pipeline_file;
+            for (const auto& [pname, pval] : step.pipeline_params)
+                out << "|" << pname << "=" << pval;
         } else {
             out << step.upscale_model_index << "," << (step.upscale_alpha ? 1 : 0);
         }

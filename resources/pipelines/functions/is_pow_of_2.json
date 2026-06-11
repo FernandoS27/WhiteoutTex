@@ -272,6 +272,6 @@
       "type": "op.bit_and"
     }
   ],
-  "type": "standard",
+  "type": "function",
   "version": 1
 }

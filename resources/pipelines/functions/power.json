@@ -315,6 +315,6 @@
       "type": "ctrl.rendezvous"
     }
   ],
-  "type": "standard",
+  "type": "function",
   "version": 1
 }

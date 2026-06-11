@@ -72,16 +72,6 @@
     },
     {
       "from": [
-        16,
-        "image"
-      ],
-      "to": [
-        19,
-        "Overlay"
-      ]
-    },
-    {
-      "from": [
         4,
         "image"
       ],
@@ -119,9 +109,19 @@
         22,
         "image"
       ]
+    },
+    {
+      "from": [
+        16,
+        "image"
+      ],
+      "to": [
+        19,
+        "Overlay"
+      ]
     }
   ],
-  "name": "CreateButtonsClassic",
+  "name": "CreateButtonsReforged",
   "nodes": [
     {
       "id": 4,
@@ -137,7 +137,7 @@
     {
       "id": 6,
       "params": {
-        "path": "icon_bases/Classic/BTN_preset.dds"
+        "path": "icon_bases/Reforged/BTN_preset.dds"
       },
       "pos": [
         25.0,
@@ -151,15 +151,15 @@
         "name": "BTNIcon"
       },
       "pos": [
-        1096.0,
-        259.0
+        1348.0,
+        294.0
       ],
       "type": "output.standard"
     },
     {
       "id": 13,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -188,7 +188,7 @@
     {
       "id": 14,
       "params": {
-        "path": "icon_bases/Classic/ATC_preset.dds"
+        "path": "icon_bases/Reforged/ATC_preset.dds"
       },
       "pos": [
         25.0,
@@ -199,7 +199,7 @@
     {
       "id": 15,
       "params": {
-        "path": "icon_bases/Classic/DISBTN_preset.dds"
+        "path": "icon_bases/Reforged/DIS_preset.dds"
       },
       "pos": [
         25.0,
@@ -210,7 +210,7 @@
     {
       "id": 16,
       "params": {
-        "path": "icon_bases/Classic/PAS_preset.dds"
+        "path": "icon_bases/Reforged/PAS_preset.dds"
       },
       "pos": [
         25.0,
@@ -221,7 +221,7 @@
     {
       "id": 17,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -243,14 +243,14 @@
       },
       "pos": [
         696.0,
-        435.0
+        467.0
       ],
       "type": "op.subpipeline"
     },
     {
       "id": 18,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -272,14 +272,14 @@
       },
       "pos": [
         696.0,
-        611.0
+        643.0
       ],
       "type": "op.subpipeline"
     },
     {
       "id": 19,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -301,7 +301,7 @@
       },
       "pos": [
         696.0,
-        771.0
+        803.0
       ],
       "type": "op.subpipeline"
     },
@@ -311,8 +311,8 @@
         "name": "ATCIcon"
       },
       "pos": [
-        1096.0,
-        435.0
+        1343.0,
+        497.0
       ],
       "type": "output.standard"
     },
@@ -322,8 +322,8 @@
         "name": "DISBTNIcon"
       },
       "pos": [
-        1096.0,
-        611.0
+        1336.0,
+        659.0
       ],
       "type": "output.standard"
     },
@@ -333,8 +333,8 @@
         "name": "PASIcon"
       },
       "pos": [
-        1096.0,
-        771.0
+        1336.0,
+        835.0
       ],
       "type": "output.standard"
     }

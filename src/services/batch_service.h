@@ -28,6 +28,7 @@ namespace whiteout::textool::services {
 struct BatchJob {
     std::string input_dir;
     std::string output_dir;
+    std::string pipelines_dir; ///< Folder of standard pipelines (for Pipeline steps).
     std::vector<std::string> files;
     BatchPrefs prefs;
 #ifdef WHITEOUT_HAS_UPSCALER

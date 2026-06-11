@@ -97,6 +97,8 @@ private:
     std::vector<models::PipelineInfo> varying_pipeline_files_;
     /// Each pipeline's interface, keyed by file (for the MultiPipeline dialog).
     std::unordered_map<std::string, pipeline::PipelineInterface> pipeline_interfaces_;
+    /// Each standard pipeline's settable Real/Integer parameters, keyed by file.
+    std::unordered_map<std::string, std::vector<models::PipelineParam>> pipeline_params_;
 
     /// (Re)scan pipelines_dir_ and refresh every pipeline list/interface.
     void scanPipelines();

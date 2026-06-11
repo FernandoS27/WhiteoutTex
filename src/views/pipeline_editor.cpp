@@ -412,17 +412,21 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     }
     ImGui::Spacing();
 
-    // Pipeline type selector (Standard = one std input/output; Varying = many).
-    // A plain ImGui combo — it lives in a normal window, so no Suspend/Resume.
-    ImGui::TextUnformatted(i18n::tr("pipeline.type"));
-    const char* type_items[] = {i18n::tr("pipeline.type.standard"),
-                                i18n::tr("pipeline.type.varying"),
-                                i18n::tr("pipeline.type.function")};
-    int type_cur = static_cast<int>(graph_.pipelineType());
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    if (ImGui::Combo("##pipelinetype", &type_cur, type_items,
-                     static_cast<int>(sizeof(type_items) / sizeof(type_items[0]))))
-        graph_.setPipelineType(static_cast<pipeline::PipelineType>(type_cur));
+    // Pipeline type: a Function is an explicit choice; otherwise the type is
+    // derived from the graph — Standard (one Standard Input + one Standard
+    // Output) or Varying (anything else).
+    bool is_function = graph_.pipelineType() == pipeline::PipelineType::Function;
+    ImGui::Checkbox(i18n::tr("pipeline.function"), &is_function);
+    graph_.setPipelineType(is_function ? pipeline::PipelineType::Function
+                                       : graph_.nonFunctionType());
+    {
+        const char* tkey =
+            graph_.pipelineType() == pipeline::PipelineType::Function  ? "pipeline.type.function"
+            : graph_.pipelineType() == pipeline::PipelineType::Varying ? "pipeline.type.varying"
+                                                                       : "pipeline.type.standard";
+        ImGui::SameLine();
+        ImGui::TextDisabled("(%s)", i18n::tr(tkey));
+    }
     ImGui::Spacing();
 
     // Save/Load toolbar over the palette.  Two equal-width buttons on one row.

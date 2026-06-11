@@ -52,16 +52,6 @@
     },
     {
       "from": [
-        29,
-        "result"
-      ],
-      "to": [
-        30,
-        "normalChannel"
-      ]
-    },
-    {
-      "from": [
         1,
         "image"
       ],
@@ -182,16 +172,6 @@
     },
     {
       "from": [
-        31,
-        "channel"
-      ],
-      "to": [
-        33,
-        "normalChannel"
-      ]
-    },
-    {
-      "from": [
         33,
         "normalUnpacked"
       ],
@@ -232,18 +212,38 @@
     },
     {
       "from": [
+        29,
+        "result"
+      ],
+      "to": [
+        30,
+        "packedNormal"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "channel"
+      ],
+      "to": [
+        33,
+        "packedNormal"
+      ]
+    },
+    {
+      "from": [
         42,
         "result"
       ],
       "to": [
         46,
-        "normalChannel"
+        "unpackedNormal"
       ]
     },
     {
       "from": [
         46,
-        "normalPacked"
+        "packedNormal"
       ],
       "to": [
         16,
@@ -323,8 +323,8 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
@@ -359,8 +359,8 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
@@ -478,14 +478,14 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "unpackedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
           {
-            "name": "normalPacked",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ]
       },

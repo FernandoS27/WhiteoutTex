@@ -154,6 +154,6 @@
       "type": "output.integer"
     }
   ],
-  "type": "standard",
+  "type": "function",
   "version": 1
 }

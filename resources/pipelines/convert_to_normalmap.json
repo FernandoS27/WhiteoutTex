@@ -127,17 +127,7 @@
       ],
       "to": [
         29,
-        "normalChannel"
-      ]
-    },
-    {
-      "from": [
-        29,
-        "normalPacked"
-      ],
-      "to": [
-        25,
-        "red"
+        "unpackedNormal"
       ]
     },
     {
@@ -147,13 +137,33 @@
       ],
       "to": [
         30,
-        "normalChannel"
+        "unpackedNormal"
+      ]
+    },
+    {
+      "from": [
+        27,
+        "Z"
+      ],
+      "to": [
+        31,
+        "unpackedNormal"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "packedNormal"
+      ],
+      "to": [
+        25,
+        "blue"
       ]
     },
     {
       "from": [
         30,
-        "normalPacked"
+        "packedNormal"
       ],
       "to": [
         25,
@@ -162,22 +172,12 @@
     },
     {
       "from": [
-        27,
-        "value"
-      ],
-      "to": [
-        31,
-        "normalChannel"
-      ]
-    },
-    {
-      "from": [
-        31,
-        "normalPacked"
+        29,
+        "packedNormal"
       ],
       "to": [
         25,
-        "blue"
+        "red"
       ]
     }
   ],
@@ -328,7 +328,7 @@
             "type": "number"
           },
           {
-            "name": "value",
+            "name": "Z",
             "type": "number"
           }
         ]
@@ -347,14 +347,14 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "unpackedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
           {
-            "name": "normalPacked",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ]
       },
@@ -372,14 +372,14 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "unpackedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
           {
-            "name": "normalPacked",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ]
       },
@@ -397,14 +397,14 @@
       "pins": {
         "inputs": [
           {
-            "name": "normalChannel",
-            "type": "r"
+            "name": "unpackedNormal",
+            "type": "number"
           }
         ],
         "outputs": [
           {
-            "name": "normalPacked",
-            "type": "r"
+            "name": "packedNormal",
+            "type": "number"
           }
         ]
       },

@@ -111,6 +111,9 @@ public:
     // ── Pipeline type (external interface contract) ────────────────────
     PipelineType pipelineType() const noexcept { return type_; }
     void setPipelineType(PipelineType t) noexcept { type_ = t; }
+    /// The non-Function type implied by the graph: Standard when it has exactly
+    /// one (top-level) Standard Input and one Standard Output, else Varying.
+    PipelineType nonFunctionType() const;
 
     // ── Id bookkeeping (used by the serializer to restore counters) ─────
     NodeId nextNodeId() const noexcept { return next_node_id_; }

@@ -1,0 +1,264 @@
+{
+  "links": [
+    {
+      "from": [
+        23,
+        "image"
+      ],
+      "to": [
+        24,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "image"
+      ],
+      "to": [
+        25,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "image"
+      ],
+      "to": [
+        26,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "image"
+      ],
+      "to": [
+        27,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        24,
+        "channel"
+      ],
+      "to": [
+        28,
+        "channel"
+      ]
+    },
+    {
+      "from": [
+        25,
+        "channel"
+      ],
+      "to": [
+        29,
+        "channel"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "channel"
+      ],
+      "to": [
+        30,
+        "channel"
+      ]
+    },
+    {
+      "from": [
+        27,
+        "channel"
+      ],
+      "to": [
+        31,
+        "channel"
+      ]
+    },
+    {
+      "from": [
+        28,
+        "image"
+      ],
+      "to": [
+        32,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        29,
+        "image"
+      ],
+      "to": [
+        33,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        30,
+        "image"
+      ],
+      "to": [
+        34,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "image"
+      ],
+      "to": [
+        35,
+        "image"
+      ]
+    }
+  ],
+  "name": "Unpack ORM",
+  "nodes": [
+    {
+      "id": 23,
+      "params": {
+        "name": "ORM Map"
+      },
+      "pos": [
+        113.0,
+        67.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 24,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        504.0,
+        -157.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 25,
+      "params": {
+        "channel": 1
+      },
+      "pos": [
+        513.0,
+        -17.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 26,
+      "params": {
+        "channel": 2
+      },
+      "pos": [
+        518.0,
+        136.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 27,
+      "params": {
+        "channel": 3
+      },
+      "pos": [
+        518.0,
+        296.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 28,
+      "params": {},
+      "pos": [
+        1018.0,
+        -157.0
+      ],
+      "type": "op.prims"
+    },
+    {
+      "id": 29,
+      "params": {},
+      "pos": [
+        1018.0,
+        -13.0
+      ],
+      "type": "op.prims"
+    },
+    {
+      "id": 30,
+      "params": {},
+      "pos": [
+        1032.0,
+        131.0
+      ],
+      "type": "op.prims"
+    },
+    {
+      "id": 31,
+      "params": {},
+      "pos": [
+        1018.0,
+        291.0
+      ],
+      "type": "op.prims"
+    },
+    {
+      "id": 32,
+      "params": {
+        "name": "AmbientOcclussion Map"
+      },
+      "pos": [
+        1432.0,
+        -205.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 33,
+      "params": {
+        "name": "Roughness"
+      },
+      "pos": [
+        1432.0,
+        -45.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 34,
+      "params": {
+        "name": "Metalness"
+      },
+      "pos": [
+        1432.0,
+        115.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 35,
+      "params": {
+        "name": "Alpha Map"
+      },
+      "pos": [
+        1432.0,
+        275.0
+      ],
+      "type": "output.standard"
+    }
+  ],
+  "type": "varying",
+  "version": 1
+}

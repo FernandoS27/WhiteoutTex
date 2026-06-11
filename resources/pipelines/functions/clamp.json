@@ -1,0 +1,121 @@
+{
+  "links": [
+    {
+      "from": [
+        51,
+        "value"
+      ],
+      "to": [
+        53,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        50,
+        "value"
+      ],
+      "to": [
+        53,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        52,
+        "value"
+      ],
+      "to": [
+        54,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        53,
+        "result"
+      ],
+      "to": [
+        54,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        54,
+        "result"
+      ],
+      "to": [
+        55,
+        "value"
+      ]
+    }
+  ],
+  "name": "Clamp",
+  "nodes": [
+    {
+      "id": 50,
+      "params": {
+        "name": "min"
+      },
+      "pos": [
+        289.0,
+        -29.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 51,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        292.0,
+        -169.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 52,
+      "params": {
+        "name": "max"
+      },
+      "pos": [
+        289.0,
+        115.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 53,
+      "params": {},
+      "pos": [
+        632.0,
+        -93.0
+      ],
+      "type": "op.max"
+    },
+    {
+      "id": 54,
+      "params": {},
+      "pos": [
+        840.0,
+        19.0
+      ],
+      "type": "op.min"
+    },
+    {
+      "id": 55,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1048.0,
+        19.0
+      ],
+      "type": "output.number"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

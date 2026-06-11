@@ -8,6 +8,7 @@
 #include "save_helpers.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <string>
@@ -352,28 +353,32 @@ void BatchConvert::drawTransformPipeline() {
 
         ImGui::Indent();
 
-        // Transform type selector
-        i32 type_int = static_cast<i32>(step.type);
-        const char* type_names[] = {tr("batch.upscale"), tr("batch.downscale")};
-
+        // Transform type selector (only the types available in this build).
+        struct TypeOpt {
+            TransformType type;
+            const char* label;
+        };
+        std::vector<TypeOpt> type_opts;
 #ifdef WHITEOUT_HAS_UPSCALER
-        const i32 type_count = 2;
+        type_opts.push_back({TransformType::Upscale, tr("batch.upscale")});
 #else
-        const i32 type_count = 1; // Only Downscale available without upscaler
-        if (type_int == 0)
-            type_int = 1; // Force to Downscale
+        if (step.type == TransformType::Upscale)
+            step.type = TransformType::Downscale; // Upscale unavailable in this build
 #endif
+        type_opts.push_back({TransformType::Downscale, tr("batch.downscale")});
+        type_opts.push_back({TransformType::Pipeline, tr("batch.pipeline")});
 
+        const char* cur_type = tr("batch.downscale");
+        for (const auto& o : type_opts)
+            if (o.type == step.type)
+                cur_type = o.label;
         ImGui::SetNextItemWidth(200.0f);
-
-#ifdef WHITEOUT_HAS_UPSCALER
-        if (ImGui::Combo(tr("batch.type"), &type_int, type_names, type_count))
-            step.type = static_cast<TransformType>(type_int);
-#else
-        // Only show Downscale
-        if (ImGui::Combo(tr("batch.type"), &type_int, &type_names[1], 1))
-            step.type = TransformType::Downscale;
-#endif
+        if (ImGui::BeginCombo(tr("batch.type"), cur_type)) {
+            for (const auto& o : type_opts)
+                if (ImGui::Selectable(o.label, o.type == step.type))
+                    step.type = o.type;
+            ImGui::EndCombo();
+        }
 
         // Type-specific options
         if (step.type == TransformType::Downscale) {
@@ -381,6 +386,69 @@ void BatchConvert::drawTransformPipeline() {
             ImGui::SetNextItemWidth(200.0f);
             if (ImGui::Combo(tr("batch.scale"), &lvl_idx, kDownscaleOptions, kDownscaleOptionCount)) {
                 step.downscale_levels = lvl_idx + 1;
+            }
+        }
+
+        if (step.type == TransformType::Pipeline) {
+            const char* shown = step.pipeline_file.empty() ? "-" : step.pipeline_file.c_str();
+            for (const auto& info : pipelines_)
+                if (info.file == step.pipeline_file) {
+                    shown = info.display_name.c_str();
+                    break;
+                }
+            ImGui::SetNextItemWidth(300.0f);
+            if (ImGui::BeginCombo(tr("batch.pipeline"), shown)) {
+                if (pipelines_.empty())
+                    ImGui::TextDisabled("%s", tr("batch.no_pipelines"));
+                for (const auto& info : pipelines_)
+                    if (ImGui::Selectable(info.display_name.c_str(),
+                                          info.file == step.pipeline_file) &&
+                        info.file != step.pipeline_file) {
+                        step.pipeline_file = info.file;
+                        // Seed the parameter overrides with the pipeline's defaults.
+                        step.pipeline_params.clear();
+                        if (const auto it = pipeline_params_.find(info.file);
+                            it != pipeline_params_.end())
+                            for (const auto& d : it->second)
+                                step.pipeline_params.push_back({d.name, d.default_value});
+                    }
+                ImGui::EndCombo();
+            }
+
+            // Editable field per Real/Integer parameter of the selected pipeline.
+            if (const auto it = pipeline_params_.find(step.pipeline_file);
+                it != pipeline_params_.end()) {
+                for (const auto& d : it->second) {
+                    // Find (or create) the stored override value for this param.
+                    f64* val = nullptr;
+                    for (auto& kv : step.pipeline_params)
+                        if (kv.first == d.name) {
+                            val = &kv.second;
+                            break;
+                        }
+                    if (!val) {
+                        step.pipeline_params.push_back({d.name, d.default_value});
+                        val = &step.pipeline_params.back().second;
+                    }
+                    ImGui::SetNextItemWidth(200.0f);
+                    if (d.is_integer) {
+                        i32 iv = static_cast<i32>(std::lround(*val));
+                        if (ImGui::InputInt(d.name.c_str(), &iv)) {
+                            if (d.clamp)
+                                iv = std::clamp(iv, static_cast<i32>(d.min),
+                                                static_cast<i32>(d.max));
+                            *val = static_cast<f64>(iv);
+                        }
+                    } else {
+                        float fv = static_cast<float>(*val);
+                        if (ImGui::InputFloat(d.name.c_str(), &fv)) {
+                            if (d.clamp)
+                                fv = std::clamp(fv, static_cast<float>(d.min),
+                                                static_cast<float>(d.max));
+                            *val = static_cast<f64>(fv);
+                        }
+                    }
+                }
             }
         }
 
@@ -445,6 +513,14 @@ void BatchConvert::setUpscalerModels(std::vector<UpscalerModel> models) {
     upscale_models_ = std::move(models);
 }
 #endif
+
+void BatchConvert::setPipelines(
+    std::vector<models::PipelineInfo> pipelines, std::string pipelines_dir,
+    std::unordered_map<std::string, std::vector<models::PipelineParam>> params) {
+    pipelines_ = std::move(pipelines);
+    pipelines_dir_ = std::move(pipelines_dir);
+    pipeline_params_ = std::move(params);
+}
 
 // ============================================================================
 // Progress dialog
@@ -529,6 +605,7 @@ std::string BatchConvert::beginBatch() {
     BatchJob job;
     job.input_dir = input_dir;
     job.output_dir = output_dir;
+    job.pipelines_dir = pipelines_dir_;
     job.files = std::move(files);
     job.prefs = prefs_;
 #ifdef WHITEOUT_HAS_UPSCALER

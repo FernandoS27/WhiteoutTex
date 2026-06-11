@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Forward-declared to keep this widely-included header light (the full enum lives
@@ -26,6 +27,7 @@ namespace whiteout::textool {
 enum class TransformType : i32 {
     Upscale = 0,   ///< AI upscale (Real-ESRGAN).
     Downscale = 1, ///< Halve dimensions by dropping mip levels.
+    Pipeline = 2,  ///< Run a standard pipeline on each image.
 };
 
 /// A single step in the batch transformation pipeline.
@@ -38,6 +40,11 @@ struct TransformStep {
     // Upscale options
     i32 upscale_model_index = 0; ///< Index into the available upscaler models.
     bool upscale_alpha = false;  ///< Upscale alpha channel through the model.
+
+    // Pipeline options
+    std::string pipeline_file; ///< Standard pipeline file (relative to pipelines dir).
+    /// Overrides for the pipeline's Real/Integer Input parameters (name -> value).
+    std::vector<std::pair<std::string, f64>> pipeline_params;
 };
 
 constexpr i32 MAX_RECENT_PATHS = 10;

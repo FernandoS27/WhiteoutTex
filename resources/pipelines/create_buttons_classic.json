@@ -121,7 +121,7 @@
       ]
     }
   ],
-  "name": "CreateButtonsReforged",
+  "name": "CreateButtonsClassic",
   "nodes": [
     {
       "id": 4,
@@ -137,7 +137,7 @@
     {
       "id": 6,
       "params": {
-        "path": "icon_bases/Reforged/BTN_preset.dds"
+        "path": "icon_bases/Classic/BTN_preset.dds"
       },
       "pos": [
         25.0,
@@ -159,7 +159,7 @@
     {
       "id": 13,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -188,7 +188,7 @@
     {
       "id": 14,
       "params": {
-        "path": "icon_bases/Reforged/ATC_preset.dds"
+        "path": "icon_bases/Classic/ATC_preset.dds"
       },
       "pos": [
         25.0,
@@ -199,7 +199,7 @@
     {
       "id": 15,
       "params": {
-        "path": "icon_bases/Reforged/DIS_preset.dds"
+        "path": "icon_bases/Classic/DISBTN_preset.dds"
       },
       "pos": [
         25.0,
@@ -210,7 +210,7 @@
     {
       "id": 16,
       "params": {
-        "path": "icon_bases/Reforged/PAS_preset.dds"
+        "path": "icon_bases/Classic/PAS_preset.dds"
       },
       "pos": [
         25.0,
@@ -221,7 +221,7 @@
     {
       "id": 17,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -250,7 +250,7 @@
     {
       "id": 18,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [
@@ -279,7 +279,7 @@
     {
       "id": 19,
       "params": {
-        "pipeline": "functions/apply_overlay.json"
+        "pipeline": "functions/apply_button.json"
       },
       "pins": {
         "inputs": [

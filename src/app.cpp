@@ -31,6 +31,52 @@ namespace {
 
 using whiteout::i32;
 
+/// Settable numeric parameters of a pipeline: its non-framed Real/Integer Input
+/// nodes (name + default/clamp range), so callers can override them.
+std::vector<whiteout::textool::models::PipelineParam>
+extractPipelineParams(const whiteout::textool::pipeline::NodeGraph& g) {
+    namespace pipeline = whiteout::textool::pipeline;
+    using whiteout::f64;
+    using whiteout::i64;
+    std::unordered_set<pipeline::NodeId> framed;
+    for (const auto& up : g.nodes())
+        if (up->typeId() == "frame.local")
+            for (pipeline::NodeId id : g.nodesInFrame(*up))
+                framed.insert(id);
+
+    const auto num = [](const pipeline::Param& prm, f64 def) -> f64 {
+        if (std::holds_alternative<i64>(prm.value))
+            return static_cast<f64>(std::get<i64>(prm.value));
+        if (std::holds_alternative<f64>(prm.value))
+            return std::get<f64>(prm.value);
+        return def;
+    };
+    std::vector<whiteout::textool::models::PipelineParam> params;
+    for (const auto& up : g.nodes()) {
+        const std::string& t = up->typeId();
+        if ((t != "input.real" && t != "input.integer") || framed.count(up->id()))
+            continue;
+        whiteout::textool::models::PipelineParam pp;
+        pp.is_integer = (t == "input.integer");
+        pp.max = 1.0;
+        for (const pipeline::Param& prm : up->params()) {
+            if (prm.name == "name" && std::holds_alternative<std::string>(prm.value))
+                pp.name = std::get<std::string>(prm.value);
+            else if (prm.name == "clamp" && std::holds_alternative<bool>(prm.value))
+                pp.clamp = std::get<bool>(prm.value);
+            else if (prm.name == "value")
+                pp.default_value = num(prm, 0.0);
+            else if (prm.name == "min")
+                pp.min = num(prm, 0.0);
+            else if (prm.name == "max")
+                pp.max = num(prm, 1.0);
+        }
+        if (!pp.name.empty())
+            params.push_back(std::move(pp));
+    }
+    return params;
+}
+
 void SDLCALL file_dialog_callback(void* userdata, const char* const* filelist, i32 filter) {
     if (!filelist || !filelist[0]) {
         return;
@@ -550,6 +596,7 @@ void App::scanPipelines() {
     standard_pipeline_files_.clear();
     varying_pipeline_files_.clear();
     pipeline_interfaces_.clear();
+    pipeline_params_.clear();
 
     std::error_code ec;
     for (std::filesystem::recursive_directory_iterator it(pipelines_dir_, ec), end; it != end;
@@ -574,6 +621,7 @@ void App::scanPipelines() {
                 pipeline::NodeGraph g;
                 if (pipeline::fromJson(doc, g, nullptr)) {
                     pipeline_interfaces_[info.file] = g.interface();
+                    pipeline_params_[info.file] = extractPipelineParams(g);
                     ptype = g.pipelineType();
                 }
             } catch (const nlohmann::json::exception&) {
@@ -599,6 +647,7 @@ void App::scanPipelines() {
     image_details_.setPipelines(standard_pipeline_files_);
     pipeline_editor_.setPipelines(pipeline_files_);
     pipeline_editor_.setPipelineInterfaces(pipeline_interfaces_);
+    batch_convert_.setPipelines(standard_pipeline_files_, pipelines_dir_, pipeline_params_);
 }
 
 void App::openMultiPipeline(const std::string& name) {
