@@ -542,6 +542,65 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     ui_.show_result_popup = true;
 }
 
+void App::scanPipelines() {
+    // Re-discover pipelines (*.json) under pipelines_dir_, reading each one's
+    // display name and deriving its external interface (for Subpipeline pins).
+    // Called at startup and by the Pipelines tab's Refresh button.
+    pipeline_files_.clear();
+    standard_pipeline_files_.clear();
+    varying_pipeline_files_.clear();
+    pipeline_interfaces_.clear();
+
+    std::error_code ec;
+    for (std::filesystem::recursive_directory_iterator it(pipelines_dir_, ec), end; it != end;
+         it.increment(ec)) {
+        if (ec)
+            break;
+        if (!it->is_regular_file(ec) || to_lower(it->path().extension().string()) != ".json")
+            continue;
+        models::PipelineInfo info;
+        // Store the path relative to the pipelines folder (forward slashes) so
+        // pipelines in subfolders stay addressable (e.g. functions/foo.json).
+        info.file = std::filesystem::relative(it->path(), pipelines_dir_, ec).generic_string();
+        if (info.file.empty())
+            info.file = it->path().filename().string();
+        auto ptype = pipeline::PipelineType::Standard; // default when untyped
+        std::ifstream pf(it->path(), std::ios::binary);
+        if (pf) {
+            try {
+                nlohmann::json doc;
+                pf >> doc;
+                info.display_name = doc.value("name", std::string{});
+                pipeline::NodeGraph g;
+                if (pipeline::fromJson(doc, g, nullptr)) {
+                    pipeline_interfaces_[info.file] = g.interface();
+                    ptype = g.pipelineType();
+                }
+            } catch (const nlohmann::json::exception&) {
+            }
+        }
+        if (info.display_name.empty())
+            info.display_name = it->path().stem().string();
+        // Standard pipelines run on the current image (Preview); Varying
+        // pipelines run from the MultiPipelines dialog (file in/out).
+        if (ptype == pipeline::PipelineType::Standard)
+            standard_pipeline_files_.push_back(info);
+        else if (ptype == pipeline::PipelineType::Varying)
+            varying_pipeline_files_.push_back(info);
+        pipeline_files_.push_back(std::move(info));
+    }
+    const auto byName = [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
+        return a.display_name < b.display_name;
+    };
+    std::sort(pipeline_files_.begin(), pipeline_files_.end(), byName);
+    std::sort(standard_pipeline_files_.begin(), standard_pipeline_files_.end(), byName);
+    std::sort(varying_pipeline_files_.begin(), varying_pipeline_files_.end(), byName);
+
+    image_details_.setPipelines(standard_pipeline_files_);
+    pipeline_editor_.setPipelines(pipeline_files_);
+    pipeline_editor_.setPipelineInterfaces(pipeline_interfaces_);
+}
+
 void App::openMultiPipeline(const std::string& name) {
     const auto it = pipeline_interfaces_.find(name);
     if (it == pipeline_interfaces_.end()) {
@@ -787,59 +846,7 @@ i32 App::run(i32 argc, char** argv) {
         pipelines_dir_ = "pipelines";
     }
 
-    // Discover runnable standard pipelines (*.json) next to the executable,
-    // reading each one's display name from its "name" field and deriving its
-    // external interface (for Subpipeline node pins).
-    {
-        std::error_code ec;
-        for (std::filesystem::recursive_directory_iterator it(pipelines_dir_, ec), end; it != end;
-             it.increment(ec)) {
-            if (ec)
-                break;
-            if (!it->is_regular_file(ec) || to_lower(it->path().extension().string()) != ".json")
-                continue;
-            models::PipelineInfo info;
-            // Store the path relative to the pipelines folder (forward slashes)
-            // so pipelines in subfolders stay addressable (e.g. functions/foo.json).
-            info.file =
-                std::filesystem::relative(it->path(), pipelines_dir_, ec).generic_string();
-            if (info.file.empty())
-                info.file = it->path().filename().string();
-            auto ptype = pipeline::PipelineType::Standard; // default when untyped
-            std::ifstream pf(it->path(), std::ios::binary);
-            if (pf) {
-                try {
-                    nlohmann::json doc;
-                    pf >> doc;
-                    info.display_name = doc.value("name", std::string{});
-                    pipeline::NodeGraph g;
-                    if (pipeline::fromJson(doc, g, nullptr)) {
-                        pipeline_interfaces_[info.file] = g.interface();
-                        ptype = g.pipelineType();
-                    }
-                } catch (const nlohmann::json::exception&) {
-                }
-            }
-            if (info.display_name.empty())
-                info.display_name = it->path().stem().string();
-            // Standard pipelines run on the current image (Preview); Varying
-            // pipelines run from the MultiPipelines dialog (file in/out).
-            if (ptype == pipeline::PipelineType::Standard)
-                standard_pipeline_files_.push_back(info);
-            else if (ptype == pipeline::PipelineType::Varying)
-                varying_pipeline_files_.push_back(info);
-            pipeline_files_.push_back(std::move(info));
-        }
-        const auto byName = [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
-            return a.display_name < b.display_name;
-        };
-        std::sort(pipeline_files_.begin(), pipeline_files_.end(), byName);
-        std::sort(standard_pipeline_files_.begin(), standard_pipeline_files_.end(), byName);
-        std::sort(varying_pipeline_files_.begin(), varying_pipeline_files_.end(), byName);
-    }
-    image_details_.setPipelines(standard_pipeline_files_);
-    pipeline_editor_.setPipelines(pipeline_files_);
-    pipeline_editor_.setPipelineInterfaces(pipeline_interfaces_);
+    scanPipelines();
 
     app_prefs_ = load_app_prefs(imgui_ini_path_);
     i18n::Localizer::instance().load(lang_dir_, app_prefs_.language);
@@ -1006,6 +1013,8 @@ i32 App::run(i32 argc, char** argv) {
                 ImGui::EndChild();
             } else {
                 pipeline_editor_.draw(window_);
+                if (pipeline_editor_.takeRefreshRequest())
+                    scanPipelines();
             }
             ImGui::EndChild();
         }

@@ -1,0 +1,277 @@
+{
+  "links": [
+    {
+      "from": [
+        8,
+        "value"
+      ],
+      "to": [
+        9,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "value"
+      ],
+      "to": [
+        10,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "result"
+      ],
+      "to": [
+        10,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        10,
+        "result"
+      ],
+      "to": [
+        11,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "value"
+      ],
+      "to": [
+        11,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "result"
+      ],
+      "to": [
+        4,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        4,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        4,
+        "if false"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "value"
+      ],
+      "to": [
+        4,
+        "if true"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        14,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "value"
+      ],
+      "to": [
+        14,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "value"
+      ],
+      "to": [
+        14,
+        "if true"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        14,
+        "if false"
+      ]
+    },
+    {
+      "from": [
+        14,
+        "result"
+      ],
+      "to": [
+        15,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "result"
+      ],
+      "to": [
+        15,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "result"
+      ],
+      "to": [
+        13,
+        "value"
+      ]
+    }
+  ],
+  "name": "IsPowerOf2",
+  "nodes": [
+    {
+      "id": 4,
+      "params": {
+        "comparator": 0,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        1192.0,
+        377.0
+      ],
+      "type": "ctrl.select"
+    },
+    {
+      "id": 7,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "number",
+        "value": 0
+      },
+      "pos": [
+        153.0,
+        179.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 8,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        154.0,
+        515.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 9,
+      "params": {},
+      "pos": [
+        392.0,
+        403.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 10,
+      "params": {},
+      "pos": [
+        632.0,
+        339.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 11,
+      "params": {},
+      "pos": [
+        823.0,
+        259.0
+      ],
+      "type": "op.bit_and"
+    },
+    {
+      "id": 12,
+      "params": {
+        "value": 0
+      },
+      "pos": [
+        906.0,
+        531.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 13,
+      "params": {
+        "name": "result"
+      },
+      "pos": [
+        1720.0,
+        291.0
+      ],
+      "type": "output.integer"
+    },
+    {
+      "id": 14,
+      "params": {
+        "comparator": 1,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        1192.0,
+        169.0
+      ],
+      "type": "ctrl.select"
+    },
+    {
+      "id": 15,
+      "params": {},
+      "pos": [
+        1531.0,
+        281.0
+      ],
+      "type": "op.bit_and"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

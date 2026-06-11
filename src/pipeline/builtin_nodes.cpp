@@ -49,6 +49,11 @@ const std::vector<std::string> kLumaMethods = {"pipeline.luma.rec709", "pipeline
 // Derivative kernels (i18n keys).  Quad = central difference, Sobel = 3x3.
 const std::vector<std::string> kDerivativeModes = {"pipeline.deriv.quad", "pipeline.deriv.sobel"};
 
+// Mirror axes and scale resampling filters (i18n keys).
+const std::vector<std::string> kMirrorAxes = {"pipeline.axis.x", "pipeline.axis.y"};
+const std::vector<std::string> kScaleFilters = {"pipeline.filter.bicubic", "pipeline.filter.linear",
+                                                "pipeline.filter.lanczos"};
+
 // Comparison operators for the Conditional control node (i18n keys).
 const std::vector<std::string> kComparators = {
     "pipeline.cmp.equal",   "pipeline.cmp.not_equal",    "pipeline.cmp.less",
@@ -118,6 +123,16 @@ public:
     ChannelInputNode() : Node("input.channel", NodeCategory::Input) {
         addOutput("channel", PinType::R);
         addParam("name", std::string{"channel"});
+    }
+};
+
+// A polymorphic numeric pipeline input (Real, Integer, or single Channel),
+// supplied when the pipeline is run.  Carries only a name (value at run time).
+class NumericInputNode final : public Node {
+public:
+    NumericInputNode() : Node("input.number", NodeCategory::Input) {
+        addOutput("value", PinType::Number);
+        addParam("name", std::string{"value"});
     }
 };
 
@@ -298,6 +313,35 @@ public:
     }
 };
 
+// ── Bitwise (Integer) ───────────────────────────────────────────────────────
+// Operands are coerced to a 64-bit integer; the result is an Integer.
+
+class BitwiseBinaryNode final : public Node { // AND / OR / XOR
+public:
+    explicit BitwiseBinaryNode(const char* type_id) : Node(type_id, NodeCategory::Operation) {
+        addInput("a", PinType::Int);
+        addInput("b", PinType::Int);
+        addOutput("result", PinType::Int);
+    }
+};
+
+class BitwiseNotNode final : public Node {
+public:
+    BitwiseNotNode() : Node("op.bit_not", NodeCategory::Operation) {
+        addInput("value", PinType::Int);
+        addOutput("result", PinType::Int);
+    }
+};
+
+class BitShiftNode final : public Node { // Shift Left / Shift Right
+public:
+    explicit BitShiftNode(const char* type_id) : Node(type_id, NodeCategory::Operation) {
+        addInput("value", PinType::Int);
+        addInput("amount", PinType::Int);
+        addOutput("result", PinType::Int);
+    }
+};
+
 // A single channel (R) -> its partial derivatives in X and Y (both R).
 class DerivativesNode final : public Node {
 public:
@@ -348,6 +392,52 @@ public:
     }
 };
 
+// ── Geometry (work on an image OR a channel via the polymorphic Any pin) ────
+
+// Flip horizontally (X) or vertically (Y).
+class MirrorNode final : public Node {
+public:
+    MirrorNode() : Node("op.mirror", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addOutput("output", PinType::Any);
+        addEnumParam("axis", 0, kMirrorAxes);
+    }
+};
+
+// Rotate by a Real number of degrees (bilinear, keeps dimensions).
+class RotateNode final : public Node {
+public:
+    RotateNode() : Node("op.rotate", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addInput("degrees", PinType::Real);
+        addOutput("output", PinType::Any);
+    }
+};
+
+// Resample to explicit width x height pixels with the chosen filter.
+class ScaleToNode final : public Node {
+public:
+    ScaleToNode() : Node("op.scale_to", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addInput("width", PinType::Int);
+        addInput("height", PinType::Int);
+        addOutput("output", PinType::Any);
+        addEnumParam("filter", 0, kScaleFilters);
+    }
+};
+
+// Resample by a Real factor (1.0 = unchanged, 1.25 = 125%, 0.5 = half) with the
+// chosen filter.
+class ScaleByNode final : public Node {
+public:
+    ScaleByNode() : Node("op.scale_by", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addInput("factor", PinType::Real);
+        addOutput("output", PinType::Any);
+        addEnumParam("filter", 0, kScaleFilters);
+    }
+};
+
 // Inputs `top layer` (over) and `bottom layer` (under), RGBA -> RGBA combined
 // per the chosen mode.
 class BlendNode final : public Node {
@@ -391,10 +481,11 @@ public:
     }
 };
 
-// RGBA -> RGBA produced by running a selected standard pipeline on the input.
+// Runs a selected pipeline as a sub-step; pins mirror its interface.  Lives in
+// Control (it composes/branches flow) and may recurse (call itself).
 class SubpipelineNode final : public Node {
 public:
-    SubpipelineNode() : Node("op.subpipeline", NodeCategory::Operation) {
+    SubpipelineNode() : Node("op.subpipeline", NodeCategory::Control) {
         // Default pins mirror a standard pipeline; replaced to match the
         // selected pipeline's interface (see PipelineEditor::syncSubpipelinePins).
         addInput("image", PinType::RGBA);
@@ -473,6 +564,32 @@ public:
     }
 };
 
+// Compares two numeric operands and outputs `if true` or `if false` (either of
+// which may be any type) — a polymorphic ternary select.
+class SelectNode final : public Node {
+public:
+    SelectNode() : Node("ctrl.select", NodeCategory::Control) {
+        addInput("a", PinType::Number);
+        addInput("b", PinType::Number);
+        addInput("if true", PinType::Any);
+        addInput("if false", PinType::Any);
+        addOutput("result", PinType::Any);
+        addEnumParam("comparator", 0, kComparators);
+        addParam("epsilon", f64{1e-6}); // tolerance for Equal / Not Equal on floats
+    }
+};
+
+// Rendezvous (phi): joins diverged branches back into one path.  Emits whichever
+// input carries a value — only one branch of a Conditional is ever live.
+class RendezvousNode final : public Node {
+public:
+    RendezvousNode() : Node("ctrl.rendezvous", NodeCategory::Control) {
+        addInput("a", PinType::Any);
+        addInput("b", PinType::Any);
+        addOutput("result", PinType::Any);
+    }
+};
+
 // ── Output ──────────────────────────────────────────────────────────────────
 
 // The pipeline's primary/standard output image (mirrors Standard Input).
@@ -511,6 +628,15 @@ public:
     }
 };
 
+// A named polymorphic numeric pipeline output (Real / Integer / single Channel).
+class NumericOutputNode final : public Node {
+public:
+    NumericOutputNode() : Node("output.number", NodeCategory::Output) {
+        addInput("value", PinType::Number);
+        addParam("name", std::string{"value"});
+    }
+};
+
 } // namespace
 
 void registerBuiltinNodes() {
@@ -523,6 +649,8 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<IntegerInputNode>(); }});
     reg.registerType({"input.channel", NodeCategory::Input, "pipeline.node.channel_input",
                       [] { return std::make_unique<ChannelInputNode>(); }});
+    reg.registerType({"input.number", NodeCategory::Input, "pipeline.node.numeric_input",
+                      [] { return std::make_unique<NumericInputNode>(); }});
     reg.registerType({"input.resource", NodeCategory::Input, "pipeline.node.resource",
                       [] { return std::make_unique<ResourceInputNode>(); }});
     reg.registerType({"input.const_int", NodeCategory::Constant, "pipeline.node.const_int",
@@ -554,6 +682,14 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<ImagePropertiesNode>(); }});
     reg.registerType({"op.set_kind", NodeCategory::Operation, "pipeline.node.set_kind",
                       [] { return std::make_unique<SetKindNode>(); }});
+    reg.registerType({"op.mirror", NodeCategory::Operation, "pipeline.node.mirror",
+                      [] { return std::make_unique<MirrorNode>(); }});
+    reg.registerType({"op.rotate", NodeCategory::Operation, "pipeline.node.rotate",
+                      [] { return std::make_unique<RotateNode>(); }});
+    reg.registerType({"op.scale_to", NodeCategory::Operation, "pipeline.node.scale_to",
+                      [] { return std::make_unique<ScaleToNode>(); }});
+    reg.registerType({"op.scale_by", NodeCategory::Operation, "pipeline.node.scale_by",
+                      [] { return std::make_unique<ScaleByNode>(); }});
     reg.registerType({"op.add", NodeCategory::Operation, "pipeline.node.add",
                       [] { return std::make_unique<AddNode>(); }});
     reg.registerType({"op.multiply", NodeCategory::Operation, "pipeline.node.multiply",
@@ -568,6 +704,18 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<SquareRootNode>(); }});
     reg.registerType({"op.reciprocal", NodeCategory::Operation, "pipeline.node.reciprocal",
                       [] { return std::make_unique<ReciprocalNode>(); }});
+    reg.registerType({"op.bit_and", NodeCategory::Operation, "pipeline.node.bit_and",
+                      [] { return std::make_unique<BitwiseBinaryNode>("op.bit_and"); }});
+    reg.registerType({"op.bit_or", NodeCategory::Operation, "pipeline.node.bit_or",
+                      [] { return std::make_unique<BitwiseBinaryNode>("op.bit_or"); }});
+    reg.registerType({"op.bit_xor", NodeCategory::Operation, "pipeline.node.bit_xor",
+                      [] { return std::make_unique<BitwiseBinaryNode>("op.bit_xor"); }});
+    reg.registerType({"op.bit_not", NodeCategory::Operation, "pipeline.node.bit_not",
+                      [] { return std::make_unique<BitwiseNotNode>(); }});
+    reg.registerType({"op.bit_shl", NodeCategory::Operation, "pipeline.node.bit_shl",
+                      [] { return std::make_unique<BitShiftNode>("op.bit_shl"); }});
+    reg.registerType({"op.bit_shr", NodeCategory::Operation, "pipeline.node.bit_shr",
+                      [] { return std::make_unique<BitShiftNode>("op.bit_shr"); }});
     reg.registerType({"op.derivatives", NodeCategory::Operation, "pipeline.node.derivatives",
                       [] { return std::make_unique<DerivativesNode>(); }});
     reg.registerType({"op.blend", NodeCategory::Operation, "pipeline.node.blend",
@@ -579,7 +727,7 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<ExtractMipmapNode>(); }});
     reg.registerType({"op.downscale", NodeCategory::Operation, "pipeline.node.downscale",
                       [] { return std::make_unique<DownscaleNode>(); }});
-    reg.registerType({"op.subpipeline", NodeCategory::Operation, "pipeline.node.subpipeline",
+    reg.registerType({"op.subpipeline", NodeCategory::Control, "pipeline.node.subpipeline",
                       [] { return std::make_unique<SubpipelineNode>(); }});
     reg.registerType({"op.upscale", NodeCategory::Operation, "pipeline.node.upscale",
                       [] { return std::make_unique<UpscaleNode>(); }});
@@ -594,6 +742,10 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<SobelNode>(); }});
     reg.registerType({"ctrl.conditional", NodeCategory::Control, "pipeline.node.conditional",
                       [] { return std::make_unique<ConditionalNode>(); }});
+    reg.registerType({"ctrl.select", NodeCategory::Control, "pipeline.node.select",
+                      [] { return std::make_unique<SelectNode>(); }});
+    reg.registerType({"ctrl.rendezvous", NodeCategory::Control, "pipeline.node.rendezvous",
+                      [] { return std::make_unique<RendezvousNode>(); }});
     reg.registerType({"output.standard", NodeCategory::Output, "pipeline.node.standard_output",
                       [] { return std::make_unique<StandardOutputNode>(); }});
     reg.registerType({"output.real", NodeCategory::Output, "pipeline.node.real_output",
@@ -602,6 +754,8 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<IntegerOutputNode>(); }});
     reg.registerType({"output.channel", NodeCategory::Output, "pipeline.node.channel_output",
                       [] { return std::make_unique<ChannelOutputNode>(); }});
+    reg.registerType({"output.number", NodeCategory::Output, "pipeline.node.numeric_output",
+                      [] { return std::make_unique<NumericOutputNode>(); }});
 }
 
 } // namespace whiteout::textool::pipeline

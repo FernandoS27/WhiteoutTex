@@ -1,0 +1,320 @@
+{
+  "links": [
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        25,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "value"
+      ],
+      "to": [
+        25,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        27,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        25,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        27,
+        "if true"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "value"
+      ],
+      "to": [
+        27,
+        "if false"
+      ]
+    },
+    {
+      "from": [
+        25,
+        "false"
+      ],
+      "to": [
+        27,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        26,
+        "value"
+      ],
+      "to": [
+        29,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        28,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        29,
+        "result"
+      ],
+      "to": [
+        28,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        31,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        25,
+        "true"
+      ],
+      "to": [
+        30,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        30,
+        "output"
+      ],
+      "to": [
+        31,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        28,
+        "result"
+      ],
+      "to": [
+        30,
+        "power"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "result"
+      ],
+      "to": [
+        32,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        27,
+        "result"
+      ],
+      "to": [
+        32,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        32,
+        "result"
+      ],
+      "to": [
+        24,
+        "value"
+      ]
+    }
+  ],
+  "name": "IntPower",
+  "nodes": [
+    {
+      "id": 22,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "base",
+        "value": 0
+      },
+      "pos": [
+        105.0,
+        -77.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 23,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "power",
+        "value": 0
+      },
+      "pos": [
+        105.0,
+        259.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 24,
+      "params": {
+        "name": "output"
+      },
+      "pos": [
+        2376.0,
+        323.0
+      ],
+      "type": "output.integer"
+    },
+    {
+      "id": 25,
+      "params": {
+        "comparator": 4,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        781.0,
+        73.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 26,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        602.0,
+        563.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 27,
+      "params": {
+        "comparator": 0,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        1165.0,
+        505.0
+      ],
+      "type": "ctrl.select"
+    },
+    {
+      "id": 28,
+      "params": {},
+      "pos": [
+        1288.0,
+        195.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 29,
+      "params": {},
+      "pos": [
+        1080.0,
+        163.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 30,
+      "params": {
+        "pipeline": "functions/power.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "base",
+            "type": "int"
+          },
+          {
+            "name": "power",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "output",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        1511.0,
+        78.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 31,
+      "params": {},
+      "pos": [
+        1831.0,
+        -66.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 32,
+      "params": {},
+      "pos": [
+        2040.0,
+        323.0
+      ],
+      "type": "ctrl.rendezvous"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

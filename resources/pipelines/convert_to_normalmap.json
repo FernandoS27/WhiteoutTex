@@ -82,72 +82,12 @@
     },
     {
       "from": [
-        7,
-        "result"
+        25,
+        "image"
       ],
       "to": [
-        9,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        7,
-        "result"
-      ],
-      "to": [
-        9,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        8,
-        "result"
-      ],
-      "to": [
-        10,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        8,
-        "result"
-      ],
-      "to": [
-        10,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        9,
-        "result"
-      ],
-      "to": [
-        11,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        10,
-        "result"
-      ],
-      "to": [
-        11,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        11,
-        "result"
-      ],
-      "to": [
-        13,
-        "a"
+        26,
+        "image"
       ]
     },
     {
@@ -156,38 +96,8 @@
         "value"
       ],
       "to": [
-        13,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        13,
-        "result"
-      ],
-      "to": [
-        14,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        14,
-        "result"
-      ],
-      "to": [
-        15,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        15,
-        "result"
-      ],
-      "to": [
-        16,
-        "a"
+        27,
+        "Z"
       ]
     },
     {
@@ -196,18 +106,8 @@
         "result"
       ],
       "to": [
-        16,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        15,
-        "result"
-      ],
-      "to": [
-        17,
-        "a"
+        27,
+        "X"
       ]
     },
     {
@@ -216,134 +116,24 @@
         "result"
       ],
       "to": [
-        17,
-        "b"
+        27,
+        "Y"
       ]
     },
     {
       "from": [
-        16,
-        "result"
+        27,
+        "X"
       ],
       "to": [
-        19,
-        "a"
+        29,
+        "normalChannel"
       ]
     },
     {
       "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        19,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        19,
-        "result"
-      ],
-      "to": [
-        20,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        20,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        17,
-        "result"
-      ],
-      "to": [
-        21,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        21,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        21,
-        "result"
-      ],
-      "to": [
-        22,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        22,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        15,
-        "result"
-      ],
-      "to": [
-        23,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        23,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        23,
-        "result"
-      ],
-      "to": [
-        24,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        18,
-        "value"
-      ],
-      "to": [
-        24,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        20,
-        "result"
+        29,
+        "normalPacked"
       ],
       "to": [
         25,
@@ -352,8 +142,18 @@
     },
     {
       "from": [
-        22,
-        "result"
+        27,
+        "Y"
+      ],
+      "to": [
+        30,
+        "normalChannel"
+      ]
+    },
+    {
+      "from": [
+        30,
+        "normalPacked"
       ],
       "to": [
         25,
@@ -362,44 +162,46 @@
     },
     {
       "from": [
-        24,
-        "result"
+        27,
+        "value"
+      ],
+      "to": [
+        31,
+        "normalChannel"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "normalPacked"
       ],
       "to": [
         25,
         "blue"
       ]
-    },
-    {
-      "from": [
-        25,
-        "image"
-      ],
-      "to": [
-        26,
-        "image"
-      ]
     }
   ],
-  "name": "NormalMap",
+  "name": "DiffuseToNormalMap",
   "nodes": [
     {
       "id": 1,
-      "params": {},
+      "params": {
+        "name": "Input"
+      },
       "pos": [
-        80.0,
-        350.0
+        -79.0,
+        227.0
       ],
       "type": "input.standard"
     },
     {
       "id": 2,
       "params": {
-        "method": 2
+        "method": 0
       },
       "pos": [
-        320.0,
-        350.0
+        187.0,
+        229.0
       ],
       "type": "op.luma"
     },
@@ -413,8 +215,8 @@
         "value": 1.5
       },
       "pos": [
-        320.0,
-        110.0
+        73.0,
+        -13.0
       ],
       "type": "input.real"
     },
@@ -424,8 +226,8 @@
         "mode": 1
       },
       "pos": [
-        560.0,
-        380.0
+        419.0,
+        254.0
       ],
       "type": "op.derivatives"
     },
@@ -433,8 +235,8 @@
       "id": 5,
       "params": {},
       "pos": [
-        800.0,
-        250.0
+        841.0,
+        122.0
       ],
       "type": "op.multiply"
     },
@@ -442,8 +244,8 @@
       "id": 6,
       "params": {},
       "pos": [
-        800.0,
-        480.0
+        833.0,
+        350.0
       ],
       "type": "op.multiply"
     },
@@ -451,8 +253,8 @@
       "id": 7,
       "params": {},
       "pos": [
-        1010.0,
-        250.0
+        1051.0,
+        122.0
       ],
       "type": "op.negate"
     },
@@ -460,37 +262,10 @@
       "id": 8,
       "params": {},
       "pos": [
-        1010.0,
-        480.0
+        1051.0,
+        352.0
       ],
       "type": "op.negate"
-    },
-    {
-      "id": 9,
-      "params": {},
-      "pos": [
-        1230.0,
-        180.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 10,
-      "params": {},
-      "pos": [
-        1230.0,
-        560.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 11,
-      "params": {},
-      "pos": [
-        1450.0,
-        370.0
-      ],
-      "type": "op.add"
     },
     {
       "id": 12,
@@ -498,138 +273,146 @@
         "value": 1.0
       },
       "pos": [
-        1450.0,
-        600.0
+        1059.0,
+        483.0
       ],
       "type": "input.const_real"
-    },
-    {
-      "id": 13,
-      "params": {},
-      "pos": [
-        1660.0,
-        450.0
-      ],
-      "type": "op.add"
-    },
-    {
-      "id": 14,
-      "params": {},
-      "pos": [
-        1870.0,
-        450.0
-      ],
-      "type": "op.sqrt"
-    },
-    {
-      "id": 15,
-      "params": {},
-      "pos": [
-        2080.0,
-        450.0
-      ],
-      "type": "op.reciprocal"
-    },
-    {
-      "id": 16,
-      "params": {},
-      "pos": [
-        2300.0,
-        250.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 17,
-      "params": {},
-      "pos": [
-        2300.0,
-        470.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 18,
-      "params": {
-        "value": 0.5
-      },
-      "pos": [
-        2300.0,
-        730.0
-      ],
-      "type": "input.const_real"
-    },
-    {
-      "id": 19,
-      "params": {},
-      "pos": [
-        2520.0,
-        200.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 20,
-      "params": {},
-      "pos": [
-        2730.0,
-        200.0
-      ],
-      "type": "op.add"
-    },
-    {
-      "id": 21,
-      "params": {},
-      "pos": [
-        2520.0,
-        420.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 22,
-      "params": {},
-      "pos": [
-        2730.0,
-        420.0
-      ],
-      "type": "op.add"
-    },
-    {
-      "id": 23,
-      "params": {},
-      "pos": [
-        2520.0,
-        640.0
-      ],
-      "type": "op.multiply"
-    },
-    {
-      "id": 24,
-      "params": {},
-      "pos": [
-        2730.0,
-        640.0
-      ],
-      "type": "op.add"
     },
     {
       "id": 25,
       "params": {},
       "pos": [
-        2960.0,
-        430.0
+        2220.0,
+        371.0
       ],
       "type": "op.merge_channels"
     },
     {
       "id": 26,
-      "params": {},
+      "params": {
+        "name": "Output"
+      },
       "pos": [
-        3180.0,
-        430.0
+        2440.0,
+        371.0
       ],
       "type": "output.standard"
+    },
+    {
+      "id": 27,
+      "params": {
+        "pipeline": "functions/normalize.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "X",
+            "type": "number"
+          },
+          {
+            "name": "Y",
+            "type": "number"
+          },
+          {
+            "name": "Z",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "X",
+            "type": "number"
+          },
+          {
+            "name": "Y",
+            "type": "number"
+          },
+          {
+            "name": "value",
+            "type": "number"
+          }
+        ]
+      },
+      "pos": [
+        1416.0,
+        339.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 29,
+      "params": {
+        "pipeline": "functions/pack_normal.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "normalChannel",
+            "type": "r"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "normalPacked",
+            "type": "r"
+          }
+        ]
+      },
+      "pos": [
+        1816.0,
+        195.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 30,
+      "params": {
+        "pipeline": "functions/pack_normal.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "normalChannel",
+            "type": "r"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "normalPacked",
+            "type": "r"
+          }
+        ]
+      },
+      "pos": [
+        1816.0,
+        355.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 31,
+      "params": {
+        "pipeline": "functions/pack_normal.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "normalChannel",
+            "type": "r"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "normalPacked",
+            "type": "r"
+          }
+        ]
+      },
+      "pos": [
+        1816.0,
+        499.0
+      ],
+      "type": "op.subpipeline"
     }
   ],
   "type": "standard",

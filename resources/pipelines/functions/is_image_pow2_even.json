@@ -1,0 +1,159 @@
+{
+  "links": [
+    {
+      "from": [
+        16,
+        "image"
+      ],
+      "to": [
+        17,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "width"
+      ],
+      "to": [
+        18,
+        "number"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "height"
+      ],
+      "to": [
+        19,
+        "number"
+      ]
+    },
+    {
+      "from": [
+        18,
+        "result"
+      ],
+      "to": [
+        20,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "result"
+      ],
+      "to": [
+        20,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        20,
+        "result"
+      ],
+      "to": [
+        21,
+        "value"
+      ]
+    }
+  ],
+  "name": "IsImagePow2Even",
+  "nodes": [
+    {
+      "id": 16,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        273.0,
+        323.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 17,
+      "params": {},
+      "pos": [
+        586.0,
+        302.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 18,
+      "params": {
+        "pipeline": "functions/is_pow_of_2.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "number",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        903.0,
+        211.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 19,
+      "params": {
+        "pipeline": "functions/is_pow_of_2.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "number",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        903.0,
+        371.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 20,
+      "params": {},
+      "pos": [
+        1256.0,
+        323.0
+      ],
+      "type": "op.bit_and"
+    },
+    {
+      "id": 21,
+      "params": {
+        "name": "result"
+      },
+      "pos": [
+        1448.0,
+        323.0
+      ],
+      "type": "output.integer"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

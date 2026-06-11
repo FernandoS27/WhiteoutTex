@@ -56,7 +56,10 @@ struct ExecEnv {
     int depth = 0; // Subpipeline nesting depth.
 };
 
-constexpr int kMaxSubpipelineDepth = 8;
+// Bounds recursion (a pipeline may reference itself directly or indirectly).
+// High enough for practical recursive functions, low enough to keep the native
+// call stack safe.
+constexpr int kMaxSubpipelineDepth = 64;
 
 // Run a graph binding its named external ports: @p inputs maps port name (an
 // Input node's "name" param) -> value; the return maps Output port name ->
@@ -278,6 +281,31 @@ double scalarOf(const PinData& d) {
     if (d.real)
         return *d.real;
     return 0.0;
+}
+// Coerce a pin value to a 64-bit integer for bitwise ops (reals are rounded).
+i64 intOf(const PinData& d) {
+    if (d.integer)
+        return *d.integer;
+    if (d.real)
+        return static_cast<i64>(std::llround(*d.real));
+    return 0;
+}
+// Evaluate a comparator (index matches kComparators): 0=Eq,1=Ne,2=Lt,3=Le,4=Gt,
+// 5=Ge.  Equality uses an epsilon tolerance so float operands compare sensibly.
+bool evalCompare(i64 cmp, double av, double bv, double eps) {
+    switch (cmp) {
+    case 0: return std::abs(av - bv) <= eps; // Equal
+    case 1: return std::abs(av - bv) > eps;  // Not equal
+    case 2: return av < bv;                  // Less
+    case 3: return av <= bv;                 // Less or equal
+    case 4: return av > bv;                  // Greater
+    default: return av >= bv;                // Greater or equal
+    }
+}
+// A pin's scalar value, or 0 if the pin is absent.
+double scalarAt(const PinMap& in, const char* pin) {
+    const auto it = in.find(pin);
+    return it != in.end() ? scalarOf(it->second) : 0.0;
 }
 
 bool isChannelLike(const PinData& d) {
@@ -523,6 +551,201 @@ std::pair<FChannel, FChannel> derivativesF(const FChannel& src, DerivMode mode) 
     return {std::move(dx), std::move(dy)};
 }
 
+// ── Geometric ops (mirror / rotate / scale) ─────────────────────────────────
+// They run over an interleaved float buffer so the same code serves images
+// (RGBA8 n=4 / R8 n=1) and channels (float plane, n=1).
+constexpr float kPi = 3.14159265358979323846f;
+
+struct FBuf {
+    int w = 0, h = 0, n = 1;
+    std::vector<float> data; // interleaved, length w*h*n
+    float at(int x, int y, int c) const {
+        return data[(static_cast<std::size_t>(y) * w + x) * n + c];
+    }
+};
+
+// Pull a pin's image/channel value into a float buffer.  `was_fchan` records a
+// float-plane source; `fmt` the image pixel format to rebuild (R8 vs RGBA8).
+bool pinToFBuf(const PinData& d, FBuf& b, bool& was_fchan, tex::PixelFormat& fmt) {
+    if (d.fchan) {
+        was_fchan = true;
+        b.w = static_cast<int>(d.fchan->w);
+        b.h = static_cast<int>(d.fchan->h);
+        b.n = 1;
+        b.data = d.fchan->data;
+        b.data.resize(static_cast<std::size_t>(std::max(0, b.w)) * std::max(0, b.h), 0.0f);
+        return b.w > 0 && b.h > 0;
+    }
+    if (d.image) {
+        was_fchan = false;
+        tex::Texture src = *d.image;
+        if (src.format() == tex::PixelFormat::R8) {
+            fmt = tex::PixelFormat::R8;
+            b.n = 1;
+        } else {
+            src = toRGBA8(src);
+            fmt = tex::PixelFormat::RGBA8;
+            b.n = 4;
+        }
+        b.w = static_cast<int>(src.width());
+        b.h = static_cast<int>(src.height());
+        std::span<const u8> s = src.mipData(0);
+        b.data.resize(static_cast<std::size_t>(b.w) * b.h * b.n);
+        for (std::size_t i = 0; i < b.data.size(); ++i)
+            b.data[i] = i < s.size() ? static_cast<float>(s[i]) : 0.0f;
+        return b.w > 0 && b.h > 0;
+    }
+    return false;
+}
+
+PinData fbufToPin(const FBuf& b, bool was_fchan, tex::PixelFormat fmt) {
+    PinData out;
+    if (was_fchan) {
+        FChannel f;
+        f.w = static_cast<u32>(std::max(0, b.w));
+        f.h = static_cast<u32>(std::max(0, b.h));
+        f.data = b.data;
+        out.fchan = std::move(f);
+        return out;
+    }
+    tex::Texture t = tex::Texture::create2D(fmt, static_cast<u32>(std::max(1, b.w)),
+                                            static_cast<u32>(std::max(1, b.h)), 1);
+    std::span<u8> d = t.mipData(0);
+    for (std::size_t i = 0; i < d.size(); ++i)
+        d[i] = i < b.data.size() ? clamp8d(b.data[i]) : 0;
+    out.image = std::move(t);
+    return out;
+}
+
+FBuf mirrorBuf(const FBuf& s, bool x_axis) { // x_axis: flip horizontally
+    FBuf o = s;
+    for (int y = 0; y < s.h; ++y)
+        for (int x = 0; x < s.w; ++x) {
+            const int sx = x_axis ? s.w - 1 - x : x;
+            const int sy = x_axis ? y : s.h - 1 - y;
+            for (int c = 0; c < s.n; ++c)
+                o.data[(static_cast<std::size_t>(y) * o.w + x) * o.n + c] = s.at(sx, sy, c);
+        }
+    return o;
+}
+
+FBuf rotateBuf(const FBuf& s, float degrees) { // same dims, bilinear, zero outside
+    FBuf o;
+    o.w = s.w;
+    o.h = s.h;
+    o.n = s.n;
+    o.data.assign(s.data.size(), 0.0f);
+    const float rad = degrees * kPi / 180.0f;
+    const float ca = std::cos(rad), sa = std::sin(rad);
+    const float cx = (s.w - 1) * 0.5f, cy = (s.h - 1) * 0.5f;
+    const auto px = [&](int x, int y, int c) -> float {
+        return (x < 0 || y < 0 || x >= s.w || y >= s.h) ? 0.0f : s.at(x, y, c);
+    };
+    for (int y = 0; y < o.h; ++y)
+        for (int x = 0; x < o.w; ++x) {
+            const float dx = x - cx, dy = y - cy;
+            const float fx = cx + (ca * dx + sa * dy);
+            const float fy = cy + (-sa * dx + ca * dy);
+            const int x0 = static_cast<int>(std::floor(fx)), y0 = static_cast<int>(std::floor(fy));
+            const float tx = fx - x0, ty = fy - y0;
+            for (int c = 0; c < o.n; ++c) {
+                const float a = px(x0, y0, c), bb = px(x0 + 1, y0, c);
+                const float cc = px(x0, y0 + 1, c), dd = px(x0 + 1, y0 + 1, c);
+                o.data[(static_cast<std::size_t>(y) * o.w + x) * o.n + c] =
+                    a * (1 - tx) * (1 - ty) + bb * tx * (1 - ty) + cc * (1 - tx) * ty +
+                    dd * tx * ty;
+            }
+        }
+    return o;
+}
+
+enum class ScaleFilter { Bicubic = 0, Linear = 1, Lanczos = 2 };
+
+float filterRadius(ScaleFilter f) {
+    return f == ScaleFilter::Linear ? 1.0f : f == ScaleFilter::Bicubic ? 2.0f : 3.0f;
+}
+float filterWeight(ScaleFilter f, float x) {
+    x = std::abs(x);
+    switch (f) {
+    case ScaleFilter::Linear:
+        return x < 1.0f ? 1.0f - x : 0.0f;
+    case ScaleFilter::Bicubic: { // Catmull-Rom
+        constexpr float a = -0.5f;
+        if (x < 1.0f)
+            return ((a + 2.0f) * x - (a + 3.0f)) * x * x + 1.0f;
+        if (x < 2.0f)
+            return (((x - 5.0f) * x + 8.0f) * x - 4.0f) * a;
+        return 0.0f;
+    }
+    case ScaleFilter::Lanczos: { // a = 3
+        if (x < 1e-6f)
+            return 1.0f;
+        if (x >= 3.0f)
+            return 0.0f;
+        const float pxr = kPi * x;
+        return 3.0f * std::sin(pxr) * std::sin(pxr / 3.0f) / (pxr * pxr);
+    }
+    }
+    return 0.0f;
+}
+
+// Resample one axis (src dim -> dst dim) with proper kernel widening on shrink.
+void resampleAxis(const FBuf& src, FBuf& dst, bool horizontal, ScaleFilter filt) {
+    const int srcN = horizontal ? src.w : src.h;
+    const int dstN = horizontal ? dst.w : dst.h;
+    const int other = horizontal ? src.h : src.w; // unchanged dimension
+    const float scale = static_cast<float>(dstN) / static_cast<float>(std::max(1, srcN));
+    const float inv = std::min(scale, 1.0f); // <1 widens the kernel when shrinking
+    const float support = filterRadius(filt) / inv;
+
+    std::vector<std::pair<int, float>> contrib;
+    for (int i = 0; i < dstN; ++i) {
+        const float center = (i + 0.5f) / scale - 0.5f;
+        const int left = static_cast<int>(std::ceil(center - support));
+        const int right = static_cast<int>(std::floor(center + support));
+        contrib.clear();
+        float wsum = 0.0f;
+        for (int k = left; k <= right; ++k) {
+            const float w = filterWeight(filt, (center - k) * inv);
+            if (w == 0.0f)
+                continue;
+            contrib.push_back({std::clamp(k, 0, srcN - 1), w});
+            wsum += w;
+        }
+        if (wsum <= 0.0f)
+            continue;
+        for (int o = 0; o < other; ++o)
+            for (int c = 0; c < src.n; ++c) {
+                float acc = 0.0f;
+                for (const auto& [sk, w] : contrib)
+                    acc += (horizontal ? src.at(sk, o, c) : src.at(o, sk, c)) * w;
+                const float r = acc / wsum;
+                if (horizontal)
+                    dst.data[(static_cast<std::size_t>(o) * dst.w + i) * dst.n + c] = r;
+                else
+                    dst.data[(static_cast<std::size_t>(i) * dst.w + o) * dst.n + c] = r;
+            }
+    }
+}
+
+FBuf resizeBuf(const FBuf& s, int dstW, int dstH, ScaleFilter filt) {
+    dstW = std::max(1, dstW);
+    dstH = std::max(1, dstH);
+    FBuf tmp;
+    tmp.w = dstW;
+    tmp.h = s.h;
+    tmp.n = s.n;
+    tmp.data.assign(static_cast<std::size_t>(dstW) * std::max(1, s.h) * s.n, 0.0f);
+    resampleAxis(s, tmp, /*horizontal=*/true, filt);
+    FBuf out;
+    out.w = dstW;
+    out.h = dstH;
+    out.n = s.n;
+    out.data.assign(static_cast<std::size_t>(dstW) * dstH * s.n, 0.0f);
+    resampleAxis(tmp, out, /*horizontal=*/false, filt);
+    return out;
+}
+
 // ── Per-node execution ──────────────────────────────────────────────────────
 // Returns this node's output pin values; appends any issues to `errors`.
 PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
@@ -562,8 +785,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             v = std::clamp(v, std::min(mn, mx), std::max(mn, mx));
         }
         out["value"].integer = v;
-    } else if (type == "input.channel") {
-        // A function input; no channel source when run as a standard pipeline.
+    } else if (type == "input.channel" || type == "input.number") {
+        // A function input; no source when run as a standard pipeline.
     } else if (type == "input.const_int") {
         out["value"].integer = paramInt(n, "value", 0);
     } else if (type == "input.const_real") {
@@ -654,6 +877,41 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["b kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::B));
             out["a kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::A));
         }
+    } else if (type == "op.mirror" || type == "op.rotate" || type == "op.scale_to" ||
+               type == "op.scale_by") {
+        if (const auto it = in.find("input"); it != in.end()) {
+            FBuf b;
+            bool was_fchan = false;
+            tex::PixelFormat fmt = tex::PixelFormat::RGBA8;
+            if (pinToFBuf(it->second, b, was_fchan, fmt)) {
+                FBuf r;
+                if (type == "op.mirror") {
+                    r = mirrorBuf(b, paramInt(n, "axis", 0) == 0); // 0=X (horizontal)
+                } else if (type == "op.rotate") {
+                    double deg = 0.0;
+                    if (const auto d = in.find("degrees"); d != in.end())
+                        deg = scalarOf(d->second);
+                    r = rotateBuf(b, static_cast<float>(deg));
+                } else {
+                    const auto filt = static_cast<ScaleFilter>(paramInt(n, "filter", 0));
+                    int dw = b.w, dh = b.h;
+                    if (type == "op.scale_to") {
+                        if (const auto p = in.find("width"); p != in.end())
+                            dw = static_cast<int>(scalarOf(p->second));
+                        if (const auto p = in.find("height"); p != in.end())
+                            dh = static_cast<int>(scalarOf(p->second));
+                    } else { // op.scale_by — factor: 1.0 = unchanged, 1.25 = 125%, 0.5 = half
+                        double factor = 1.0;
+                        if (const auto p = in.find("factor"); p != in.end())
+                            factor = scalarOf(p->second);
+                        dw = static_cast<int>(std::lround(b.w * factor));
+                        dh = static_cast<int>(std::lround(b.h * factor));
+                    }
+                    r = resizeBuf(b, dw, dh, filt);
+                }
+                out["output"] = fbufToPin(r, was_fchan, fmt);
+            }
+        }
     } else if (type == "op.set_kind") {
         if (const tex::Texture* img = inImage("image")) {
             tex::Texture work = toRGBA8(*img); // copyAsFormat preserves the kind
@@ -685,28 +943,44 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["result"] = ib->second;
     } else if (type == "ctrl.conditional") {
         // Compare the two numeric operands; route `value` to true/false output.
-        const double av = [&] {
-            const auto it = in.find("a");
-            return it != in.end() ? scalarOf(it->second) : 0.0;
-        }();
-        const double bv = [&] {
-            const auto it = in.find("b");
-            return it != in.end() ? scalarOf(it->second) : 0.0;
-        }();
-        // Equal / Not Equal use an epsilon tolerance so float operands compare
-        // sensibly (exact == on doubles rarely holds).
-        const double eps = std::abs(paramReal(n, "epsilon", 1e-6));
-        bool cond = false;
-        switch (paramInt(n, "comparator", 0)) {
-        case 0: cond = std::abs(av - bv) <= eps; break; // Equal
-        case 1: cond = std::abs(av - bv) > eps; break;  // Not equal
-        case 2: cond = av < bv; break;                  // Less
-        case 3: cond = av <= bv; break;                 // Less or equal
-        case 4: cond = av > bv; break;                  // Greater
-        case 5: cond = av >= bv; break;                 // Greater or equal
-        }
+        const bool cond = evalCompare(paramInt(n, "comparator", 0), scalarAt(in, "a"),
+                                      scalarAt(in, "b"), std::abs(paramReal(n, "epsilon", 1e-6)));
         if (const auto it = in.find("value"); it != in.end())
             out[cond ? "true" : "false"] = it->second;
+    } else if (type == "ctrl.select") {
+        // Pick `if true` or `if false` based on comparing the two operands.
+        const bool cond = evalCompare(paramInt(n, "comparator", 0), scalarAt(in, "a"),
+                                      scalarAt(in, "b"), std::abs(paramReal(n, "epsilon", 1e-6)));
+        if (const auto it = in.find(cond ? "if true" : "if false"); it != in.end())
+            out["result"] = it->second;
+    } else if (type == "ctrl.rendezvous") {
+        // Join diverged branches: emit whichever input carries a value (only one
+        // branch of a Conditional is live; the inactive branch produces nothing).
+        if (const auto it = in.find("a"); it != in.end())
+            out["result"] = it->second;
+        else if (const auto it = in.find("b"); it != in.end())
+            out["result"] = it->second;
+    } else if (type == "op.bit_and" || type == "op.bit_or" || type == "op.bit_xor" ||
+               type == "op.bit_shl" || type == "op.bit_shr") {
+        const auto ia = in.find("a");
+        const auto ib = in.find("b");
+        const auto iv = in.find("value");
+        const auto is = in.find("amount");
+        if (type == "op.bit_shl" || type == "op.bit_shr") {
+            if (iv != in.end()) {
+                const i64 v = intOf(iv->second);
+                const i64 amt = std::clamp<i64>(is != in.end() ? intOf(is->second) : 0, 0, 63);
+                out["result"].integer = type == "op.bit_shl" ? (v << amt) : (v >> amt);
+            }
+        } else if (ia != in.end() && ib != in.end()) {
+            const i64 a = intOf(ia->second), b = intOf(ib->second);
+            out["result"].integer = type == "op.bit_and"  ? (a & b)
+                                    : type == "op.bit_or" ? (a | b)
+                                                          : (a ^ b);
+        }
+    } else if (type == "op.bit_not") {
+        if (const auto it = in.find("value"); it != in.end())
+            out["result"].integer = ~intOf(it->second);
     } else if (type == "op.negate" || type == "op.sqrt" || type == "op.reciprocal") {
         if (const auto it = in.find("value"); it != in.end()) {
             const UnaryOp uo = type == "op.negate"  ? UnaryOp::Negate
@@ -790,7 +1064,20 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             if (auto it = in.find("image"); it != in.end())
                 out["image"] = it->second;
         };
-        if (name.empty()) {
+        // Skip when any input pin lacks a value — e.g. this node sits on the
+        // inactive branch of a Conditional.  This is what lets a recursive
+        // pipeline terminate: at the base case the recursive call's inputs are
+        // routed away, so the Subpipeline simply produces nothing instead of
+        // recursing forever (route every recursive input through the branch).
+        bool all_inputs_live = true;
+        for (const auto& p : n.inputs())
+            if (in.find(p.name) == in.end()) {
+                all_inputs_live = false;
+                break;
+            }
+        if (!n.inputs().empty() && !all_inputs_live) {
+            // Inactive branch: produce nothing.
+        } else if (name.empty()) {
             errors.push_back("Subpipeline: no pipeline selected (passed through)");
             passthrough();
         } else if (env.depth >= kMaxSubpipelineDepth) {
@@ -811,11 +1098,26 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             if (loaded && pipeline::fromJson(doc, sub, &errors)) {
                 const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1};
                 std::vector<std::string> sub_errors;
-                PinMap sub_out = runGraphPorts(sub, in, subenv, sub_errors);
+                // Bind POSITIONALLY: this node's pins were derived from the sub's
+                // interface in order, so input pin i feeds the sub's i-th input
+                // port and the sub's i-th output port drives output pin i.  This
+                // stays correct even if the referenced pipeline's ports were
+                // renamed after the node captured its pins (only order matters).
+                const pipeline::PipelineInterface iface = sub.interface();
+                PinMap bound;
+                const auto node_ins = n.inputs();
+                for (std::size_t i = 0; i < node_ins.size() && i < iface.inputs.size(); ++i)
+                    if (const auto it = in.find(node_ins[i].name); it != in.end())
+                        bound[iface.inputs[i].name] = it->second;
+
+                PinMap sub_out = runGraphPorts(sub, bound, subenv, sub_errors);
                 for (auto& e : sub_errors)
                     errors.push_back("Subpipeline '" + name + "': " + e);
-                for (auto& [port, data] : sub_out)
-                    out[port] = std::move(data);
+
+                const auto node_outs = n.outputs();
+                for (std::size_t i = 0; i < node_outs.size() && i < iface.outputs.size(); ++i)
+                    if (const auto it = sub_out.find(iface.outputs[i].name); it != sub_out.end())
+                        out[node_outs[i].name] = std::move(it->second);
             } else {
                 errors.push_back("Subpipeline: could not load '" + name + "' (passed through)");
                 passthrough();
@@ -823,7 +1125,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
         }
     } else if (type == "output.standard") {
         // Captured by the caller from this node's input.
-    } else if (type == "output.real" || type == "output.integer" || type == "output.channel") {
+    } else if (type == "output.real" || type == "output.integer" || type == "output.channel" ||
+               type == "output.number") {
         // Function-pipeline outputs; inert when run as a standard pipeline.
     } else {
         errors.push_back("Unknown node type '" + type + "' skipped");

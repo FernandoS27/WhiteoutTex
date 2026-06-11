@@ -12,16 +12,6 @@
     },
     {
       "from": [
-        15,
-        "channel"
-      ],
-      "to": [
-        19,
-        "a"
-      ]
-    },
-    {
-      "from": [
         16,
         "value"
       ],
@@ -42,28 +32,27 @@
     },
     {
       "from": [
+        22,
+        "value"
+      ],
+      "to": [
+        19,
+        "a"
+      ]
+    },
+    {
+      "from": [
         21,
         "result"
       ],
       "to": [
-        20,
-        "channel"
+        23,
+        "value"
       ]
     }
   ],
   "name": "PackNormal",
   "nodes": [
-    {
-      "id": 15,
-      "params": {
-        "name": "normalChannel"
-      },
-      "pos": [
-        199.0,
-        274.0
-      ],
-      "type": "input.channel"
-    },
     {
       "id": 16,
       "params": {
@@ -96,17 +85,6 @@
       "type": "op.add"
     },
     {
-      "id": 20,
-      "params": {
-        "name": "normalPacked"
-      },
-      "pos": [
-        1160.0,
-        387.0
-      ],
-      "type": "output.channel"
-    },
-    {
       "id": 21,
       "params": {},
       "pos": [
@@ -114,6 +92,28 @@
         387.0
       ],
       "type": "op.multiply"
+    },
+    {
+      "id": 22,
+      "params": {
+        "name": "unpackedNormal"
+      },
+      "pos": [
+        209.0,
+        275.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 23,
+      "params": {
+        "name": "packedNormal"
+      },
+      "pos": [
+        1176.0,
+        390.0
+      ],
+      "type": "output.number"
     }
   ],
   "type": "function",

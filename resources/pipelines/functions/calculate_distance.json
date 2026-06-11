@@ -2,66 +2,6 @@
   "links": [
     {
       "from": [
-        6,
-        "value"
-      ],
-      "to": [
-        10,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        6,
-        "value"
-      ],
-      "to": [
-        10,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        5,
-        "value"
-      ],
-      "to": [
-        9,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        5,
-        "value"
-      ],
-      "to": [
-        9,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        7,
-        "value"
-      ],
-      "to": [
-        11,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        7,
-        "value"
-      ],
-      "to": [
-        11,
-        "b"
-      ]
-    },
-    {
-      "from": [
         9,
         "result"
       ],
@@ -112,73 +52,77 @@
     },
     {
       "from": [
+        15,
+        "value"
+      ],
+      "to": [
+        9,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "value"
+      ],
+      "to": [
+        9,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        10,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        10,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        11,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        11,
+        "b"
+      ]
+    },
+    {
+      "from": [
         14,
         "result"
       ],
       "to": [
-        4,
+        18,
         "value"
       ]
     }
   ],
   "name": "CalculateDistance",
   "nodes": [
-    {
-      "id": 4,
-      "params": {
-        "name": "Distance"
-      },
-      "pos": [
-        1272.0,
-        339.0
-      ],
-      "type": "output.real"
-    },
-    {
-      "id": 5,
-      "params": {
-        "clamp": false,
-        "max": 1.0,
-        "min": 0.0,
-        "name": "X",
-        "value": 0.0
-      },
-      "pos": [
-        68.0,
-        68.0
-      ],
-      "type": "input.real"
-    },
-    {
-      "id": 6,
-      "params": {
-        "clamp": false,
-        "max": 1.0,
-        "min": 0.0,
-        "name": "Y",
-        "value": 0.0
-      },
-      "pos": [
-        73.0,
-        259.0
-      ],
-      "type": "input.real"
-    },
-    {
-      "id": 7,
-      "params": {
-        "clamp": false,
-        "max": 1.0,
-        "min": 0.0,
-        "name": "Z",
-        "value": 0.0
-      },
-      "pos": [
-        73.0,
-        467.0
-      ],
-      "type": "input.real"
-    },
     {
       "id": 9,
       "params": {},
@@ -232,6 +176,50 @@
         355.0
       ],
       "type": "op.sqrt"
+    },
+    {
+      "id": 15,
+      "params": {
+        "name": "X"
+      },
+      "pos": [
+        81.0,
+        115.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 16,
+      "params": {
+        "name": "Y"
+      },
+      "pos": [
+        81.0,
+        275.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 17,
+      "params": {
+        "name": "Z"
+      },
+      "pos": [
+        81.0,
+        451.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 18,
+      "params": {
+        "name": "Distance"
+      },
+      "pos": [
+        1240.0,
+        339.0
+      ],
+      "type": "output.number"
     }
   ],
   "type": "function",

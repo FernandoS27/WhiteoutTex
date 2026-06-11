@@ -2,16 +2,6 @@
   "links": [
     {
       "from": [
-        15,
-        "channel"
-      ],
-      "to": [
-        18,
-        "a"
-      ]
-    },
-    {
-      "from": [
         16,
         "value"
       ],
@@ -49,21 +39,20 @@
         20,
         "channel"
       ]
+    },
+    {
+      "from": [
+        21,
+        "value"
+      ],
+      "to": [
+        18,
+        "a"
+      ]
     }
   ],
   "name": "UnpackNormal",
   "nodes": [
-    {
-      "id": 15,
-      "params": {
-        "name": "normalChannel"
-      },
-      "pos": [
-        199.0,
-        274.0
-      ],
-      "type": "input.channel"
-    },
     {
       "id": 16,
       "params": {
@@ -114,6 +103,17 @@
         387.0
       ],
       "type": "output.channel"
+    },
+    {
+      "id": 21,
+      "params": {
+        "name": "packedNormal"
+      },
+      "pos": [
+        145.0,
+        243.0
+      ],
+      "type": "input.number"
     }
   ],
   "type": "function",

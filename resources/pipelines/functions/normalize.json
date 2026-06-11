@@ -1,0 +1,274 @@
+{
+  "links": [
+    {
+      "from": [
+        15,
+        "value"
+      ],
+      "to": [
+        19,
+        "X"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        19,
+        "Y"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        19,
+        "Z"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "Distance"
+      ],
+      "to": [
+        20,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "value"
+      ],
+      "to": [
+        21,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        20,
+        "result"
+      ],
+      "to": [
+        21,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        20,
+        "result"
+      ],
+      "to": [
+        22,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        22,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        23,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "result"
+      ],
+      "to": [
+        18,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "result"
+      ],
+      "to": [
+        24,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "result"
+      ],
+      "to": [
+        25,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        20,
+        "result"
+      ],
+      "to": [
+        23,
+        "a"
+      ]
+    }
+  ],
+  "name": "Normalize",
+  "nodes": [
+    {
+      "id": 15,
+      "params": {
+        "name": "X"
+      },
+      "pos": [
+        177.0,
+        115.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 16,
+      "params": {
+        "name": "Y"
+      },
+      "pos": [
+        177.0,
+        275.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 17,
+      "params": {
+        "name": "Z"
+      },
+      "pos": [
+        177.0,
+        451.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 18,
+      "params": {
+        "name": "X"
+      },
+      "pos": [
+        1464.0,
+        83.0
+      ],
+      "type": "output.number"
+    },
+    {
+      "id": 19,
+      "params": {
+        "pipeline": "functions/calculate_distance.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "X",
+            "type": "real"
+          },
+          {
+            "name": "Y",
+            "type": "real"
+          },
+          {
+            "name": "Z",
+            "type": "real"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Distance",
+            "type": "real"
+          }
+        ]
+      },
+      "pos": [
+        536.0,
+        270.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 20,
+      "params": {},
+      "pos": [
+        883.0,
+        254.0
+      ],
+      "type": "op.reciprocal"
+    },
+    {
+      "id": 21,
+      "params": {},
+      "pos": [
+        1191.0,
+        94.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 22,
+      "params": {},
+      "pos": [
+        1192.0,
+        275.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 23,
+      "params": {},
+      "pos": [
+        1192.0,
+        462.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 24,
+      "params": {
+        "name": "Y"
+      },
+      "pos": [
+        1464.0,
+        259.0
+      ],
+      "type": "output.number"
+    },
+    {
+      "id": 25,
+      "params": {
+        "name": "Z"
+      },
+      "pos": [
+        1464.0,
+        451.0
+      ],
+      "type": "output.number"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

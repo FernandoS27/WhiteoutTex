@@ -418,6 +418,9 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     ImGui::SameLine();
     if (ImGui::Button(i18n::tr("pipeline.load"), ImVec2(btn_w, 0.0f)))
         requestLoad(window);
+    // Reload the pipeline catalog from disk (new/edited files, subpipelines).
+    if (ImGui::Button(i18n::tr("pipeline.refresh"), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)))
+        refresh_requested_ = true;
     ImGui::Spacing();
 
     ImGui::SeparatorText(i18n::tr("pipeline.palette"));
@@ -436,27 +439,97 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
         {NodeCategory::Output, "pipeline.category.output"},
     };
 
+    // Operations have grown large, so they are split into navigable sub-groups
+    // (a palette-only concern; the registry stays flat).  Any operation not
+    // listed below falls into "Other" so nothing can silently disappear.
+    struct OpGroup {
+        const char* label_key;
+        std::vector<const char*> types;
+    };
+    static const std::vector<OpGroup> kOpGroups = {
+        {"pipeline.group.channels",
+         {"op.extract_channel", "op.invert_channel", "op.fill_channel", "op.invert",
+          "op.merge_channels", "op.prims", "op.luma"}},
+        {"pipeline.group.arithmetic",
+         {"op.add", "op.multiply", "op.min", "op.max", "op.negate", "op.sqrt", "op.reciprocal"}},
+        {"pipeline.group.bitwise",
+         {"op.bit_and", "op.bit_or", "op.bit_xor", "op.bit_not", "op.bit_shl", "op.bit_shr"}},
+        {"pipeline.group.filters",
+         {"op.gaussian_blur", "op.sharpen", "op.sobel", "op.derivatives", "op.blend"}},
+        {"pipeline.group.geometry", {"op.mirror", "op.rotate", "op.scale_to", "op.scale_by"}},
+        {"pipeline.group.mipmaps",
+         {"op.matching_mipmap", "op.extract_mipmap", "op.regenerate_mipmaps", "op.downscale",
+          "op.upscale"}},
+        {"pipeline.group.image", {"op.image_properties", "op.set_kind"}},
+    };
+
+    // Render one draggable palette entry for a node descriptor.
+    const auto renderEntry = [&](const pipeline::NodeDescriptor& d) {
+        const char* label = i18n::tr(d.display_name.c_str());
+        // ##type_id keeps the id stable even if two types share a label.
+        const std::string item = std::string(label) + "##" + d.type_id;
+        // Drag a template onto the canvas to create it where released.  Capturing
+        // on press makes ImGui own the active id, so the node editor won't start a
+        // selection box mid-drag.  (A plain click over the palette does nothing.)
+        ImGui::Selectable(item.c_str());
+        if (ImGui::IsItemActivated()) {
+            drag_type_ = d.type_id;
+            drag_label_ = label;
+        }
+    };
+
     for (const auto& section : kSections) {
         ImGui::PushStyleColor(ImGuiCol_Text, categoryColor(section.category));
         ImGui::SeparatorText(i18n::tr(section.label_key));
         ImGui::PopStyleColor();
 
-        for (const auto& d : pipeline::NodeRegistry::instance().all()) {
-            if (d.category != section.category)
-                continue;
-            const char* label = i18n::tr(d.display_name.c_str());
-            // ##type_id keeps the id stable even if two types share a label.
-            const std::string item = std::string(label) + "##" + d.type_id;
+        auto& registry = pipeline::NodeRegistry::instance();
+        if (section.category != NodeCategory::Operation) {
+            for (const auto& d : registry.all())
+                if (d.category == section.category)
+                    renderEntry(d);
+            continue;
+        }
 
-            // Drag a template onto the canvas to create it where released.
-            // Capturing on press makes ImGui own the active id, so the node
-            // editor won't start a selection box mid-drag.  (A plain click that
-            // releases over the palette does nothing — creation is drag-only.)
-            ImGui::Selectable(item.c_str());
-            if (ImGui::IsItemActivated()) {
-                drag_type_ = d.type_id;
-                drag_label_ = label;
+        // Operations: render each sub-group as a collapsible header.
+        std::unordered_set<std::string> shown;
+        const auto drawGroup = [&](const char* label_key, const auto& types) {
+            // Skip empty groups (e.g. Upscale absent in builds without it).
+            bool any = false;
+            for (const char* t : types)
+                if (registry.find(t)) {
+                    any = true;
+                    break;
+                }
+            if (!any)
+                return;
+            if (ImGui::CollapsingHeader(i18n::tr(label_key), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent();
+                for (const char* t : types)
+                    if (const auto* d = registry.find(t)) {
+                        renderEntry(*d);
+                        shown.insert(t);
+                    }
+                ImGui::Unindent();
+            } else {
+                for (const char* t : types)
+                    shown.insert(t); // collapsed, but counted as handled
             }
+        };
+        for (const auto& g : kOpGroups)
+            drawGroup(g.label_key, g.types);
+
+        // Any operation not assigned to a group above lands in "Other".
+        std::vector<const pipeline::NodeDescriptor*> leftover;
+        for (const auto& d : registry.all())
+            if (d.category == NodeCategory::Operation && !shown.contains(d.type_id))
+                leftover.push_back(&d);
+        if (!leftover.empty() &&
+            ImGui::CollapsingHeader(i18n::tr("pipeline.group.other"), ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
+            for (const auto* d : leftover)
+                renderEntry(*d);
+            ImGui::Unindent();
         }
     }
 

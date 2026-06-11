@@ -98,6 +98,8 @@ private:
     /// Each pipeline's interface, keyed by file (for the MultiPipeline dialog).
     std::unordered_map<std::string, pipeline::PipelineInterface> pipeline_interfaces_;
 
+    /// (Re)scan pipelines_dir_ and refresh every pipeline list/interface.
+    void scanPipelines();
     /// Load a Varying pipeline and open the MultiPipeline dialog for it.
     void openMultiPipeline(const std::string& name);
     /// Execute the MultiPipeline dialog's run request (load inputs, run, save).

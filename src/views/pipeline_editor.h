@@ -64,6 +64,14 @@ public:
         pipeline_interfaces_ = std::move(interfaces);
     }
 
+    /// Returns true once after the user clicks the palette's Refresh button,
+    /// signalling the app to re-scan the pipelines folder.
+    bool takeRefreshRequest() {
+        const bool r = refresh_requested_;
+        refresh_requested_ = false;
+        return r;
+    }
+
     /// Spawn a node of @p type_id at a cascading default position (used by a
     /// palette click).  Returns the new node id, or 0 if the type is unknown.
     pipeline::NodeId spawnNode(const char* type_id);
@@ -118,6 +126,8 @@ private:
     // dragged onto the canvas, captured on press; empty when no drag is active.
     std::string drag_type_;
     std::string drag_label_;
+
+    bool refresh_requested_ = false; ///< Set by the palette Refresh button.
 
     std::vector<ModelOption> upscaler_models_;
     std::vector<models::PipelineInfo> pipelines_; ///< Pipelines for Subpipeline nodes.
