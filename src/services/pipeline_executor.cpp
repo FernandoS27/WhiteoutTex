@@ -9,6 +9,7 @@
 #include <deque>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include <nlohmann/json.hpp>
@@ -53,7 +54,8 @@ struct ExecEnv {
     std::filesystem::path presets_dir;
     std::filesystem::path pipelines_dir;
     TextureService& ts;
-    int depth = 0; // Subpipeline nesting depth.
+    int depth = 0;                         // Subpipeline / local-call nesting depth.
+    const NodeGraph* graph = nullptr;      // The graph currently being run (for local.call).
 };
 
 // Bounds recursion (a pipeline may reference itself directly or indirectly).
@@ -61,11 +63,32 @@ struct ExecEnv {
 // call stack safe.
 constexpr int kMaxSubpipelineDepth = 64;
 
-// Run a graph binding its named external ports: @p inputs maps port name (an
-// Input node's "name" param) -> value; the return maps Output port name ->
-// value.  Defined after applyNode; forward-declared for the Subpipeline node.
-PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv& env,
-                     std::vector<std::string>& errors);
+// Run a graph (or a node subset) binding its named external ports: @p inputs
+// maps port name (an Input node's "name" param) -> value; the return maps Output
+// port name -> value.  @p members (nullptr = whole graph) restricts execution to
+// a subset (a Local Pipeline frame's members); links with a non-member endpoint
+// are ignored.  Defined after applyNode; forward-declared for Sub/Local calls.
+PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId>* members,
+                         const PinMap& inputs, const ExecEnv& env,
+                         std::vector<std::string>& errors);
+// Top-level run: like runGraphPortsImpl over the whole graph, but EXCLUDES nodes
+// that live inside any Local Pipeline frame — those execute only when their frame
+// is invoked via local.call (Frame/Call nodes themselves stay, transparent).
+inline PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv& env,
+                            std::vector<std::string>& errors) {
+    std::unordered_set<NodeId> framed;
+    for (const auto& up : graph.nodes())
+        if (up->typeId() == "frame.local")
+            for (NodeId id : graph.nodesInFrame(*up))
+                framed.insert(id);
+    if (framed.empty())
+        return runGraphPortsImpl(graph, nullptr, inputs, env, errors);
+    std::unordered_set<NodeId> top;
+    for (const auto& up : graph.nodes())
+        if (framed.find(up->id()) == framed.end())
+            top.insert(up->id());
+    return runGraphPortsImpl(graph, &top, inputs, env, errors);
+}
 
 // ── Param helpers (const view over a node's params) ─────────────────────────
 const Param* findParam(const Node& n, std::string_view name) {
@@ -1096,7 +1119,10 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             }
             pipeline::NodeGraph sub;
             if (loaded && pipeline::fromJson(doc, sub, &errors)) {
-                const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1};
+                // subenv.graph = &sub so any local.call inside the file resolves
+                // its frame against the sub-graph, not the parent.
+                const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1,
+                                     &sub};
                 std::vector<std::string> sub_errors;
                 // Bind POSITIONALLY: this node's pins were derived from the sub's
                 // interface in order, so input pin i feeds the sub's i-th input
@@ -1123,6 +1149,60 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
                 passthrough();
             }
         }
+    } else if (type == "local.call") {
+        // Invoke a Local Pipeline frame from the SAME graph: run the subset of
+        // member nodes, binding ports positionally — mirrors op.subpipeline.
+        const std::string frame_name = paramStr(n, "frame");
+        const auto passthrough = [&] {
+            if (auto it = in.find("image"); it != in.end())
+                out["image"] = it->second;
+        };
+        // Skip on a dead branch (any input pin missing) so recursion terminates.
+        bool all_inputs_live = true;
+        for (const auto& p : n.inputs())
+            if (in.find(p.name) == in.end()) {
+                all_inputs_live = false;
+                break;
+            }
+        const Node* frame = nullptr;
+        if (env.graph)
+            for (const auto& up : env.graph->nodes())
+                if (up->typeId() == "frame.local" && paramStr(*up, "name") == frame_name) {
+                    frame = up.get();
+                    break;
+                }
+        if (!n.inputs().empty() && !all_inputs_live) {
+            // Inactive branch: produce nothing.
+        } else if (!env.graph || frame == nullptr) {
+            errors.push_back("Local call: frame '" + frame_name + "' not found (passed through)");
+            passthrough();
+        } else if (env.depth >= kMaxSubpipelineDepth) {
+            errors.push_back("Local call: nesting too deep (passed through)");
+            passthrough();
+        } else {
+            const std::vector<NodeId> member_list = env.graph->nodesInFrame(*frame);
+            const std::unordered_set<NodeId> members(member_list.begin(), member_list.end());
+            const pipeline::PipelineInterface iface = env.graph->localInterface(*frame);
+            const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1,
+                                 env.graph};
+            std::vector<std::string> sub_errors;
+            PinMap bound;
+            const auto node_ins = n.inputs();
+            for (std::size_t i = 0; i < node_ins.size() && i < iface.inputs.size(); ++i)
+                if (const auto it = in.find(node_ins[i].name); it != in.end())
+                    bound[iface.inputs[i].name] = it->second;
+
+            PinMap sub_out = runGraphPortsImpl(*env.graph, &members, bound, subenv, sub_errors);
+            for (auto& e : sub_errors)
+                errors.push_back("Local '" + frame_name + "': " + e);
+
+            const auto node_outs = n.outputs();
+            for (std::size_t i = 0; i < node_outs.size() && i < iface.outputs.size(); ++i)
+                if (const auto it = sub_out.find(iface.outputs[i].name); it != sub_out.end())
+                    out[node_outs[i].name] = std::move(it->second);
+        }
+    } else if (type == "frame.local") {
+        // A canvas container; inert (its member nodes form a callable pipeline).
     } else if (type == "output.standard") {
         // Captured by the caller from this node's input.
     } else if (type == "output.real" || type == "output.integer" || type == "output.channel" ||
@@ -1143,19 +1223,32 @@ std::optional<std::string> portNameOf(const Node& n) {
     return std::nullopt;
 }
 
-PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv& env,
-                     std::vector<std::string>& errors) {
+PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId>* members,
+                         const PinMap& inputs, const ExecEnv& env,
+                         std::vector<std::string>& errors) {
     PinMap captured; // Output-port name -> value.
+
+    const auto isMember = [&](NodeId id) { return !members || members->count(id) != 0; };
+    // A link participates only when BOTH endpoints are in scope; boundary-
+    // crossing wires (one endpoint outside a frame's members) are ignored.
+    const auto linkActive = [&](const Link& l) {
+        return isMember(l.from.node) && isMember(l.to.node);
+    };
 
     // Per-node outputs, keyed by node id then pin name.
     std::unordered_map<NodeId, PinMap> outputs;
 
-    // Kahn topological order over the link DAG.
+    // Kahn topological order over the (in-scope) link DAG.
     std::unordered_map<NodeId, int> indeg;
+    std::size_t node_count = 0;
     for (const auto& up : graph.nodes())
-        indeg[up->id()] = 0;
+        if (isMember(up->id())) {
+            indeg[up->id()] = 0;
+            ++node_count;
+        }
     for (const Link& l : graph.links())
-        ++indeg[l.to.node];
+        if (linkActive(l))
+            ++indeg[l.to.node];
 
     std::deque<NodeId> ready;
     for (const auto& [id, d] : indeg)
@@ -1171,10 +1264,10 @@ PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv
         if (!n)
             continue;
 
-        // Gather this node's inputs by following links into its input pins.
+        // Gather this node's inputs by following in-scope links into its pins.
         PinMap in;
         for (const Link& l : graph.links()) {
-            if (l.to.node != id)
+            if (l.to.node != id || !linkActive(l))
                 continue;
             auto src = outputs.find(l.from.node);
             if (src == outputs.end())
@@ -1207,14 +1300,14 @@ PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv
         }
 
         for (const Link& l : graph.links()) {
-            if (l.from.node != id)
+            if (l.from.node != id || !linkActive(l))
                 continue;
             if (--indeg[l.to.node] == 0)
                 ready.push_back(l.to.node);
         }
     }
 
-    if (processed < graph.nodes().size())
+    if (processed < node_count)
         errors.push_back("Pipeline has a cycle; some nodes were not executed");
 
     return captured;
@@ -1227,7 +1320,7 @@ PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture
                                       const std::filesystem::path& pipelines_dir,
                                       TextureService& texture_service, int depth) {
     PipelineRunResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth};
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
 
     // Bind the supplied image to every Standard Input port (a standard pipeline
     // has exactly one).  Ports are keyed by the input node's "name" param.
@@ -1264,7 +1357,7 @@ MultiPipelineRunResult runVaryingPipeline(
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
     TextureService& texture_service, int depth) {
     MultiPipelineRunResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth};
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
 
     // Bind each supplied image to its named input port.
     PinMap bound;

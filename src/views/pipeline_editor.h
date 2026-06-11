@@ -101,6 +101,11 @@ private:
     // Rebuild a Subpipeline node's pins to mirror the interface of the pipeline
     // named by its "pipeline" param, then prune any links left dangling.
     void syncSubpipelinePins(pipeline::Node& node);
+    // Rebuild a Local-Call node's pins to mirror the named frame's local
+    // interface (member Input/Output ports), then prune dangling links.
+    void syncLocalCallPins(pipeline::Node& node);
+    // Render a Local Pipeline frame node as a resizable group container.
+    void drawFrameNode(pipeline::Node* node);
 
     // Render the model's nodes + links and handle create/delete interaction.
     void drawNodes();

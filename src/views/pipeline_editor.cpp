@@ -128,6 +128,7 @@ ImVec4 categoryColor(NodeCategory c) {
     case NodeCategory::Operation: return ImVec4(0.29f, 0.51f, 0.82f, 1.0f); // blue
     case NodeCategory::Output: return ImVec4(0.85f, 0.55f, 0.26f, 1.0f);    // amber
     case NodeCategory::Control: return ImVec4(0.82f, 0.40f, 0.52f, 1.0f);   // rose
+    case NodeCategory::Frame: return ImVec4(0.45f, 0.48f, 0.55f, 1.0f);     // slate
     }
     return ImVec4(0.55f, 0.55f, 0.55f, 1.0f);
 }
@@ -351,6 +352,20 @@ void PipelineEditor::draw(SDL_Window* window) {
     handleCreate();
     handleDelete();
 
+    // Tooltip describing the node currently under the cursor.
+    if (const ed::NodeId hov = ed::GetHoveredNode()) {
+        if (const Node* n = graph_.node(static_cast<pipeline::NodeId>(hov.Get()))) {
+            const char* desc = nullptr;
+            if (const auto* d = pipeline::NodeRegistry::instance().find(n->typeId()))
+                desc = i18n::tr((d->display_name + ".desc").c_str());
+            if (desc) {
+                ed::Suspend();
+                ImGui::SetTooltip("%s", desc);
+                ed::Resume();
+            }
+        }
+    }
+
     ed::End();
 
     // Drag a palette template onto the canvas.  We don't use ImGui's drag-drop
@@ -436,6 +451,7 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
         {NodeCategory::Constant, "pipeline.category.constants"},
         {NodeCategory::Operation, "pipeline.category.operation"},
         {NodeCategory::Control, "pipeline.category.control"},
+        {NodeCategory::Frame, "pipeline.category.frame"},
         {NodeCategory::Output, "pipeline.category.output"},
     };
 
@@ -475,6 +491,11 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
         if (ImGui::IsItemActivated()) {
             drag_type_ = d.type_id;
             drag_label_ = label;
+        }
+        // Hover tooltip: a short description of what the node does.
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+            const char* tip = i18n::tr((d.display_name + ".desc").c_str());
+            ImGui::SetTooltip("%s", tip);
         }
     };
 
@@ -536,6 +557,24 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     ImGui::EndChild();
 }
 
+// Rebuild @p node's pins to @p target only when they actually differ, then prune
+// dangling links.  Safe to call every frame (a no-op when unchanged).
+static void applyInterfaceIfChanged(pipeline::Node& node, const pipeline::PipelineInterface& target,
+                                    pipeline::NodeGraph& graph) {
+    const auto same = [](auto pins, const std::vector<pipeline::PipelinePort>& ports) {
+        if (pins.size() != ports.size())
+            return false;
+        for (std::size_t i = 0; i < ports.size(); ++i)
+            if (pins[i].name != ports[i].name || pins[i].type != ports[i].type)
+                return false;
+        return true;
+    };
+    if (same(node.inputs(), target.inputs) && same(node.outputs(), target.outputs))
+        return;
+    pipeline::applyPipelineInterface(node, target);
+    graph.pruneInvalidLinks();
+}
+
 void PipelineEditor::syncSubpipelinePins(pipeline::Node& node) {
     using pipeline::Param;
     // The selected pipeline's file name lives in the node's "pipeline" param.
@@ -544,21 +583,105 @@ void PipelineEditor::syncSubpipelinePins(pipeline::Node& node) {
         if (p.name == "pipeline" && std::holds_alternative<std::string>(p.value))
             file = std::get<std::string>(p.value);
 
+    pipeline::PipelineInterface target{{{"image", pipeline::PinType::RGBA}},
+                                       {{"image", pipeline::PinType::RGBA}}};
     if (const auto it = pipeline_interfaces_.find(file); it != pipeline_interfaces_.end())
-        pipeline::applyPipelineInterface(node, it->second);
-    else // unknown / unselected: fall back to the standard single image port pair
-        pipeline::applyPipelineInterface(node, {{{"image", pipeline::PinType::RGBA}},
-                                                {{"image", pipeline::PinType::RGBA}}});
+        target = it->second;
+    applyInterfaceIfChanged(node, target, graph_);
+}
 
-    // Links that pointed at pins the new interface dropped are now invalid.
-    graph_.pruneInvalidLinks();
+void PipelineEditor::syncLocalCallPins(pipeline::Node& node) {
+    using pipeline::Param;
+    std::string frame_name;
+    for (const Param& p : node.params())
+        if (p.name == "frame" && std::holds_alternative<std::string>(p.value))
+            frame_name = std::get<std::string>(p.value);
+
+    // Compute the target interface: the named frame's live local interface, or
+    // the default single image pair when no such frame exists.
+    pipeline::PipelineInterface target{{{"image", pipeline::PinType::RGBA}},
+                                       {{"image", pipeline::PinType::RGBA}}};
+    for (const auto& up : graph_.nodes())
+        if (up->typeId() == "frame.local") {
+            std::string nm;
+            for (const Param& p : up->params())
+                if (p.name == "name" && std::holds_alternative<std::string>(p.value))
+                    nm = std::get<std::string>(p.value);
+            if (nm == frame_name) {
+                target = graph_.localInterface(*up);
+                break;
+            }
+        }
+
+    applyInterfaceIfChanged(node, target, graph_);
+}
+
+void PipelineEditor::drawFrameNode(pipeline::Node* n) {
+    using pipeline::Param;
+    const ed::NodeId nid(n->id());
+    if (!placed_.contains(n->id())) {
+        ed::SetNodePosition(nid, ImVec2(n->position().x, n->position().y));
+        placed_.insert(n->id());
+    }
+
+    float w = 360.0f, h = 220.0f;
+    Param* name_p = nullptr;
+    Param* w_p = nullptr;
+    Param* h_p = nullptr;
+    for (Param& p : n->params()) {
+        if (p.name == "w" && std::holds_alternative<f64>(p.value)) {
+            w = static_cast<float>(std::get<f64>(p.value));
+            w_p = &p;
+        } else if (p.name == "h" && std::holds_alternative<f64>(p.value)) {
+            h = static_cast<float>(std::get<f64>(p.value));
+            h_p = &p;
+        } else if (p.name == "name" && std::holds_alternative<std::string>(p.value)) {
+            name_p = &p;
+        }
+    }
+    const ImVec4 cat = categoryColor(NodeCategory::Frame);
+    ed::PushStyleColor(ed::StyleColor_NodeBg, ImVec4(cat.x, cat.y, cat.z, 0.10f));
+    ed::PushStyleColor(ed::StyleColor_NodeBorder, ImVec4(cat.x, cat.y, cat.z, 0.85f));
+    ed::BeginNode(nid);
+    // Editable frame name at the top-left, then the resizable group below it.
+    if (name_p) {
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%s", std::get<std::string>(name_p->value).c_str());
+        ImGui::SetNextItemWidth(std::min(180.0f, std::max(90.0f, w - 12.0f)));
+        if (ImGui::InputText(("##fn_" + std::to_string(n->id())).c_str(), buf, sizeof(buf)))
+            name_p->value = std::string(buf);
+    }
+    ed::Group(ImVec2(w, h));
+    const ImVec2 group_size = ImGui::GetItemRectSize(); // actual size incl. user resize
+    ed::EndNode();
+    ed::PopStyleColor(2);
+
+    // Persist the (possibly resized) group size directly — no node-padding math.
+    if (w_p)
+        w_p->value = static_cast<f64>(std::max(60.0f, group_size.x));
+    if (h_p)
+        h_p->value = static_cast<f64>(std::max(48.0f, group_size.y));
 }
 
 void PipelineEditor::drawNodes() {
+    // Frames first so they render behind the data nodes they contain.
+    for (const auto& up : graph_.nodes())
+        if (up->typeId() == "frame.local")
+            drawFrameNode(up.get());
+
     for (const auto& up : graph_.nodes()) {
         Node* n = up.get();
+        if (n->typeId() == "frame.local")
+            continue; // already drawn as a group container
         const ed::NodeId nid(n->id());
         const ImVec4 cat = categoryColor(n->category());
+
+        // Keep Subpipeline / Local-Call pins mirroring their target's live
+        // interface (so corrected interfaces propagate without re-selecting).
+        if (n->typeId() == "op.subpipeline")
+            syncSubpipelinePins(*n);
+        else if (n->typeId() == "local.call")
+            syncLocalCallPins(*n);
 
         // Push the model position into the editor once; afterwards the user
         // drags freely and syncPositions() reads the result back.
@@ -619,7 +742,8 @@ void PipelineEditor::drawNodes() {
                 switch (p.widget) {
                 case ParamWidget::Enum: w += 110.0f; break;
                 case ParamWidget::Model:
-                case ParamWidget::Pipeline: w += 150.0f; break;
+                case ParamWidget::Pipeline:
+                case ParamWidget::LocalFrame: w += 150.0f; break;
                 case ParamWidget::ResourcePath: w += 150.0f + kGap + 28.0f; break;
                 case ParamWidget::Scalar:
                     w += std::holds_alternative<std::string>(p.value) ? 144.0f : 94.0f;
@@ -678,8 +802,9 @@ void PipelineEditor::drawNodes() {
         const auto params = n->params();
         std::vector<std::size_t> open_combo;    // enum params clicked this frame
         std::vector<std::size_t> open_model;    // model params clicked this frame
-        std::vector<std::size_t> open_pipeline; // pipeline params clicked this frame
-        std::vector<std::size_t> open_picker;   // resource params clicked this frame
+        std::vector<std::size_t> open_pipeline;   // pipeline params clicked this frame
+        std::vector<std::size_t> open_localframe; // local-frame params clicked this frame
+        std::vector<std::size_t> open_picker;     // resource params clicked this frame
 
         // 3) Options section — separated from the pins by a rule + faint panel.
         bool has_options = false;
@@ -752,6 +877,18 @@ void PipelineEditor::drawNodes() {
                 const std::string btn = shown + "##plbtn_" + sfx;
                 if (ImGui::Button(btn.c_str(), ImVec2(150.0f, 0.0f)))
                     open_pipeline.push_back(pi);
+                break;
+            }
+            case ParamWidget::LocalFrame: {
+                if (!std::holds_alternative<std::string>(p.value))
+                    break;
+                const std::string& cur = std::get<std::string>(p.value);
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%s:", plabel);
+                ImGui::SameLine();
+                const std::string btn = (cur.empty() ? std::string("-") : cur) + "##lfbtn_" + sfx;
+                if (ImGui::Button(btn.c_str(), ImVec2(150.0f, 0.0f)))
+                    open_localframe.push_back(pi);
                 break;
             }
             case ParamWidget::ResourcePath: {
@@ -891,6 +1028,32 @@ void PipelineEditor::drawNodes() {
                                 syncSubpipelinePins(*n);
                             }
                         }
+                        ImGui::EndPopup();
+                    }
+                } else if (p.widget == ParamWidget::LocalFrame &&
+                           std::holds_alternative<std::string>(p.value)) {
+                    const std::string pop = "##lfp_" + sfx;
+                    if (clicked(open_localframe, pi))
+                        ImGui::OpenPopup(pop.c_str());
+                    if (ImGui::BeginPopup(pop.c_str())) {
+                        std::string& cur = std::get<std::string>(p.value);
+                        bool any = false;
+                        for (const auto& up : graph_.nodes()) {
+                            if (up->typeId() != "frame.local")
+                                continue;
+                            any = true;
+                            std::string nm;
+                            for (const auto& fp : up->params())
+                                if (fp.name == "name" &&
+                                    std::holds_alternative<std::string>(fp.value))
+                                    nm = std::get<std::string>(fp.value);
+                            if (ImGui::Selectable(nm.c_str(), nm == cur) && nm != cur) {
+                                cur = nm;
+                                syncLocalCallPins(*n);
+                            }
+                        }
+                        if (!any)
+                            ImGui::TextDisabled("%s", i18n::tr("pipeline.resource.no_frame"));
                         ImGui::EndPopup();
                     }
                 } else if (p.widget == ParamWidget::ResourcePath &&

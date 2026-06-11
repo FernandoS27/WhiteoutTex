@@ -4,6 +4,7 @@
 #include "pipeline/node_graph.h"
 
 #include <algorithm>
+#include <unordered_set>
 #include <variant>
 
 #include "pipeline/node_registry.h"
@@ -115,12 +116,34 @@ const std::string* portName(const Node& n) {
             return &std::get<std::string>(p.value);
     return nullptr;
 }
+/// Read a real-valued param, or @p def.
+f64 realParam(const Node& n, std::string_view name, f64 def) {
+    for (const Param& p : n.params())
+        if (p.name == name && std::holds_alternative<f64>(p.value))
+            return std::get<f64>(p.value);
+    return def;
+}
+/// Frame / Local-Call nodes are transparent to frame membership.
+bool isFrameOrCall(const Node& n) {
+    return n.typeId() == "frame.local" || n.typeId() == "local.call";
+}
 } // namespace
 
 PipelineInterface NodeGraph::interface() const {
+    // Input/Output nodes that live inside a Local Pipeline frame belong to that
+    // frame's local interface, NOT this pipeline's external interface — exclude
+    // them so a Subpipeline node mirrors only the top-level ports.
+    std::unordered_set<NodeId> framed;
+    for (const auto& up : nodes_)
+        if (up->typeId() == "frame.local")
+            for (NodeId id : nodesInFrame(*up))
+                framed.insert(id);
+
     PipelineInterface iface;
     for (const auto& up : nodes_) {
         const Node& n = *up;
+        if (framed.find(n.id()) != framed.end())
+            continue; // belongs to a local pipeline frame
         const std::string* nm = portName(n);
         if (!nm)
             continue; // not an external port (e.g. resource/const nodes)
@@ -128,6 +151,40 @@ PipelineInterface NodeGraph::interface() const {
             iface.inputs.push_back({*nm, n.outputs().front().type});
         else if (n.category() == NodeCategory::Output && !n.inputs().empty())
             iface.outputs.push_back({*nm, n.inputs().front().type});
+    }
+    return iface;
+}
+
+std::vector<NodeId> NodeGraph::nodesInFrame(const Node& frame) const {
+    const Vec2 fp = frame.position();
+    const f32 fw = static_cast<f32>(realParam(frame, "w", 0.0));
+    const f32 fh = static_cast<f32>(realParam(frame, "h", 0.0));
+    std::vector<NodeId> members;
+    for (const auto& up : nodes_) {
+        const Node& n = *up;
+        if (isFrameOrCall(n))
+            continue; // frames and calls are transparent to membership
+        const Vec2 p = n.position();
+        if (p.x >= fp.x && p.x <= fp.x + fw && p.y >= fp.y && p.y <= fp.y + fh)
+            members.push_back(n.id());
+    }
+    return members;
+}
+
+PipelineInterface NodeGraph::localInterface(const Node& frame) const {
+    const std::vector<NodeId> members = nodesInFrame(frame);
+    PipelineInterface iface;
+    for (NodeId id : members) {
+        const Node* n = node(id);
+        if (!n)
+            continue;
+        const std::string* nm = portName(*n);
+        if (!nm)
+            continue;
+        if (n->category() == NodeCategory::Input && !n->outputs().empty())
+            iface.inputs.push_back({*nm, n->outputs().front().type});
+        else if (n->category() == NodeCategory::Output && !n->inputs().empty())
+            iface.outputs.push_back({*nm, n->inputs().front().type});
     }
     return iface;
 }

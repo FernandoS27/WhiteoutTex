@@ -30,10 +30,11 @@ namespace whiteout::textool::pipeline {
 using NodeId = u32; ///< Stable per-graph node id (0 = unassigned).
 
 /// Palette grouping.  Input/Constant nodes are sources, Output nodes are sinks,
-/// Operations transform, Control nodes route/branch data flow.  (Constant
-/// Channel is a Constant that still takes width/height/value inputs, so the
-/// "sources have no inputs" rule is loose.)
-enum class NodeCategory : u8 { Input, Constant, Operation, Output, Control };
+/// Operations transform, Control nodes route/branch data flow, Frame nodes are
+/// canvas containers defining a local pipeline.  (Constant Channel is a Constant
+/// that still takes width/height/value inputs, so the "sources have no inputs"
+/// rule is loose.)
+enum class NodeCategory : u8 { Input, Constant, Operation, Output, Control, Frame };
 
 /// A plain 2D point — keeps the model free of ImGui's ImVec2.
 struct Vec2 {
@@ -48,6 +49,7 @@ enum class ParamWidget : u8 {
     ResourcePath, ///< string path under resources/presets -> text field + picker.
     Model,        ///< string AI-model id -> combobox of available upscaler models.
     Pipeline,     ///< string pipeline file name -> combobox of available pipelines.
+    LocalFrame,   ///< string frame name -> combobox of Local Pipeline frames in this graph.
 };
 
 /// One editable node setting.  Reused by the generic serializer and the
@@ -138,6 +140,12 @@ protected:
     void addPipelineParam(std::string name) {
         params_.push_back(
             {std::move(name), ParamValue{std::string{}}, ParamWidget::Pipeline, {}, {}, 0});
+    }
+    /// Declare a local-frame param: a string frame name chosen from this graph's
+    /// Local Pipeline frames.
+    void addLocalFrameParam(std::string name) {
+        params_.push_back(
+            {std::move(name), ParamValue{std::string{}}, ParamWidget::LocalFrame, {}, {}, 0});
     }
     /// Gate the most-recently-added param: shown only when the enum param
     /// @p enum_param has selected index @p index.

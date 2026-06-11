@@ -125,6 +125,15 @@ public:
     /// (category Input/Output nodes carrying a "name" param).  Node order.
     PipelineInterface interface() const;
 
+    // ── Local pipelines (Frame containers) ─────────────────────────────
+    /// Member nodes of a Local Pipeline @p frame: data nodes whose position lies
+    /// within the frame's rectangle.  Frame and Local-Call nodes are excluded
+    /// (they are transparent to membership).  In storage order.
+    std::vector<NodeId> nodesInFrame(const Node& frame) const;
+    /// The local pipeline's interface, derived from the Input/Output member nodes
+    /// of @p frame (in member order) — mirrors interface() restricted to members.
+    PipelineInterface localInterface(const Node& frame) const;
+
 private:
     std::vector<std::unique_ptr<Node>> nodes_;
     std::vector<Link> links_;

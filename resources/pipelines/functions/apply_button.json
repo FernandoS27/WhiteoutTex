@@ -1,0 +1,812 @@
+{
+  "links": [
+    {
+      "from": [
+        5,
+        "mipmap"
+      ],
+      "to": [
+        8,
+        "mipmap"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "mipmap"
+      ],
+      "to": [
+        9,
+        "mipmap"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "image"
+      ],
+      "to": [
+        10,
+        "bottom layer"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "image"
+      ],
+      "to": [
+        10,
+        "top layer"
+      ]
+    },
+    {
+      "from": [
+        10,
+        "image"
+      ],
+      "to": [
+        11,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "image"
+      ],
+      "to": [
+        12,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        5,
+        "related"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        7,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        9,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "image"
+      ],
+      "to": [
+        16,
+        "Input"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "result"
+      ],
+      "to": [
+        17,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "image"
+      ],
+      "to": [
+        17,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        18,
+        "value"
+      ],
+      "to": [
+        17,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "value"
+      ],
+      "to": [
+        22,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "value"
+      ],
+      "to": [
+        22,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        22,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        24,
+        "value"
+      ],
+      "to": [
+        25,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "value"
+      ],
+      "to": [
+        27,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "true"
+      ],
+      "to": [
+        27,
+        "amount"
+      ]
+    },
+    {
+      "from": [
+        27,
+        "result"
+      ],
+      "to": [
+        28,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        28,
+        "value"
+      ],
+      "to": [
+        25,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        25,
+        "result"
+      ],
+      "to": [
+        30,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        22,
+        "false"
+      ],
+      "to": [
+        30,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        30,
+        "result"
+      ],
+      "to": [
+        29,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "false"
+      ],
+      "to": [
+        31,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "width"
+      ],
+      "to": [
+        32,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "height"
+      ],
+      "to": [
+        33,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        32,
+        "value"
+      ],
+      "to": [
+        34,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        33,
+        "value"
+      ],
+      "to": [
+        34,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        34,
+        "result"
+      ],
+      "to": [
+        35,
+        "width"
+      ]
+    },
+    {
+      "from": [
+        34,
+        "result"
+      ],
+      "to": [
+        35,
+        "height"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "false"
+      ],
+      "to": [
+        35,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "true"
+      ],
+      "to": [
+        36,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        35,
+        "output"
+      ],
+      "to": [
+        36,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        36,
+        "result"
+      ],
+      "to": [
+        37,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        38,
+        "Input"
+      ]
+    },
+    {
+      "from": [
+        38,
+        "Output"
+      ],
+      "to": [
+        8,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        38,
+        "Output"
+      ],
+      "to": [
+        5,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        38,
+        "Output"
+      ],
+      "to": [
+        7,
+        "related"
+      ]
+    }
+  ],
+  "name": "ApplyButton",
+  "nodes": [
+    {
+      "id": 4,
+      "params": {
+        "name": "Base"
+      },
+      "pos": [
+        179.0,
+        261.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 5,
+      "params": {},
+      "pos": [
+        698.0,
+        275.0
+      ],
+      "type": "op.matching_mipmap"
+    },
+    {
+      "id": 7,
+      "params": {},
+      "pos": [
+        685.0,
+        424.0
+      ],
+      "type": "op.matching_mipmap"
+    },
+    {
+      "id": 8,
+      "params": {},
+      "pos": [
+        929.0,
+        56.0
+      ],
+      "type": "op.extract_mipmap"
+    },
+    {
+      "id": 9,
+      "params": {},
+      "pos": [
+        923.0,
+        547.0
+      ],
+      "type": "op.extract_mipmap"
+    },
+    {
+      "id": 10,
+      "params": {
+        "mode": 1
+      },
+      "pos": [
+        1144.0,
+        275.0
+      ],
+      "type": "op.blend"
+    },
+    {
+      "id": 11,
+      "params": {
+        "count": 2,
+        "mode": 1
+      },
+      "pos": [
+        1448.0,
+        275.0
+      ],
+      "type": "op.regenerate_mipmaps"
+    },
+    {
+      "id": 12,
+      "params": {
+        "name": "Blended"
+      },
+      "pos": [
+        1688.0,
+        275.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 13,
+      "params": {
+        "name": "Overlay"
+      },
+      "pos": [
+        355.0,
+        421.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 14,
+      "params": {
+        "h": 645.0,
+        "name": "EnsureImagePow2",
+        "w": 2256.0
+      },
+      "pos": [
+        112.0,
+        784.0
+      ],
+      "type": "frame.local"
+    },
+    {
+      "id": 15,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        145.0,
+        1075.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 16,
+      "params": {
+        "pipeline": "functions/is_image_pow2_even.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Input",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "result",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        360.0,
+        1235.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 17,
+      "params": {
+        "comparator": 1,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        637.0,
+        931.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 18,
+      "params": {
+        "value": 0
+      },
+      "pos": [
+        345.0,
+        879.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 20,
+      "params": {
+        "h": 597.0,
+        "name": "Log2Ceil",
+        "w": 1728.0
+      },
+      "pos": [
+        112.0,
+        1504.0
+      ],
+      "type": "frame.local"
+    },
+    {
+      "id": 21,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "value",
+        "value": 0
+      },
+      "pos": [
+        169.0,
+        1715.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 22,
+      "params": {
+        "comparator": 1,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        493.0,
+        1710.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 23,
+      "params": {
+        "value": 0
+      },
+      "pos": [
+        266.0,
+        1923.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 24,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        778.0,
+        1571.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 25,
+      "params": {},
+      "pos": [
+        1319.0,
+        1587.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 27,
+      "params": {},
+      "pos": [
+        826.0,
+        1683.0
+      ],
+      "type": "op.bit_shr"
+    },
+    {
+      "id": 28,
+      "params": {
+        "frame": "Log2Ceil"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        1058.0,
+        1699.0
+      ],
+      "type": "local.call"
+    },
+    {
+      "id": 29,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1624.0,
+        1763.0
+      ],
+      "type": "output.integer"
+    },
+    {
+      "id": 30,
+      "params": {},
+      "pos": [
+        1448.0,
+        1763.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 31,
+      "params": {},
+      "pos": [
+        890.0,
+        1189.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 32,
+      "params": {
+        "frame": "Log2Ceil"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        1144.0,
+        1123.0
+      ],
+      "type": "local.call"
+    },
+    {
+      "id": 33,
+      "params": {
+        "frame": "Log2Ceil"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        1144.0,
+        1235.0
+      ],
+      "type": "local.call"
+    },
+    {
+      "id": 34,
+      "params": {},
+      "pos": [
+        1476.0,
+        1133.0
+      ],
+      "type": "op.max"
+    },
+    {
+      "id": 35,
+      "params": {
+        "filter": 0
+      },
+      "pos": [
+        1672.0,
+        1001.0
+      ],
+      "type": "op.scale_to"
+    },
+    {
+      "id": 36,
+      "params": {},
+      "pos": [
+        1896.0,
+        910.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 37,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        2136.0,
+        995.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 38,
+      "params": {
+        "frame": "EnsureImagePow2"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Input",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Output",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        420.0,
+        261.0
+      ],
+      "type": "local.call"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

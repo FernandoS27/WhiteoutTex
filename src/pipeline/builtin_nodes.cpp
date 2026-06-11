@@ -590,6 +590,31 @@ public:
     }
 };
 
+// Invokes a Local Pipeline frame from the same graph; pins mirror the frame's
+// internal Input/Output ports.  May recurse (target its own frame).
+class LocalCallNode final : public Node {
+public:
+    LocalCallNode() : Node("local.call", NodeCategory::Control) {
+        addInput("image", PinType::RGBA);
+        addOutput("image", PinType::RGBA);
+        addLocalFrameParam("frame");
+        markDynamicPins(); // pins are replaced to mirror the selected frame
+    }
+};
+
+// ── Frame ───────────────────────────────────────────────────────────────────
+
+// A canvas container: nodes positioned inside it form a unique "local pipeline"
+// callable (only) from this graph via Call Local Pipeline.  No data pins.
+class LocalPipelineFrameNode final : public Node {
+public:
+    LocalPipelineFrameNode() : Node("frame.local", NodeCategory::Frame) {
+        addParam("name", std::string{"Local"}); // unique name; called by this graph
+        addParam("w", f64{360.0});               // frame size (editor updates these)
+        addParam("h", f64{220.0});
+    }
+};
+
 // ── Output ──────────────────────────────────────────────────────────────────
 
 // The pipeline's primary/standard output image (mirrors Standard Input).
@@ -746,6 +771,10 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<SelectNode>(); }});
     reg.registerType({"ctrl.rendezvous", NodeCategory::Control, "pipeline.node.rendezvous",
                       [] { return std::make_unique<RendezvousNode>(); }});
+    reg.registerType({"local.call", NodeCategory::Control, "pipeline.node.local_call",
+                      [] { return std::make_unique<LocalCallNode>(); }});
+    reg.registerType({"frame.local", NodeCategory::Frame, "pipeline.node.frame_local",
+                      [] { return std::make_unique<LocalPipelineFrameNode>(); }});
     reg.registerType({"output.standard", NodeCategory::Output, "pipeline.node.standard_output",
                       [] { return std::make_unique<StandardOutputNode>(); }});
     reg.registerType({"output.real", NodeCategory::Output, "pipeline.node.real_output",
