@@ -12,26 +12,6 @@
     },
     {
       "from": [
-        6,
-        "image"
-      ],
-      "to": [
-        5,
-        "related"
-      ]
-    },
-    {
-      "from": [
-        6,
-        "image"
-      ],
-      "to": [
-        7,
-        "base"
-      ]
-    },
-    {
-      "from": [
         4,
         "image"
       ],
@@ -68,16 +48,6 @@
       "to": [
         9,
         "mipmap"
-      ]
-    },
-    {
-      "from": [
-        6,
-        "image"
-      ],
-      "to": [
-        9,
-        "image"
       ]
     },
     {
@@ -119,12 +89,45 @@
         12,
         "image"
       ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        5,
+        "related"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        7,
+        "base"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        9,
+        "image"
+      ]
     }
   ],
+  "name": "ApplyOverlay",
   "nodes": [
     {
       "id": 4,
-      "params": {},
+      "params": {
+        "name": "Base"
+      },
       "pos": [
         92.0,
         278.0
@@ -139,17 +142,6 @@
         273.0
       ],
       "type": "op.matching_mipmap"
-    },
-    {
-      "id": 6,
-      "params": {
-        "path": "icon_bases/Reforged/BTN_preset.dds"
-      },
-      "pos": [
-        82.0,
-        390.0
-      ],
-      "type": "input.resource"
     },
     {
       "id": 7,
@@ -203,15 +195,27 @@
     },
     {
       "id": 12,
-      "params": {},
+      "params": {
+        "name": "Blended"
+      },
       "pos": [
         1348.0,
         294.0
       ],
       "type": "output.standard"
+    },
+    {
+      "id": 13,
+      "params": {
+        "name": "Overlay"
+      },
+      "pos": [
+        97.0,
+        419.0
+      ],
+      "type": "input.standard"
     }
   ],
-  "name": "Create Button",
-  "type": "standard",
+  "type": "function",
   "version": 1
 }

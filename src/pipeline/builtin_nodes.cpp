@@ -49,6 +49,25 @@ const std::vector<std::string> kLumaMethods = {"pipeline.luma.rec709", "pipeline
 // Derivative kernels (i18n keys).  Quad = central difference, Sobel = 3x3.
 const std::vector<std::string> kDerivativeModes = {"pipeline.deriv.quad", "pipeline.deriv.sobel"};
 
+// Comparison operators for the Conditional control node (i18n keys).
+const std::vector<std::string> kComparators = {
+    "pipeline.cmp.equal",   "pipeline.cmp.not_equal",    "pipeline.cmp.less",
+    "pipeline.cmp.less_eq", "pipeline.cmp.greater",      "pipeline.cmp.greater_eq"};
+
+// Texture kinds (i18n keys), in TextureKind enum order so the combo index
+// equals the enum value emitted as an int.
+const std::vector<std::string> kKindLabels = {
+    "pipeline.kind.other",         "pipeline.kind.diffuse",
+    "pipeline.kind.normal",        "pipeline.kind.specular",
+    "pipeline.kind.orm",           "pipeline.kind.albedo",
+    "pipeline.kind.roughness",     "pipeline.kind.metalness",
+    "pipeline.kind.ambient_occlusion", "pipeline.kind.gloss",
+    "pipeline.kind.emissive",      "pipeline.kind.alpha_mask",
+    "pipeline.kind.binary_mask",   "pipeline.kind.transparency_mask",
+    "pipeline.kind.blend_mask",    "pipeline.kind.lightmap",
+    "pipeline.kind.environment_pbr", "pipeline.kind.environment_legacy",
+    "pipeline.kind.multikind",     "pipeline.kind.unused"};
+
 // ── Inputs ──────────────────────────────────────────────────────────────────
 
 // The pipeline's primary/standard input image (whatever it's applied to).
@@ -142,6 +161,15 @@ public:
     }
 };
 
+// A constant texture kind picked from a combo, emitted as its TextureKind int.
+class ConstantKindNode final : public Node {
+public:
+    ConstantKindNode() : Node("input.const_kind", NodeCategory::Constant) {
+        addOutput("value", PinType::Int);
+        addEnumParam("kind", 0, kKindLabels);
+    }
+};
+
 // ── Operations ──────────────────────────────────────────────────────────────
 
 // RGBA -> single-channel (R) carrying the selected channel.
@@ -227,6 +255,25 @@ public:
     }
 };
 
+// Per-element minimum / maximum (polymorphic over Int / Real / single Channel).
+class MinNode final : public Node {
+public:
+    MinNode() : Node("op.min", NodeCategory::Operation) {
+        addInput("a", PinType::Number);
+        addInput("b", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
+class MaxNode final : public Node {
+public:
+    MaxNode() : Node("op.max", NodeCategory::Operation) {
+        addInput("a", PinType::Number);
+        addInput("b", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
 class NegateNode final : public Node {
 public:
     NegateNode() : Node("op.negate", NodeCategory::Operation) {
@@ -269,6 +316,35 @@ public:
         addInput("image", PinType::RGBA);
         addOutput("channel", PinType::R);
         addEnumParam("method", 0, kLumaMethods);
+    }
+};
+
+// Reports an image's dimensions, mip count, semantic kind, and per-channel
+// subkinds.  Kind and subkinds are TextureKind enum values (ints); the
+// subkinds are only meaningful for Multikind textures.
+class ImagePropertiesNode final : public Node {
+public:
+    ImagePropertiesNode() : Node("op.image_properties", NodeCategory::Operation) {
+        addInput("image", PinType::RGBA);
+        addOutput("width", PinType::Int);
+        addOutput("height", PinType::Int);
+        addOutput("mipmaps", PinType::Int);
+        addOutput("kind", PinType::Int);
+        addOutput("r kind", PinType::Int);
+        addOutput("g kind", PinType::Int);
+        addOutput("b kind", PinType::Int);
+        addOutput("a kind", PinType::Int);
+    }
+};
+
+// Tags an image with a semantic kind (TextureKind value).  The kind input is
+// optional: when unconnected the image's existing kind is left unchanged.
+class SetKindNode final : public Node {
+public:
+    SetKindNode() : Node("op.set_kind", NodeCategory::Operation) {
+        addInput("image", PinType::RGBA);
+        addInput("kind", PinType::Int);
+        addOutput("image", PinType::RGBA);
     }
 };
 
@@ -319,9 +395,12 @@ public:
 class SubpipelineNode final : public Node {
 public:
     SubpipelineNode() : Node("op.subpipeline", NodeCategory::Operation) {
+        // Default pins mirror a standard pipeline; replaced to match the
+        // selected pipeline's interface (see PipelineEditor::syncSubpipelinePins).
         addInput("image", PinType::RGBA);
         addOutput("image", PinType::RGBA);
         addPipelineParam("pipeline");
+        markDynamicPins();
     }
 };
 
@@ -373,6 +452,24 @@ public:
     SobelNode() : Node("op.sobel", NodeCategory::Operation) {
         addInput("channel", PinType::R);
         addOutput("channel", PinType::R);
+    }
+};
+
+// ── Control ───────────────────────────────────────────────────────────────
+
+// Routes a polymorphic value to one of two outputs based on comparing two
+// numeric operands (a <cmp> b).  On true the value flows out "true" (and
+// "false" is unset); on false it flows out "false".
+class ConditionalNode final : public Node {
+public:
+    ConditionalNode() : Node("ctrl.conditional", NodeCategory::Control) {
+        addInput("value", PinType::Any); // routes any type (image / channel / scalar)
+        addInput("a", PinType::Number);
+        addInput("b", PinType::Number);
+        addOutput("true", PinType::Any);
+        addOutput("false", PinType::Any);
+        addEnumParam("comparator", 0, kComparators);
+        addParam("epsilon", f64{1e-6}); // tolerance for Equal / Not Equal on floats
     }
 };
 
@@ -434,6 +531,8 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<ConstantRealNode>(); }});
     reg.registerType({"input.const_channel", NodeCategory::Constant, "pipeline.node.const_channel",
                       [] { return std::make_unique<ConstantChannelNode>(); }});
+    reg.registerType({"input.const_kind", NodeCategory::Constant, "pipeline.node.const_kind",
+                      [] { return std::make_unique<ConstantKindNode>(); }});
     reg.registerType({"op.extract_channel", NodeCategory::Operation,
                       "pipeline.node.extract_channel",
                       [] { return std::make_unique<ExtractChannelNode>(); }});
@@ -450,10 +549,19 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<PrimsNode>(); }});
     reg.registerType({"op.luma", NodeCategory::Operation, "pipeline.node.luma",
                       [] { return std::make_unique<LumaNode>(); }});
+    reg.registerType({"op.image_properties", NodeCategory::Operation,
+                      "pipeline.node.image_properties",
+                      [] { return std::make_unique<ImagePropertiesNode>(); }});
+    reg.registerType({"op.set_kind", NodeCategory::Operation, "pipeline.node.set_kind",
+                      [] { return std::make_unique<SetKindNode>(); }});
     reg.registerType({"op.add", NodeCategory::Operation, "pipeline.node.add",
                       [] { return std::make_unique<AddNode>(); }});
     reg.registerType({"op.multiply", NodeCategory::Operation, "pipeline.node.multiply",
                       [] { return std::make_unique<MultiplyNode>(); }});
+    reg.registerType({"op.min", NodeCategory::Operation, "pipeline.node.min",
+                      [] { return std::make_unique<MinNode>(); }});
+    reg.registerType({"op.max", NodeCategory::Operation, "pipeline.node.max",
+                      [] { return std::make_unique<MaxNode>(); }});
     reg.registerType({"op.negate", NodeCategory::Operation, "pipeline.node.negate",
                       [] { return std::make_unique<NegateNode>(); }});
     reg.registerType({"op.sqrt", NodeCategory::Operation, "pipeline.node.sqrt",
@@ -484,6 +592,8 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<SharpenNode>(); }});
     reg.registerType({"op.sobel", NodeCategory::Operation, "pipeline.node.sobel",
                       [] { return std::make_unique<SobelNode>(); }});
+    reg.registerType({"ctrl.conditional", NodeCategory::Control, "pipeline.node.conditional",
+                      [] { return std::make_unique<ConditionalNode>(); }});
     reg.registerType({"output.standard", NodeCategory::Output, "pipeline.node.standard_output",
                       [] { return std::make_unique<StandardOutputNode>(); }});
     reg.registerType({"output.real", NodeCategory::Output, "pipeline.node.real_output",

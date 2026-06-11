@@ -199,6 +199,16 @@ void coerceBlpFormat(whiteout::textures::Texture& tex, i32 blp_encoding,
                      whiteout::textures::blp::BlpEncoding enc,
                      whiteout::interfaces::WorkerPool* pool = nullptr);
 
+/// Save @p source to @p path as @p target_format, applying @p prefs (mipmaps +
+/// per-format encoding options) and tagging it with @p kind.  Mirrors
+/// SaveDialog::performSave for callers without a SaveDialog (e.g. MultiPipeline
+/// outputs).  Returns a status string ("Saved: ..." on success).
+std::string saveTextureWithPrefs(whiteout::textures::TextureConverter& converter,
+                                 const whiteout::textures::Texture& source,
+                                 const std::string& path,
+                                 whiteout::textures::TextureFileFormat target_format,
+                                 const SavePrefs& prefs, whiteout::textures::TextureKind kind);
+
 // ============================================================================
 // DDS save preparation
 // ============================================================================

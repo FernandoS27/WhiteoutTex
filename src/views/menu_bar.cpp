@@ -54,11 +54,11 @@ std::vector<AppCommand> drawMenuBar(bool has_texture, const std::vector<std::str
         if (ImGui::MenuItem(tr("menu.tools.casc"))) {
             commands.push_back(OpenCascBrowserCmd{});
         }
-        // Run a standard pipeline on the current image (output replaces it).
-        if (ImGui::BeginMenu(tr("menu.tools.pipeline"), has_texture && !pipelines.empty())) {
+        // Run a Varying pipeline against files (multiple image inputs/outputs).
+        if (ImGui::BeginMenu(tr("menu.tools.multipipeline"), !pipelines.empty())) {
             for (const auto& info : pipelines) {
                 if (ImGui::MenuItem(info.display_name.c_str()))
-                    commands.push_back(RunPipelineCmd{info.file});
+                    commands.push_back(OpenMultiPipelineCmd{info.file});
             }
             ImGui::EndMenu();
         }

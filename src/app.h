@@ -11,6 +11,7 @@
 #include "views/casc_browser.h"
 #include "views/image_details.h"
 #include "views/image_viewer.h"
+#include "views/multi_pipeline_dialog.h"
 #include "views/pipeline_editor.h"
 #include "views/save_dialog.h"
 
@@ -21,6 +22,7 @@
 #include <optional>
 
 #include <string>
+#include <unordered_map>
 
 #include <SDL3/SDL.h>
 
@@ -87,7 +89,19 @@ private:
     std::string imgui_ini_path_;
     std::string lang_dir_;
     std::string pipelines_dir_;                       ///< resources/pipelines next to the exe.
-    std::vector<models::PipelineInfo> pipeline_files_; ///< Pipelines found in pipelines_dir_.
+    std::vector<models::PipelineInfo> pipeline_files_; ///< All pipelines found in pipelines_dir_.
+    /// Standard-type pipelines only — the subset runnable on the current image
+    /// from Preview (the Run Pipeline menu / combobox).
+    std::vector<models::PipelineInfo> standard_pipeline_files_;
+    /// Varying-type pipelines — run via the MultiPipelines dialog (file in/out).
+    std::vector<models::PipelineInfo> varying_pipeline_files_;
+    /// Each pipeline's interface, keyed by file (for the MultiPipeline dialog).
+    std::unordered_map<std::string, pipeline::PipelineInterface> pipeline_interfaces_;
+
+    /// Load a Varying pipeline and open the MultiPipeline dialog for it.
+    void openMultiPipeline(const std::string& name);
+    /// Execute the MultiPipeline dialog's run request (load inputs, run, save).
+    void runMultiPipeline();
 
     // Pending parameterized pipeline run (Real Input prompt).
     std::optional<pipeline::NodeGraph> param_graph_;
@@ -110,6 +124,7 @@ private:
     views::BatchConvert batch_convert_;
     views::CascBrowser casc_browser_;
     views::PipelineEditor pipeline_editor_;
+    views::MultiPipelineDialog multi_pipeline_dialog_;
     whiteout::textures::TextureConverter converter_;
 
     // Services

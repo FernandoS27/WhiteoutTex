@@ -3,12 +3,15 @@
 
 #include "save_helpers.h"
 
+#include "thread_pool_manager.h"
+
 #include <filesystem>
 
 namespace whiteout::textool::views {
 
 namespace blp = whiteout::textures::blp;
 namespace texn = whiteout::textures;
+using TFF = texn::TextureFileFormat;
 
 // ============================================================================
 // BLP save preparation
@@ -67,6 +70,58 @@ void coerceDdsFormat(texn::Texture& tex, i32 dds_format, bool invert_y,
     }
     if (tex.format() != target)
         tex = tex.copyAsFormat(target, pool);
+}
+
+// ============================================================================
+// Generic save with prefs (shared by MultiPipeline outputs)
+// ============================================================================
+
+std::string saveTextureWithPrefs(texn::TextureConverter& converter, const texn::Texture& source,
+                                 const std::string& path, TFF target_format,
+                                 const SavePrefs& prefs, texn::TextureKind kind) {
+    auto tex_copy = source;
+    tex_copy.setKind(kind);
+    auto* pool = threadPoolManager().get();
+
+    if (prefs.generate_mipmaps) {
+        if (texn::isBcn(tex_copy.format()))
+            tex_copy = tex_copy.copyAsFormat(texn::PixelFormat::RGBA8, pool);
+        const auto mipCount = effectiveMipCount(prefs.mipmap_mode, prefs.mipmap_custom_count, tex_copy);
+        if (auto err = tex_copy.generateMipmaps(mipCount, pool))
+            return "Mipmap generation failed: " + *err;
+    }
+
+    bool ok = false;
+    switch (target_format) {
+    case TFF::BLP: {
+        auto opts = buildBlpSaveOptions(prefs.blp_version, prefs.blp_encoding, prefs.blp_dither,
+                                        prefs.blp_dither_strength, prefs.jpeg_quality,
+                                        prefs.jpeg_progressive);
+        coerceBlpFormat(tex_copy, prefs.blp_encoding, opts.encoding, pool);
+        ok = converter.save(tex_copy, path, opts);
+        break;
+    }
+    case TFF::DDS:
+        coerceDdsFormat(tex_copy, prefs.dds_format, prefs.dds_invert_y, pool);
+        ok = converter.save(tex_copy, path);
+        break;
+    case TFF::JPEG:
+        ok = converter.save(tex_copy, path, prefs.jpeg_quality, prefs.jpeg_progressive);
+        break;
+    default:
+        ok = converter.save(tex_copy, path);
+        break;
+    }
+
+    std::string status;
+    if (ok) {
+        status = "Saved: " + path;
+    } else {
+        status = "Failed to save: " + path;
+        if (converter.hasIssues())
+            appendIssues(status, converter.getIssues());
+    }
+    return status;
 }
 
 // ============================================================================

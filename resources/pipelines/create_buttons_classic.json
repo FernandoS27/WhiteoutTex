@@ -1,0 +1,344 @@
+{
+  "links": [
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        13,
+        "Base"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "image"
+      ],
+      "to": [
+        13,
+        "Overlay"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "Blended"
+      ],
+      "to": [
+        12,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        17,
+        "Base"
+      ]
+    },
+    {
+      "from": [
+        14,
+        "image"
+      ],
+      "to": [
+        17,
+        "Overlay"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "image"
+      ],
+      "to": [
+        18,
+        "Overlay"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        18,
+        "Base"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "image"
+      ],
+      "to": [
+        19,
+        "Overlay"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        19,
+        "Base"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "Blended"
+      ],
+      "to": [
+        20,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        18,
+        "Blended"
+      ],
+      "to": [
+        21,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "Blended"
+      ],
+      "to": [
+        22,
+        "image"
+      ]
+    }
+  ],
+  "name": "CreateButtonsReforged",
+  "nodes": [
+    {
+      "id": 4,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        49.0,
+        259.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 6,
+      "params": {
+        "path": "icon_bases/Reforged/BTN_preset.dds"
+      },
+      "pos": [
+        25.0,
+        403.0
+      ],
+      "type": "input.resource"
+    },
+    {
+      "id": 12,
+      "params": {
+        "name": "BTNIcon"
+      },
+      "pos": [
+        1348.0,
+        294.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 13,
+      "params": {
+        "pipeline": "functions/apply_overlay.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Base",
+            "type": "rgba"
+          },
+          {
+            "name": "Overlay",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Blended",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        695.0,
+        254.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 14,
+      "params": {
+        "path": "icon_bases/Reforged/ATC_preset.dds"
+      },
+      "pos": [
+        25.0,
+        547.0
+      ],
+      "type": "input.resource"
+    },
+    {
+      "id": 15,
+      "params": {
+        "path": "icon_bases/Reforged/DIS_preset.dds"
+      },
+      "pos": [
+        25.0,
+        675.0
+      ],
+      "type": "input.resource"
+    },
+    {
+      "id": 16,
+      "params": {
+        "path": "icon_bases/Reforged/PAS_preset.dds"
+      },
+      "pos": [
+        25.0,
+        803.0
+      ],
+      "type": "input.resource"
+    },
+    {
+      "id": 17,
+      "params": {
+        "pipeline": "functions/apply_overlay.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Base",
+            "type": "rgba"
+          },
+          {
+            "name": "Overlay",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Blended",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        696.0,
+        467.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 18,
+      "params": {
+        "pipeline": "functions/apply_overlay.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Base",
+            "type": "rgba"
+          },
+          {
+            "name": "Overlay",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Blended",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        696.0,
+        643.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 19,
+      "params": {
+        "pipeline": "functions/apply_overlay.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "Base",
+            "type": "rgba"
+          },
+          {
+            "name": "Overlay",
+            "type": "rgba"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Blended",
+            "type": "rgba"
+          }
+        ]
+      },
+      "pos": [
+        696.0,
+        803.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 20,
+      "params": {
+        "name": "ATCIcon"
+      },
+      "pos": [
+        1343.0,
+        497.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 21,
+      "params": {
+        "name": "DISBTNIcon"
+      },
+      "pos": [
+        1336.0,
+        659.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 22,
+      "params": {
+        "name": "PASIcon"
+      },
+      "pos": [
+        1336.0,
+        835.0
+      ],
+      "type": "output.standard"
+    }
+  ],
+  "type": "varying",
+  "version": 1
+}

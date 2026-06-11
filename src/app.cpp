@@ -20,6 +20,7 @@
 #include <cstring>
 #include <filesystem>
 #include <thread>
+#include <unordered_map>
 
 #include <SDL3/SDL.h>
 #include <imgui.h>
@@ -455,6 +456,7 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                     applyLoadResult(c.meta_path, std::move(result));
                 },
                 [&](RunPipelineCmd& c) { runPipeline(c.name); },
+                [&](OpenMultiPipelineCmd& c) { openMultiPipeline(c.name); },
                 [&](OpenCascCmd&) { /* reserved for future use */ },
             },
             cmd);
@@ -538,6 +540,101 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     ui_.result_popup_message = std::move(msg);
     ui_.result_popup_success = result.output.has_value();
     ui_.show_result_popup = true;
+}
+
+void App::openMultiPipeline(const std::string& name) {
+    const auto it = pipeline_interfaces_.find(name);
+    if (it == pipeline_interfaces_.end()) {
+        ui_.result_popup_message = "Pipeline interface not found: " + name;
+        ui_.result_popup_success = false;
+        ui_.show_result_popup = true;
+        return;
+    }
+    // Map the pipeline's image (RGBA) ports to file rows.
+    std::vector<std::string> ins, outs;
+    for (const auto& p : it->second.inputs)
+        if (p.type == pipeline::PinType::RGBA)
+            ins.push_back(p.name);
+    for (const auto& p : it->second.outputs)
+        if (p.type == pipeline::PinType::RGBA)
+            outs.push_back(p.name);
+
+    std::string display = name;
+    for (const auto& info : varying_pipeline_files_)
+        if (info.file == name) {
+            display = info.display_name;
+            break;
+        }
+    multi_pipeline_dialog_.open(name, std::move(display), ins, outs, save_prefs_);
+}
+
+void App::runMultiPipeline() {
+    const std::string name = multi_pipeline_dialog_.file();
+    const std::filesystem::path file = pipelines_dir_.empty()
+                                           ? std::filesystem::path("pipelines") / name
+                                           : std::filesystem::path(pipelines_dir_) / name;
+
+    pipeline::NodeGraph graph;
+    bool loaded = false;
+    if (std::ifstream f(file, std::ios::binary); f) {
+        try {
+            nlohmann::json doc;
+            f >> doc;
+            loaded = pipeline::fromJson(doc, graph, nullptr);
+        } catch (const nlohmann::json::exception&) {
+        }
+    }
+    if (!loaded) {
+        multi_pipeline_dialog_.finishRun("Could not load pipeline: " + name, false);
+        return;
+    }
+
+    // Load each input image, keyed by its port (input node) name.
+    std::unordered_map<std::string, tex::Texture> inputs;
+    std::string errors;
+    for (const auto& in : multi_pipeline_dialog_.inputs()) {
+        auto load = texture_service_.loadFromFile(in.path);
+        if (!load.texture) {
+            errors += "\n- Failed to load input '" + in.port + "': " + in.path;
+            continue;
+        }
+        inputs.emplace(in.port, std::move(*load.texture));
+    }
+
+    const std::filesystem::path presets =
+        pipelines_dir_.empty()
+            ? std::filesystem::path("presets")
+            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+    auto result = services::runVaryingPipeline(graph, inputs, presets,
+                                               std::filesystem::path(pipelines_dir_),
+                                               texture_service_);
+    for (const auto& e : result.errors)
+        errors += "\n- " + e;
+
+    // Save each output to its chosen file with the per-output format options.
+    std::size_t saved = 0;
+    const auto& outs = multi_pipeline_dialog_.outputs();
+    for (const auto& out : outs) {
+        auto oit = result.outputs.find(out.port);
+        if (oit == result.outputs.end()) {
+            errors += "\n- Output '" + out.port + "' produced no image";
+            continue;
+        }
+        const auto fmt = tex::TextureConverter::classifyPath(out.path);
+        std::string status =
+            views::saveTextureWithPrefs(converter_, oit->second, out.path, fmt, out.prefs,
+                                        static_cast<tex::TextureKind>(out.kind));
+        if (status.rfind("Saved:", 0) == 0)
+            ++saved;
+        else
+            errors += "\n- " + status;
+    }
+
+    std::string msg = "Saved " + std::to_string(saved) + " / " + std::to_string(outs.size()) +
+                      " output(s).";
+    if (!errors.empty())
+        msg += errors;
+    multi_pipeline_dialog_.finishRun(std::move(msg), errors.empty());
 }
 
 void App::drawPipelineParamDialog() {
@@ -691,37 +788,58 @@ i32 App::run(i32 argc, char** argv) {
     }
 
     // Discover runnable standard pipelines (*.json) next to the executable,
-    // reading each one's display name from its "name" field.
+    // reading each one's display name from its "name" field and deriving its
+    // external interface (for Subpipeline node pins).
     {
         std::error_code ec;
-        for (std::filesystem::directory_iterator it(pipelines_dir_, ec), end; it != end;
+        for (std::filesystem::recursive_directory_iterator it(pipelines_dir_, ec), end; it != end;
              it.increment(ec)) {
             if (ec)
                 break;
             if (!it->is_regular_file(ec) || to_lower(it->path().extension().string()) != ".json")
                 continue;
             models::PipelineInfo info;
-            info.file = it->path().filename().string();
+            // Store the path relative to the pipelines folder (forward slashes)
+            // so pipelines in subfolders stay addressable (e.g. functions/foo.json).
+            info.file =
+                std::filesystem::relative(it->path(), pipelines_dir_, ec).generic_string();
+            if (info.file.empty())
+                info.file = it->path().filename().string();
+            auto ptype = pipeline::PipelineType::Standard; // default when untyped
             std::ifstream pf(it->path(), std::ios::binary);
             if (pf) {
                 try {
                     nlohmann::json doc;
                     pf >> doc;
                     info.display_name = doc.value("name", std::string{});
+                    pipeline::NodeGraph g;
+                    if (pipeline::fromJson(doc, g, nullptr)) {
+                        pipeline_interfaces_[info.file] = g.interface();
+                        ptype = g.pipelineType();
+                    }
                 } catch (const nlohmann::json::exception&) {
                 }
             }
             if (info.display_name.empty())
                 info.display_name = it->path().stem().string();
+            // Standard pipelines run on the current image (Preview); Varying
+            // pipelines run from the MultiPipelines dialog (file in/out).
+            if (ptype == pipeline::PipelineType::Standard)
+                standard_pipeline_files_.push_back(info);
+            else if (ptype == pipeline::PipelineType::Varying)
+                varying_pipeline_files_.push_back(info);
             pipeline_files_.push_back(std::move(info));
         }
-        std::sort(pipeline_files_.begin(), pipeline_files_.end(),
-                  [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
-                      return a.display_name < b.display_name;
-                  });
+        const auto byName = [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
+            return a.display_name < b.display_name;
+        };
+        std::sort(pipeline_files_.begin(), pipeline_files_.end(), byName);
+        std::sort(standard_pipeline_files_.begin(), standard_pipeline_files_.end(), byName);
+        std::sort(varying_pipeline_files_.begin(), varying_pipeline_files_.end(), byName);
     }
-    image_details_.setPipelines(pipeline_files_);
+    image_details_.setPipelines(standard_pipeline_files_);
     pipeline_editor_.setPipelines(pipeline_files_);
+    pipeline_editor_.setPipelineInterfaces(pipeline_interfaces_);
 
     app_prefs_ = load_app_prefs(imgui_ini_path_);
     i18n::Localizer::instance().load(lang_dir_, app_prefs_.language);
@@ -803,7 +921,7 @@ i32 App::run(i32 argc, char** argv) {
                 false;
 #endif
             auto cmds = drawMenuBar(tex_state_.texture.has_value(), recent_files_.paths,
-                                    kHasUpscaler, app_prefs_.language, pipeline_files_);
+                                    kHasUpscaler, app_prefs_.language, varying_pipeline_files_);
             dispatchCommands(cmds);
         }
 
@@ -922,6 +1040,9 @@ i32 App::run(i32 argc, char** argv) {
         drawAboutDialog(ui_.show_about);
         drawResultDialog(ui_);
         drawPipelineParamDialog();
+        multi_pipeline_dialog_.draw(window_);
+        if (multi_pipeline_dialog_.takeRunRequest())
+            runMultiPipeline();
         {
             auto cmds = drawBC3NDialog(ui_.show_bc3n_dialog);
             dispatchCommands(cmds);

@@ -1,0 +1,18 @@
+{
+  "name": "Multi Blend",
+  "type": "varying",
+  "version": 1,
+  "nodes": [
+    { "id": 1, "type": "input.standard",  "params": { "name": "Base" },     "pos": [80.0, 120.0] },
+    { "id": 2, "type": "input.standard",  "params": { "name": "Overlay" },  "pos": [80.0, 340.0] },
+    { "id": 3, "type": "op.blend",        "params": { "mode": 1 },          "pos": [430.0, 200.0] },
+    { "id": 4, "type": "output.standard", "params": { "name": "Blended" },  "pos": [780.0, 200.0] },
+    { "id": 5, "type": "output.standard", "params": { "name": "BaseCopy" }, "pos": [780.0, 380.0] }
+  ],
+  "links": [
+    { "from": [1, "image"], "to": [3, "bottom layer"] },
+    { "from": [2, "image"], "to": [3, "top layer"] },
+    { "from": [3, "image"], "to": [4, "image"] },
+    { "from": [1, "image"], "to": [5, "image"] }
+  ]
+}

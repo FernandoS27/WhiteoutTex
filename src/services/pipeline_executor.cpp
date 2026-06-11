@@ -22,6 +22,7 @@ namespace whiteout::textool::services {
 namespace tex = whiteout::textures;
 using pipeline::Link;
 using pipeline::Node;
+using pipeline::NodeCategory;
 using pipeline::NodeGraph;
 using pipeline::NodeId;
 using pipeline::Param;
@@ -56,6 +57,12 @@ struct ExecEnv {
 };
 
 constexpr int kMaxSubpipelineDepth = 8;
+
+// Run a graph binding its named external ports: @p inputs maps port name (an
+// Input node's "name" param) -> value; the return maps Output port name ->
+// value.  Defined after applyNode; forward-declared for the Subpipeline node.
+PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv& env,
+                     std::vector<std::string>& errors);
 
 // ── Param helpers (const view over a node's params) ─────────────────────────
 const Param* findParam(const Node& n, std::string_view name) {
@@ -320,12 +327,22 @@ std::optional<tex::Texture> channelR8(const PinMap& in, const char* pin) {
     return std::nullopt;
 }
 
-enum class ArithOp { Add, Mul };
+enum class ArithOp { Add, Mul, Min, Max };
 
 PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
                     std::vector<std::string>& errors) {
     PinData out;
-    const auto apply = [op](float x, float y) { return op == ArithOp::Add ? x + y : x * y; };
+    // Generic over float (channels) and int/double (scalars); each call site
+    // passes matching operand types.
+    const auto apply = [op](auto x, auto y) -> decltype(x + y) {
+        switch (op) {
+        case ArithOp::Add: return x + y;
+        case ArithOp::Mul: return x * y;
+        case ArithOp::Min: return x < y ? x : y;
+        case ArithOp::Max: return x > y ? x : y;
+        }
+        return x;
+    };
     const bool aCh = isChannelLike(a), bCh = isChannelLike(b);
 
     // Channel arithmetic runs in float (signed, full precision); it is only
@@ -347,9 +364,9 @@ PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
             v = apply(v, num);
         out.fchan = std::move(f);
     } else if (a.integer && b.integer) { // int ⊕ int -> int
-        out.integer = op == ArithOp::Add ? (*a.integer + *b.integer) : (*a.integer * *b.integer);
+        out.integer = apply(*a.integer, *b.integer);
     } else { // any real involved -> real
-        out.real = op == ArithOp::Add ? scalarOf(a) + scalarOf(b) : scalarOf(a) * scalarOf(b);
+        out.real = apply(scalarOf(a), scalarOf(b));
     }
     return out;
 }
@@ -624,16 +641,72 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
     } else if (type == "op.luma") {
         if (const tex::Texture* img = inImage("image"))
             out["channel"].image = luma(toRGBA8(*img), paramInt(n, "method", 0));
-    } else if (type == "op.add" || type == "op.multiply") {
+    } else if (type == "op.image_properties") {
+        if (const tex::Texture* img = inImage("image")) {
+            out["width"].integer = static_cast<i64>(img->width());
+            out["height"].integer = static_cast<i64>(img->height());
+            out["mipmaps"].integer = static_cast<i64>(img->mipCount());
+            out["kind"].integer = static_cast<i64>(img->kind());
+            // Per-channel subkinds as ints (TextureKind values); meaningful for
+            // Multikind textures, otherwise TextureKind::Other for each.
+            out["r kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::R));
+            out["g kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::G));
+            out["b kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::B));
+            out["a kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::A));
+        }
+    } else if (type == "op.set_kind") {
+        if (const tex::Texture* img = inImage("image")) {
+            tex::Texture work = toRGBA8(*img); // copyAsFormat preserves the kind
+            if (const auto it = in.find("kind"); it != in.end() && it->second.integer) {
+                const i64 k = *it->second.integer;
+                // Valid top-level kinds are Other..Multikind; Unused is per-channel only.
+                if (k >= 0 && k <= static_cast<i64>(tex::TextureKind::Multikind))
+                    work.setKind(static_cast<tex::TextureKind>(k));
+                else
+                    errors.push_back("Set Kind: invalid kind value (ignored)");
+            }
+            out["image"].image = std::move(work);
+        }
+    } else if (type == "input.const_kind") {
+        out["value"].integer = paramInt(n, "kind", 0); // enum index == TextureKind value
+    } else if (type == "op.add" || type == "op.multiply" || type == "op.min" ||
+               type == "op.max") {
         const auto ia = in.find("a");
         const auto ib = in.find("b");
-        const ArithOp aop = type == "op.add" ? ArithOp::Add : ArithOp::Mul;
+        const ArithOp aop = type == "op.add"        ? ArithOp::Add
+                            : type == "op.multiply" ? ArithOp::Mul
+                            : type == "op.min"      ? ArithOp::Min
+                                                    : ArithOp::Max;
         if (ia != in.end() && ib != in.end())
             out["result"] = binaryArith(ia->second, ib->second, aop, errors);
         else if (ia != in.end())
             out["result"] = ia->second; // single operand -> passthrough
         else if (ib != in.end())
             out["result"] = ib->second;
+    } else if (type == "ctrl.conditional") {
+        // Compare the two numeric operands; route `value` to true/false output.
+        const double av = [&] {
+            const auto it = in.find("a");
+            return it != in.end() ? scalarOf(it->second) : 0.0;
+        }();
+        const double bv = [&] {
+            const auto it = in.find("b");
+            return it != in.end() ? scalarOf(it->second) : 0.0;
+        }();
+        // Equal / Not Equal use an epsilon tolerance so float operands compare
+        // sensibly (exact == on doubles rarely holds).
+        const double eps = std::abs(paramReal(n, "epsilon", 1e-6));
+        bool cond = false;
+        switch (paramInt(n, "comparator", 0)) {
+        case 0: cond = std::abs(av - bv) <= eps; break; // Equal
+        case 1: cond = std::abs(av - bv) > eps; break;  // Not equal
+        case 2: cond = av < bv; break;                  // Less
+        case 3: cond = av <= bv; break;                 // Less or equal
+        case 4: cond = av > bv; break;                  // Greater
+        case 5: cond = av >= bv; break;                 // Greater or equal
+        }
+        if (const auto it = in.find("value"); it != in.end())
+            out[cond ? "true" : "false"] = it->second;
     } else if (type == "op.negate" || type == "op.sqrt" || type == "op.reciprocal") {
         if (const auto it = in.find("value"); it != in.end()) {
             const UnaryOp uo = type == "op.negate"  ? UnaryOp::Negate
@@ -708,40 +781,44 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["image"].image = toRGBA8(*img);
         errors.push_back("Upscale: AI upscaling is not run inside pipelines yet (passed through)");
     } else if (type == "op.subpipeline") {
-        const tex::Texture* img = inImage("image");
-        if (img) {
-            const std::string name = paramStr(n, "pipeline");
-            tex::Texture in_rgba = toRGBA8(*img);
-            if (name.empty()) {
-                errors.push_back("Subpipeline: no pipeline selected (passed through)");
-                out["image"].image = std::move(in_rgba);
-            } else if (env.depth >= kMaxSubpipelineDepth) {
-                errors.push_back("Subpipeline: nesting too deep (passed through)");
-                out["image"].image = std::move(in_rgba);
+        // The node's pins mirror the selected pipeline's interface, so its input
+        // pin names ARE the sub-pipeline's input port names — pass them straight
+        // through, and copy each captured output port back onto the matching pin.
+        const std::string name = paramStr(n, "pipeline");
+        // Echo any "image" input on failure so a broken Subpipeline is a no-op.
+        const auto passthrough = [&] {
+            if (auto it = in.find("image"); it != in.end())
+                out["image"] = it->second;
+        };
+        if (name.empty()) {
+            errors.push_back("Subpipeline: no pipeline selected (passed through)");
+            passthrough();
+        } else if (env.depth >= kMaxSubpipelineDepth) {
+            errors.push_back("Subpipeline: nesting too deep (passed through)");
+            passthrough();
+        } else {
+            std::ifstream f(env.pipelines_dir / name, std::ios::binary);
+            nlohmann::json doc;
+            bool loaded = false;
+            if (f) {
+                try {
+                    f >> doc;
+                    loaded = true;
+                } catch (const nlohmann::json::exception&) {
+                }
+            }
+            pipeline::NodeGraph sub;
+            if (loaded && pipeline::fromJson(doc, sub, &errors)) {
+                const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1};
+                std::vector<std::string> sub_errors;
+                PinMap sub_out = runGraphPorts(sub, in, subenv, sub_errors);
+                for (auto& e : sub_errors)
+                    errors.push_back("Subpipeline '" + name + "': " + e);
+                for (auto& [port, data] : sub_out)
+                    out[port] = std::move(data);
             } else {
-                // Load + parse the referenced pipeline and run it on this image.
-                std::ifstream f(env.pipelines_dir / name, std::ios::binary);
-                nlohmann::json doc;
-                bool loaded = false;
-                if (f) {
-                    try {
-                        f >> doc;
-                        loaded = true;
-                    } catch (const nlohmann::json::exception&) {
-                    }
-                }
-                pipeline::NodeGraph sub;
-                if (loaded && pipeline::fromJson(doc, sub, &errors)) {
-                    auto sub_res = runStandardPipeline(sub, in_rgba, env.presets_dir,
-                                                       env.pipelines_dir, env.ts, env.depth + 1);
-                    for (auto& e : sub_res.errors)
-                        errors.push_back("Subpipeline '" + name + "': " + e);
-                    out["image"].image =
-                        sub_res.output ? std::move(*sub_res.output) : std::move(in_rgba);
-                } else {
-                    errors.push_back("Subpipeline: could not load '" + name + "' (passed through)");
-                    out["image"].image = std::move(in_rgba);
-                }
+                errors.push_back("Subpipeline: could not load '" + name + "' (passed through)");
+                passthrough();
             }
         }
     } else if (type == "output.standard") {
@@ -755,16 +832,19 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
     return out;
 }
 
-} // namespace
+// The "name" param of an interface (Input/Output) node, or empty if absent.
+std::optional<std::string> portNameOf(const Node& n) {
+    const Param* p = findParam(n, "name");
+    if (p && std::holds_alternative<std::string>(p->value))
+        return std::get<std::string>(p->value);
+    return std::nullopt;
+}
 
-PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture& input,
-                                      const std::filesystem::path& presets_dir,
-                                      const std::filesystem::path& pipelines_dir,
-                                      TextureService& texture_service, int depth) {
-    PipelineRunResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth};
+PinMap runGraphPorts(const NodeGraph& graph, const PinMap& inputs, const ExecEnv& env,
+                     std::vector<std::string>& errors) {
+    PinMap captured; // Output-port name -> value.
 
-    // Outputs computed per node, keyed by (node id, pin name).
+    // Per-node outputs, keyed by node id then pin name.
     std::unordered_map<NodeId, PinMap> outputs;
 
     // Kahn topological order over the link DAG.
@@ -801,19 +881,26 @@ PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture
                 in[l.to.pin] = val->second;
         }
 
-        // Standard Input emits the supplied texture; Standard Output captures.
-        if (n->typeId() == "input.standard") {
-            PinMap o;
-            o["image"].image = toRGBA8(input);
-            outputs[id] = std::move(o);
-        } else if (n->typeId() == "output.standard") {
-            if (auto it = in.find("image"); it != in.end() && it->second.image)
-                result.output = *it->second.image;
+        // Named Input/Output nodes are the external interface: an Input emits
+        // its bound value (or its own default), an Output captures by port name.
+        // Everything else (resource/const sources included) is normal node work.
+        const std::optional<std::string> port = portNameOf(*n);
+        if (port && n->category() == NodeCategory::Input && !n->outputs().empty()) {
+            if (auto it = inputs.find(*port); it != inputs.end()) {
+                PinMap o;
+                o[n->outputs().front().name] = it->second;
+                outputs[id] = std::move(o);
+            } else {
+                outputs[id] = applyNode(*n, in, env, errors); // default value, if any
+            }
+        } else if (port && n->category() == NodeCategory::Output && !n->inputs().empty()) {
+            if (auto it = in.find(n->inputs().front().name); it != in.end())
+                captured[*port] = it->second;
             else
-                result.errors.push_back("Standard Output has no connected image");
+                errors.push_back("Output '" + *port + "' has no connected value");
             outputs[id] = {};
         } else {
-            outputs[id] = applyNode(*n, in, env, result.errors);
+            outputs[id] = applyNode(*n, in, env, errors);
         }
 
         for (const Link& l : graph.links()) {
@@ -825,9 +912,71 @@ PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture
     }
 
     if (processed < graph.nodes().size())
-        result.errors.push_back("Pipeline has a cycle; some nodes were not executed");
+        errors.push_back("Pipeline has a cycle; some nodes were not executed");
+
+    return captured;
+}
+
+} // namespace
+
+PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture& input,
+                                      const std::filesystem::path& presets_dir,
+                                      const std::filesystem::path& pipelines_dir,
+                                      TextureService& texture_service, int depth) {
+    PipelineRunResult result;
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth};
+
+    // Bind the supplied image to every Standard Input port (a standard pipeline
+    // has exactly one).  Ports are keyed by the input node's "name" param.
+    PinMap inputs;
+    for (const auto& up : graph.nodes()) {
+        if (up->typeId() != "input.standard")
+            continue;
+        PinData d;
+        d.image = toRGBA8(input);
+        inputs[portNameOf(*up).value_or(std::string{})] = std::move(d);
+    }
+
+    PinMap captured = runGraphPorts(graph, inputs, env, result.errors);
+
+    // The standard output is the first Standard Output port's captured image.
+    for (const auto& up : graph.nodes()) {
+        if (up->typeId() != "output.standard")
+            continue;
+        if (auto it = captured.find(portNameOf(*up).value_or(std::string{}));
+            it != captured.end() && it->second.image) {
+            result.output = *it->second.image;
+            break;
+        }
+    }
+
     if (!result.output)
         result.errors.push_back("Pipeline produced no Standard Output");
+
+    return result;
+}
+
+MultiPipelineRunResult runVaryingPipeline(
+    const NodeGraph& graph, const std::unordered_map<std::string, tex::Texture>& inputs,
+    const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
+    TextureService& texture_service, int depth) {
+    MultiPipelineRunResult result;
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth};
+
+    // Bind each supplied image to its named input port.
+    PinMap bound;
+    for (const auto& [name, image] : inputs) {
+        PinData d;
+        d.image = toRGBA8(image);
+        bound[name] = std::move(d);
+    }
+
+    PinMap captured = runGraphPorts(graph, bound, env, result.errors);
+
+    // Collect every captured image output (skip non-image ports).
+    for (auto& [name, data] : captured)
+        if (data.image)
+            result.outputs.emplace(name, std::move(*data.image));
 
     return result;
 }

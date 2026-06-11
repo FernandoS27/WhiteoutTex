@@ -58,9 +58,6 @@ bool paramVisible(Node* n, const Param& p) {
     return true;
 }
 
-// Drag-and-drop payload id carrying a node type-id string (palette -> canvas).
-constexpr const char* kNodeDragPayload = "WT_PIPELINE_NODE";
-
 // File-dialog filter for pipeline documents.
 const SDL_DialogFileFilter kPipelineFilters[] = {{"Pipeline (*.json)", "json"}, {"All files", "*"}};
 
@@ -130,6 +127,7 @@ ImVec4 categoryColor(NodeCategory c) {
     case NodeCategory::Constant: return ImVec4(0.62f, 0.42f, 0.78f, 1.0f);  // violet
     case NodeCategory::Operation: return ImVec4(0.29f, 0.51f, 0.82f, 1.0f); // blue
     case NodeCategory::Output: return ImVec4(0.85f, 0.55f, 0.26f, 1.0f);    // amber
+    case NodeCategory::Control: return ImVec4(0.82f, 0.40f, 0.52f, 1.0f);   // rose
     }
     return ImVec4(0.55f, 0.55f, 0.55f, 1.0f);
 }
@@ -144,6 +142,7 @@ ImVec4 pinTypeColor(PinType t) {
     case PinType::Bool: return ImVec4(0.82f, 0.78f, 0.47f, 1.0f);   // yellow
     case PinType::String: return ImVec4(0.75f, 0.55f, 0.80f, 1.0f); // purple
     case PinType::Number: return ImVec4(0.55f, 0.82f, 0.80f, 1.0f); // teal
+    case PinType::Any: return ImVec4(0.90f, 0.90f, 0.92f, 1.0f);    // near-white
     }
     return ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
 }
@@ -354,17 +353,27 @@ void PipelineEditor::draw(SDL_Window* window) {
 
     ed::End();
 
-    // Drop target for palette templates.  Done while the editor is still the
-    // current one so ScreenToCanvas maps the drop point into graph space.
-    const ImRect canvas_rect(canvas_min,
-                             ImVec2(canvas_min.x + canvas_avail.x, canvas_min.y + canvas_avail.y));
-    if (ImGui::BeginDragDropTargetCustom(canvas_rect, ImGui::GetID("##PipelineCanvasDrop"))) {
-        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload(kNodeDragPayload)) {
-            const char* type_id = static_cast<const char*>(pl->Data);
-            const ImVec2 c = ed::ScreenToCanvas(ImGui::GetMousePos());
-            spawnNodeAt(type_id, {c.x, c.y});
+    // Drag a palette template onto the canvas.  We don't use ImGui's drag-drop
+    // payloads (their target hit-testing is unreliable over the node-editor's
+    // own child windows); instead drag_type_ is captured on press in the palette
+    // and we spawn here on release if the cursor is over the canvas.  Done while
+    // the editor is still current so ScreenToCanvas maps the drop into graph space.
+    if (!drag_type_.empty()) {
+        const ImRect canvas_rect(
+            canvas_min, ImVec2(canvas_min.x + canvas_avail.x, canvas_min.y + canvas_avail.y));
+        const ImVec2 mouse = ImGui::GetMousePos();
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            // Follow the cursor with a small preview of the node being placed.
+            if (canvas_rect.Contains(mouse))
+                ImGui::SetTooltip("%s", drag_label_.c_str());
+        } else { // released — drop it if over the canvas, then end the drag
+            if (canvas_rect.Contains(mouse)) {
+                const ImVec2 c = ed::ScreenToCanvas(mouse);
+                spawnNodeAt(drag_type_.c_str(), {c.x, c.y});
+            }
+            drag_type_.clear();
+            drag_label_.clear();
         }
-        ImGui::EndDragDropTarget();
     }
 
     syncPositions();
@@ -423,6 +432,7 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
         {NodeCategory::Input, "pipeline.category.input"},
         {NodeCategory::Constant, "pipeline.category.constants"},
         {NodeCategory::Operation, "pipeline.category.operation"},
+        {NodeCategory::Control, "pipeline.category.control"},
         {NodeCategory::Output, "pipeline.category.output"},
     };
 
@@ -438,19 +448,37 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
             // ##type_id keeps the id stable even if two types share a label.
             const std::string item = std::string(label) + "##" + d.type_id;
 
-            // Click spawns at a cascading position; drag drops at the cursor.
-            if (ImGui::Selectable(item.c_str()))
-                spawnNode(d.type_id.c_str());
-            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                ImGui::SetDragDropPayload(kNodeDragPayload, d.type_id.c_str(),
-                                          d.type_id.size() + 1);
-                ImGui::TextUnformatted(label);
-                ImGui::EndDragDropSource();
+            // Drag a template onto the canvas to create it where released.
+            // Capturing on press makes ImGui own the active id, so the node
+            // editor won't start a selection box mid-drag.  (A plain click that
+            // releases over the palette does nothing — creation is drag-only.)
+            ImGui::Selectable(item.c_str());
+            if (ImGui::IsItemActivated()) {
+                drag_type_ = d.type_id;
+                drag_label_ = label;
             }
         }
     }
 
     ImGui::EndChild();
+}
+
+void PipelineEditor::syncSubpipelinePins(pipeline::Node& node) {
+    using pipeline::Param;
+    // The selected pipeline's file name lives in the node's "pipeline" param.
+    std::string file;
+    for (const Param& p : node.params())
+        if (p.name == "pipeline" && std::holds_alternative<std::string>(p.value))
+            file = std::get<std::string>(p.value);
+
+    if (const auto it = pipeline_interfaces_.find(file); it != pipeline_interfaces_.end())
+        pipeline::applyPipelineInterface(node, it->second);
+    else // unknown / unselected: fall back to the standard single image port pair
+        pipeline::applyPipelineInterface(node, {{{"image", pipeline::PinType::RGBA}},
+                                                {{"image", pipeline::PinType::RGBA}}});
+
+    // Links that pointed at pins the new interface dropped are now invalid.
+    graph_.pruneInvalidLinks();
 }
 
 void PipelineEditor::drawNodes() {
@@ -783,8 +811,12 @@ void PipelineEditor::drawNodes() {
                         if (pipelines_.empty())
                             ImGui::TextDisabled("%s", i18n::tr("pipeline.resource.no_pipeline"));
                         for (const auto& info : pipelines_) {
-                            if (ImGui::Selectable(info.display_name.c_str(), info.file == cur))
+                            if (ImGui::Selectable(info.display_name.c_str(), info.file == cur) &&
+                                info.file != cur) {
                                 cur = info.file;
+                                // Reshape this node's pins to the picked pipeline.
+                                syncSubpipelinePins(*n);
+                            }
                         }
                         ImGui::EndPopup();
                     }
@@ -897,7 +929,12 @@ void PipelineEditor::handleDelete() {
 
 void PipelineEditor::syncPositions() {
     // Read editor positions back into the model so drags are captured for save.
+    // Skip nodes not yet pushed to the editor (e.g. one just dropped this frame,
+    // after drawNodes ran): the editor would report (0,0) and clobber the model
+    // position before drawNodes ever places the node at its real spot.
     for (const auto& up : graph_.nodes()) {
+        if (!placed_.contains(up->id()))
+            continue;
         const ImVec2 p = ed::GetNodePosition(ed::NodeId(up->id()));
         up->setPosition({p.x, p.y});
     }

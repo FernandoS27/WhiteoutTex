@@ -63,6 +63,19 @@ json toJson(const NodeGraph& graph) {
             params[p.name] = paramToJson(p.value);
         jn["params"] = std::move(params);
 
+        // Dynamic-pin nodes (e.g. Subpipeline) don't re-derive their pins from
+        // the ctor, so persist them — names+types are link-bearing on load.
+        if (n->hasDynamicPins()) {
+            const auto dumpPins = [](std::span<const Pin> pins) {
+                json arr = json::array();
+                for (const Pin& p : pins)
+                    arr.push_back({{"name", p.name}, {"type", pinTypeName(p.type)}});
+                return arr;
+            };
+            jn["pins"] = {{"inputs", dumpPins(n->inputs())},
+                          {"outputs", dumpPins(n->outputs())}};
+        }
+
         nodes.push_back(std::move(jn));
     }
     doc["nodes"] = std::move(nodes);
@@ -115,6 +128,23 @@ bool fromJson(const json& doc, NodeGraph& graph, std::vector<std::string>* warni
             for (auto& p : node->params()) {
                 if (auto pit = it->find(p.name); pit != it->end())
                     paramFromJson(p.value, *pit, p.name, warnings);
+            }
+        }
+
+        // Restore a dynamic-pin node's persisted pins before links are added,
+        // so this node's link endpoints resolve against the right pin set.
+        if (node->hasDynamicPins()) {
+            if (auto it = jn.find("pins"); it != jn.end() && it->is_object()) {
+                const auto loadPins = [](const json& arr, bool is_input) {
+                    std::vector<Pin> pins;
+                    for (const auto& jp : arr)
+                        pins.push_back({jp.value("name", std::string{}),
+                                        pinTypeFromName(jp.value("type", std::string{"rgba"})),
+                                        is_input});
+                    return pins;
+                };
+                node->setPins(loadPins(it->value("inputs", json::array()), true),
+                              loadPins(it->value("outputs", json::array()), false));
             }
         }
 

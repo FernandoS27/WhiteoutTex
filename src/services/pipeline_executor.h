@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <whiteout/textures/texture.h>
@@ -32,6 +33,12 @@ struct PipelineRunResult {
     bool ok() const { return output.has_value(); }
 };
 
+/// Result of running a Varying pipeline: each captured image Output by port name.
+struct MultiPipelineRunResult {
+    std::unordered_map<std::string, whiteout::textures::Texture> outputs;
+    std::vector<std::string> errors;
+};
+
 /// Execute @p graph as a Standard pipeline: @p input feeds Standard Input nodes,
 /// and the Standard Output node's incoming image is returned.
 /// @param presets_dir    resources/presets root for Resource input nodes.
@@ -42,5 +49,14 @@ PipelineRunResult runStandardPipeline(const pipeline::NodeGraph& graph,
                                       const std::filesystem::path& presets_dir,
                                       const std::filesystem::path& pipelines_dir,
                                       TextureService& texture_service, int depth = 0);
+
+/// Execute @p graph binding image Inputs by name from @p inputs (keyed by the
+/// input node's name) and returning every image Output by its node name.  Used
+/// by the MultiPipeline runner for Varying pipelines (many image in/out).
+MultiPipelineRunResult runVaryingPipeline(
+    const pipeline::NodeGraph& graph,
+    const std::unordered_map<std::string, whiteout::textures::Texture>& inputs,
+    const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
+    TextureService& texture_service, int depth = 0);
 
 } // namespace whiteout::textool::services

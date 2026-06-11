@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -48,7 +49,9 @@ using ImageR = std::shared_ptr<const ImagePlane<1>>;
 /// The pin value kinds.  Indices 0..6 are LOAD-BEARING: they match the
 /// alternative order of PinValue below (PinType == PinValue::index()).
 /// `Number` (7) is a connection-only polymorphic type used by arithmetic nodes
-/// (Integer / Real / single Channel); it has no PinValue alternative.
+/// (Integer / Real / single Channel); `Any` (8) connects with every type (used
+/// by control-flow nodes that route a value untouched).  Neither has a
+/// PinValue alternative.
 enum class PinType : u8 {
     RGBA = 0,
     RGB = 1,
@@ -58,6 +61,7 @@ enum class PinType : u8 {
     Bool = 5,
     String = 6,
     Number = 7,
+    Any = 8,
 };
 
 /// Full pin payload — image handles plus scalars.
@@ -74,6 +78,8 @@ using ParamValue = std::variant<i64, f64, bool, std::string>;
 /// polymorphic numeric/channel type arithmetic nodes use.
 constexpr bool pinTypesCompatible(PinType from, PinType to) noexcept {
     if (from == to)
+        return true;
+    if (from == PinType::Any || to == PinType::Any) // Any connects with everything
         return true;
     const auto numberLike = [](PinType t) {
         return t == PinType::Int || t == PinType::Real || t == PinType::R || t == PinType::Number;
@@ -96,8 +102,31 @@ constexpr const char* pinTypeName(PinType t) noexcept {
     case PinType::Bool: return "bool";
     case PinType::String: return "string";
     case PinType::Number: return "number";
+    case PinType::Any: return "any";
     }
     return "unknown";
+}
+
+/// Inverse of pinTypeName (for deserializing dynamic pin sets).  Unknown tokens
+/// fall back to RGBA.
+constexpr PinType pinTypeFromName(std::string_view s) noexcept {
+    if (s == "rgb")
+        return PinType::RGB;
+    if (s == "r")
+        return PinType::R;
+    if (s == "int")
+        return PinType::Int;
+    if (s == "real")
+        return PinType::Real;
+    if (s == "bool")
+        return PinType::Bool;
+    if (s == "string")
+        return PinType::String;
+    if (s == "number")
+        return PinType::Number;
+    if (s == "any")
+        return PinType::Any;
+    return PinType::RGBA;
 }
 
 /// One pin on a node.  Identified within its node by a stable @c name (used by

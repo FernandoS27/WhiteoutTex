@@ -114,6 +114,12 @@ struct RunPipelineCmd {
     std::string name; ///< Pipeline file name (within the pipelines folder).
 };
 
+/// Open the MultiPipeline dialog for a Varying pipeline (multiple image
+/// inputs/outputs mapped to files).
+struct OpenMultiPipelineCmd {
+    std::string name; ///< Pipeline file name (within the pipelines folder).
+};
+
 /// A discovered pipeline: its file name plus the display name read from the
 /// file's "name" field (falls back to the file stem).
 struct PipelineInfo {
@@ -152,7 +158,8 @@ using AppCommand = std::variant<
     LoadCascTextureCmd,
     ApplyBC3NSwapCmd,
     LoadD4PayloadCmd,
-    RunPipelineCmd
+    RunPipelineCmd,
+    OpenMultiPipelineCmd
     // clang-format on
     >;
 

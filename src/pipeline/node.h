@@ -30,9 +30,10 @@ namespace whiteout::textool::pipeline {
 using NodeId = u32; ///< Stable per-graph node id (0 = unassigned).
 
 /// Palette grouping.  Input/Constant nodes are sources, Output nodes are sinks,
-/// Operations transform.  (Constant Channel is a Constant that still takes
-/// width/height/value inputs, so the "sources have no inputs" rule is loose.)
-enum class NodeCategory : u8 { Input, Constant, Operation, Output };
+/// Operations transform, Control nodes route/branch data flow.  (Constant
+/// Channel is a Constant that still takes width/height/value inputs, so the
+/// "sources have no inputs" rule is loose.)
+enum class NodeCategory : u8 { Input, Constant, Operation, Output, Control };
 
 /// A plain 2D point — keeps the model free of ImGui's ImVec2.
 struct Vec2 {
@@ -92,6 +93,18 @@ public:
     const Pin* findPin(std::string_view name, bool is_input) const noexcept;
     Param* findParam(std::string_view name) noexcept;
 
+    // ── Dynamic pins ───────────────────────────────────────────────────
+    /// True if this node's pins are not fixed by its type but derived from a
+    /// param (e.g. Subpipeline mirroring the selected pipeline's interface).
+    /// Such pins are persisted explicitly instead of re-declared by the ctor.
+    bool hasDynamicPins() const noexcept { return dynamic_pins_; }
+    /// Replace the entire pin set.  Meaningful only for dynamic-pin nodes;
+    /// callers must prune now-dangling links afterwards (NodeGraph does this).
+    void setPins(std::vector<Pin> inputs, std::vector<Pin> outputs) {
+        inputs_ = std::move(inputs);
+        outputs_ = std::move(outputs);
+    }
+
 protected:
     Node(std::string type_id, NodeCategory category)
         : type_id_(std::move(type_id)), category_(category) {}
@@ -134,6 +147,8 @@ protected:
             params_.back().visible_when_value = index;
         }
     }
+    /// Mark this node's pins as derived-at-runtime (see hasDynamicPins()).
+    void markDynamicPins() noexcept { dynamic_pins_ = true; }
 
 private:
     NodeId id_ = 0;
@@ -143,6 +158,7 @@ private:
     std::vector<Pin> inputs_;
     std::vector<Pin> outputs_;
     std::vector<Param> params_;
+    bool dynamic_pins_ = false;
 };
 
 } // namespace whiteout::textool::pipeline

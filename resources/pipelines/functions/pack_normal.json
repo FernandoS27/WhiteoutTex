@@ -1,0 +1,121 @@
+{
+  "links": [
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        19,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "channel"
+      ],
+      "to": [
+        19,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        21,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "result"
+      ],
+      "to": [
+        21,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "result"
+      ],
+      "to": [
+        20,
+        "channel"
+      ]
+    }
+  ],
+  "name": "PackNormal",
+  "nodes": [
+    {
+      "id": 15,
+      "params": {
+        "name": "normalChannel"
+      },
+      "pos": [
+        199.0,
+        274.0
+      ],
+      "type": "input.channel"
+    },
+    {
+      "id": 16,
+      "params": {
+        "value": 0.5
+      },
+      "pos": [
+        602.0,
+        547.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 17,
+      "params": {
+        "value": 1.0
+      },
+      "pos": [
+        362.0,
+        451.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 19,
+      "params": {},
+      "pos": [
+        600.0,
+        291.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 20,
+      "params": {
+        "name": "normalPacked"
+      },
+      "pos": [
+        1160.0,
+        387.0
+      ],
+      "type": "output.channel"
+    },
+    {
+      "id": 21,
+      "params": {},
+      "pos": [
+        903.0,
+        387.0
+      ],
+      "type": "op.multiply"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

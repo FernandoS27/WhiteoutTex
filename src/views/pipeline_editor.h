@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <unordered_set>
 
 #include "common_types.h"
@@ -56,6 +57,13 @@ public:
         pipelines_ = std::move(pipelines);
     }
 
+    /// Provide each pipeline's external interface (keyed by file name), so a
+    /// Subpipeline node can mirror the selected pipeline's input/output pins.
+    void setPipelineInterfaces(
+        std::unordered_map<std::string, pipeline::PipelineInterface> interfaces) {
+        pipeline_interfaces_ = std::move(interfaces);
+    }
+
     /// Spawn a node of @p type_id at a cascading default position (used by a
     /// palette click).  Returns the new node id, or 0 if the type is unknown.
     pipeline::NodeId spawnNode(const char* type_id);
@@ -82,6 +90,10 @@ private:
     void savePipeline(const std::string& path);
     bool loadPipeline(const std::string& path);
 
+    // Rebuild a Subpipeline node's pins to mirror the interface of the pipeline
+    // named by its "pipeline" param, then prune any links left dangling.
+    void syncSubpipelinePins(pipeline::Node& node);
+
     // Render the model's nodes + links and handle create/delete interaction.
     void drawNodes();
     void drawLinks();
@@ -102,8 +114,15 @@ private:
     FolderState save_dialog_result_;
     FolderState load_dialog_result_;
 
+    // Palette drag-to-create: the type-id (and label) of the template being
+    // dragged onto the canvas, captured on press; empty when no drag is active.
+    std::string drag_type_;
+    std::string drag_label_;
+
     std::vector<ModelOption> upscaler_models_;
     std::vector<models::PipelineInfo> pipelines_; ///< Pipelines for Subpipeline nodes.
+    /// Each pipeline's external interface, keyed by file name (for Subpipeline pins).
+    std::unordered_map<std::string, pipeline::PipelineInterface> pipeline_interfaces_;
 
     // Pending position for the next spawned node (view-space), so palette spawns
     // don't stack on top of each other.

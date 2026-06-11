@@ -1,0 +1,121 @@
+{
+  "links": [
+    {
+      "from": [
+        15,
+        "channel"
+      ],
+      "to": [
+        18,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "value"
+      ],
+      "to": [
+        18,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "value"
+      ],
+      "to": [
+        19,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        18,
+        "result"
+      ],
+      "to": [
+        19,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        19,
+        "result"
+      ],
+      "to": [
+        20,
+        "channel"
+      ]
+    }
+  ],
+  "name": "UnpackNormal",
+  "nodes": [
+    {
+      "id": 15,
+      "params": {
+        "name": "normalChannel"
+      },
+      "pos": [
+        199.0,
+        274.0
+      ],
+      "type": "input.channel"
+    },
+    {
+      "id": 16,
+      "params": {
+        "value": 2.0
+      },
+      "pos": [
+        282.0,
+        435.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 17,
+      "params": {
+        "value": -1.0
+      },
+      "pos": [
+        666.0,
+        483.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 18,
+      "params": {},
+      "pos": [
+        600.0,
+        307.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 19,
+      "params": {},
+      "pos": [
+        920.0,
+        382.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 20,
+      "params": {
+        "name": "normalUnpacked"
+      },
+      "pos": [
+        1160.0,
+        387.0
+      ],
+      "type": "output.channel"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}
