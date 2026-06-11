@@ -119,6 +119,46 @@
         22,
         "image"
       ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        19,
+        "expected_dimension"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        18,
+        "expected_dimension"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        17,
+        "expected_dimension"
+      ]
+    },
+    {
+      "from": [
+        23,
+        "value"
+      ],
+      "to": [
+        13,
+        "expected_dimension"
+      ]
     }
   ],
   "name": "CreateButtonsClassic",
@@ -170,6 +210,10 @@
           {
             "name": "Overlay",
             "type": "rgba"
+          },
+          {
+            "name": "expected_dimension",
+            "type": "int"
           }
         ],
         "outputs": [
@@ -232,6 +276,10 @@
           {
             "name": "Overlay",
             "type": "rgba"
+          },
+          {
+            "name": "expected_dimension",
+            "type": "int"
           }
         ],
         "outputs": [
@@ -261,6 +309,10 @@
           {
             "name": "Overlay",
             "type": "rgba"
+          },
+          {
+            "name": "expected_dimension",
+            "type": "int"
           }
         ],
         "outputs": [
@@ -290,6 +342,10 @@
           {
             "name": "Overlay",
             "type": "rgba"
+          },
+          {
+            "name": "expected_dimension",
+            "type": "int"
           }
         ],
         "outputs": [
@@ -337,6 +393,17 @@
         835.0
       ],
       "type": "output.standard"
+    },
+    {
+      "id": 23,
+      "params": {
+        "value": 64
+      },
+      "pos": [
+        378.0,
+        899.0
+      ],
+      "type": "input.const_int"
     }
   ],
   "type": "varying",

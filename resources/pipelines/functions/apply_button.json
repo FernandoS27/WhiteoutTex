@@ -112,162 +112,12 @@
     },
     {
       "from": [
-        21,
-        "value"
-      ],
-      "to": [
-        22,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        21,
-        "value"
-      ],
-      "to": [
-        22,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        23,
-        "value"
-      ],
-      "to": [
-        22,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        24,
-        "value"
-      ],
-      "to": [
-        25,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        21,
-        "value"
-      ],
-      "to": [
-        27,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        22,
-        "true"
-      ],
-      "to": [
-        27,
-        "amount"
-      ]
-    },
-    {
-      "from": [
-        27,
-        "result"
-      ],
-      "to": [
-        28,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        28,
-        "value"
-      ],
-      "to": [
-        25,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        25,
-        "result"
-      ],
-      "to": [
-        30,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        22,
-        "false"
-      ],
-      "to": [
-        30,
-        "b"
-      ]
-    },
-    {
-      "from": [
-        30,
-        "result"
-      ],
-      "to": [
-        29,
-        "value"
-      ]
-    },
-    {
-      "from": [
         17,
         "false"
       ],
       "to": [
         31,
         "image"
-      ]
-    },
-    {
-      "from": [
-        31,
-        "width"
-      ],
-      "to": [
-        32,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        31,
-        "height"
-      ],
-      "to": [
-        33,
-        "value"
-      ]
-    },
-    {
-      "from": [
-        32,
-        "value"
-      ],
-      "to": [
-        34,
-        "a"
-      ]
-    },
-    {
-      "from": [
-        33,
-        "value"
-      ],
-      "to": [
-        34,
-        "b"
       ]
     },
     {
@@ -582,16 +432,6 @@
     },
     {
       "from": [
-        4,
-        "image"
-      ],
-      "to": [
-        38,
-        "Input"
-      ]
-    },
-    {
-      "from": [
         48,
         "value"
       ],
@@ -629,6 +469,216 @@
         7,
         "related"
       ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        60,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        60,
+        "width"
+      ],
+      "to": [
+        61,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        60,
+        "height"
+      ],
+      "to": [
+        61,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "image"
+      ],
+      "to": [
+        62,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        61,
+        "result"
+      ],
+      "to": [
+        62,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "image"
+      ],
+      "to": [
+        63,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        63,
+        "width"
+      ],
+      "to": [
+        62,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        62,
+        "true"
+      ],
+      "to": [
+        64,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        63,
+        "width"
+      ],
+      "to": [
+        64,
+        "width"
+      ]
+    },
+    {
+      "from": [
+        63,
+        "height"
+      ],
+      "to": [
+        64,
+        "height"
+      ]
+    },
+    {
+      "from": [
+        64,
+        "output"
+      ],
+      "to": [
+        65,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        62,
+        "false"
+      ],
+      "to": [
+        65,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        65,
+        "result"
+      ],
+      "to": [
+        38,
+        "Input"
+      ]
+    },
+    {
+      "from": [
+        21,
+        "value"
+      ],
+      "to": [
+        67,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        68,
+        "value"
+      ],
+      "to": [
+        69,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        67,
+        "value"
+      ],
+      "to": [
+        69,
+        "amount"
+      ]
+    },
+    {
+      "from": [
+        69,
+        "result"
+      ],
+      "to": [
+        29,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "width"
+      ],
+      "to": [
+        32,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        32,
+        "value"
+      ],
+      "to": [
+        34,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        31,
+        "height"
+      ],
+      "to": [
+        33,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        33,
+        "value"
+      ],
+      "to": [
+        34,
+        "b"
+      ]
     }
   ],
   "name": "ApplyButton",
@@ -639,8 +689,8 @@
         "name": "Base"
       },
       "pos": [
-        97.0,
-        227.0
+        -1048.0,
+        174.0
       ],
       "type": "input.standard"
     },
@@ -648,8 +698,8 @@
       "id": 5,
       "params": {},
       "pos": [
-        712.0,
-        275.0
+        696.0,
+        227.0
       ],
       "type": "op.matching_mipmap"
     },
@@ -657,8 +707,8 @@
       "id": 7,
       "params": {},
       "pos": [
-        712.0,
-        419.0
+        696.0,
+        451.0
       ],
       "type": "op.matching_mipmap"
     },
@@ -675,8 +725,8 @@
       "id": 9,
       "params": {},
       "pos": [
-        923.0,
-        547.0
+        947.0,
+        574.0
       ],
       "type": "op.extract_mipmap"
     },
@@ -720,8 +770,8 @@
         "name": "Overlay"
       },
       "pos": [
-        355.0,
-        421.0
+        -1128.0,
+        558.0
       ],
       "type": "input.standard"
     },
@@ -800,9 +850,9 @@
     {
       "id": 20,
       "params": {
-        "h": 597.0,
-        "name": "Log2Ceil",
-        "w": 1728.0
+        "h": 581.0,
+        "name": "ClosestPow2",
+        "w": 1648.0
       },
       "pos": [
         320.0,
@@ -820,87 +870,10 @@
         "value": 0
       },
       "pos": [
-        377.0,
-        1731.0
-      ],
-      "type": "input.integer"
-    },
-    {
-      "id": 22,
-      "params": {
-        "comparator": 1,
-        "epsilon": 1e-06
-      },
-      "pos": [
-        701.0,
-        1726.0
-      ],
-      "type": "ctrl.conditional"
-    },
-    {
-      "id": 23,
-      "params": {
-        "value": 0
-      },
-      "pos": [
-        474.0,
-        1939.0
-      ],
-      "type": "input.const_int"
-    },
-    {
-      "id": 24,
-      "params": {
-        "value": 1
-      },
-      "pos": [
-        986.0,
-        1587.0
-      ],
-      "type": "input.const_int"
-    },
-    {
-      "id": 25,
-      "params": {},
-      "pos": [
-        1527.0,
-        1603.0
-      ],
-      "type": "op.add"
-    },
-    {
-      "id": 27,
-      "params": {},
-      "pos": [
-        1034.0,
-        1699.0
-      ],
-      "type": "op.bit_shr"
-    },
-    {
-      "id": 28,
-      "params": {
-        "frame": "Log2Ceil"
-      },
-      "pins": {
-        "inputs": [
-          {
-            "name": "value",
-            "type": "int"
-          }
-        ],
-        "outputs": [
-          {
-            "name": "value",
-            "type": "int"
-          }
-        ]
-      },
-      "pos": [
-        1266.0,
+        409.0,
         1715.0
       ],
-      "type": "local.call"
+      "type": "input.integer"
     },
     {
       "id": 29,
@@ -908,19 +881,10 @@
         "name": "value"
       },
       "pos": [
-        1832.0,
+        1592.0,
         1779.0
       ],
       "type": "output.integer"
-    },
-    {
-      "id": 30,
-      "params": {},
-      "pos": [
-        1656.0,
-        1779.0
-      ],
-      "type": "ctrl.rendezvous"
     },
     {
       "id": 31,
@@ -934,7 +898,7 @@
     {
       "id": 32,
       "params": {
-        "frame": "Log2Ceil"
+        "frame": "ClosestPow2"
       },
       "pins": {
         "inputs": [
@@ -959,7 +923,7 @@
     {
       "id": 33,
       "params": {
-        "frame": "Log2Ceil"
+        "frame": "ClosestPow2"
       },
       "pins": {
         "inputs": [
@@ -1045,8 +1009,8 @@
         ]
       },
       "pos": [
-        424.0,
-        243.0
+        344.0,
+        163.0
       ],
       "type": "local.call"
     },
@@ -1170,8 +1134,8 @@
         "value": 256
       },
       "pos": [
-        -7.0,
-        371.0
+        -432.0,
+        350.0
       ],
       "type": "input.integer"
     },
@@ -1263,7 +1227,8 @@
     {
       "id": 56,
       "params": {
-        "model": "realesrgan-x4plus-anime"
+        "model": "realesrgan-x4plus-anime",
+        "upscale_alpha": false
       },
       "pos": [
         1378.0,
@@ -1302,6 +1267,110 @@
         3427.0
       ],
       "type": "output.standard"
+    },
+    {
+      "id": 60,
+      "params": {},
+      "pos": [
+        -751.0,
+        -113.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 61,
+      "params": {},
+      "pos": [
+        -543.0,
+        -113.0
+      ],
+      "type": "op.min"
+    },
+    {
+      "id": 62,
+      "params": {
+        "comparator": 4,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        -378.0,
+        -113.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 63,
+      "params": {},
+      "pos": [
+        -719.0,
+        297.0
+      ],
+      "type": "op.image_properties"
+    },
+    {
+      "id": 64,
+      "params": {
+        "filter": 2
+      },
+      "pos": [
+        -88.0,
+        -119.0
+      ],
+      "type": "op.scale_to"
+    },
+    {
+      "id": 65,
+      "params": {},
+      "pos": [
+        151.0,
+        67.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 67,
+      "params": {
+        "pipeline": "functions/log2_ceil.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        792.0,
+        1779.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 68,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        1034.0,
+        1603.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 69,
+      "params": {},
+      "pos": [
+        1271.0,
+        1817.0
+      ],
+      "type": "op.bit_shl"
     }
   ],
   "type": "function",

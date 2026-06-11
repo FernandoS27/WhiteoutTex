@@ -1,0 +1,62 @@
+{
+  "links": [
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        2,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        2,
+        "output"
+      ],
+      "to": [
+        3,
+        "image"
+      ]
+    }
+  ],
+  "name": "MirrorOnX",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        321.0,
+        83.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 2,
+      "params": {
+        "axis": 0
+      },
+      "pos": [
+        712.0,
+        83.0
+      ],
+      "type": "op.mirror"
+    },
+    {
+      "id": 3,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        1080.0,
+        83.0
+      ],
+      "type": "output.standard"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

@@ -124,6 +124,9 @@ void BatchService::workerFunc() {
 
     const auto pipeline = job_.prefs.transform_pipeline;
 
+    // AI-upscale callback for Pipeline-step Upscale nodes (empty w/o upscaler).
+    PipelineUpscaleFn pipeline_upscale;
+
 #ifdef WHITEOUT_HAS_UPSCALER
     std::unordered_map<i32, std::unique_ptr<Upscaler>> upscalers;
     const auto model_dir = Upscaler::defaultModelDir();
@@ -140,6 +143,29 @@ void BatchService::workerFunc() {
         auto* ptr = up.get();
         upscalers[model_index] = std::move(up);
         return ptr;
+    };
+
+    auto pipeline_upscalers = std::make_shared<std::unordered_map<std::string, std::unique_ptr<Upscaler>>>();
+    pipeline_upscale = [pipeline_upscalers, model_dir](
+                           const tex::Texture& in, const std::string& id,
+                           bool alpha) -> std::optional<tex::Texture> {
+        Upscaler* up = nullptr;
+        if (auto it = pipeline_upscalers->find(id); it != pipeline_upscalers->end()) {
+            up = it->second.get();
+        } else {
+            for (const auto& m : Upscaler::catalog())
+                if (m.file_stem == id) {
+                    auto u = std::make_unique<Upscaler>();
+                    if (u->init(model_dir, m)) {
+                        up = u.get();
+                        (*pipeline_upscalers)[id] = std::move(u);
+                    }
+                    break;
+                }
+        }
+        if (!up)
+            return std::nullopt;
+        return up->process(in, alpha);
     };
 #endif
 
@@ -242,7 +268,8 @@ void BatchService::workerFunc() {
                     const fs::path presets =
                         fs::path(job_.pipelines_dir).parent_path() / "presets";
                     auto res = runStandardPipeline(graph, *loaded, presets,
-                                                   fs::path(job_.pipelines_dir), texture_service);
+                                                   fs::path(job_.pipelines_dir), texture_service, 0,
+                                                   pipeline_upscale);
                     if (!res.output) {
                         pipeline_failed = true;
                         break;

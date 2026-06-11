@@ -1,0 +1,85 @@
+{
+  "links": [
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        4,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "output"
+      ],
+      "to": [
+        3,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "value"
+      ],
+      "to": [
+        4,
+        "degrees"
+      ]
+    }
+  ],
+  "name": "Rotate",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        321.0,
+        83.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 3,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        1080.0,
+        83.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 4,
+      "params": {},
+      "pos": [
+        712.0,
+        99.0
+      ],
+      "type": "op.rotate"
+    },
+    {
+      "id": 6,
+      "params": {
+        "clamp": true,
+        "max": 360.0,
+        "min": 0.0,
+        "name": "angle",
+        "value": 0.0
+      },
+      "pos": [
+        313.0,
+        227.0
+      ],
+      "type": "input.real"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

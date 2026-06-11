@@ -14,6 +14,7 @@
  */
 
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -26,6 +27,13 @@
 namespace whiteout::textool::services {
 
 class TextureService;
+
+/// Callback used by the Upscale node to run an AI model: given the input image,
+/// the model id (file stem) and whether to upscale alpha, return the upscaled
+/// image (or nullopt on failure / model not installed).  Supplied by the app /
+/// batch service; when unset the Upscale node passes its input through.
+using PipelineUpscaleFn = std::function<std::optional<whiteout::textures::Texture>(
+    const whiteout::textures::Texture& input, const std::string& model_id, bool upscale_alpha)>;
 
 struct PipelineRunResult {
     std::optional<whiteout::textures::Texture> output; ///< Standard Output result.
@@ -63,7 +71,8 @@ PipelineRunResult runStandardPipeline(const pipeline::NodeGraph& graph,
                                       const whiteout::textures::Texture& input,
                                       const std::filesystem::path& presets_dir,
                                       const std::filesystem::path& pipelines_dir,
-                                      TextureService& texture_service, int depth = 0);
+                                      TextureService& texture_service, int depth = 0,
+                                      const PipelineUpscaleFn& upscale = {});
 
 /// Execute @p graph binding image Inputs by name from @p inputs (keyed by the
 /// input node's name) and returning every image Output by its node name.  Used
@@ -72,7 +81,7 @@ MultiPipelineRunResult runVaryingPipeline(
     const pipeline::NodeGraph& graph,
     const std::unordered_map<std::string, whiteout::textures::Texture>& inputs,
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
-    TextureService& texture_service, int depth = 0);
+    TextureService& texture_service, int depth = 0, const PipelineUpscaleFn& upscale = {});
 
 /// Debug-run @p graph binding @p inputs by port name, and return EVERY output
 /// port's value (numeric or image) in interface order — used by the editor's
@@ -82,6 +91,6 @@ PipelineDebugResult runPipelineDebug(
     const pipeline::NodeGraph& graph,
     const std::unordered_map<std::string, PipelinePortValue>& inputs,
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
-    TextureService& texture_service, int depth = 0);
+    TextureService& texture_service, int depth = 0, const PipelineUpscaleFn& upscale = {});
 
 } // namespace whiteout::textool::services

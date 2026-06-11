@@ -5,6 +5,7 @@
 
 #include "models/app_state.h"
 #include "preferences.h"
+#include "services/pipeline_executor.h"
 #include "services/texture_service.h"
 #include "texture_converter.h"
 #include "views/batch_convert.h"
@@ -18,6 +19,9 @@
 
 #ifdef WHITEOUT_HAS_UPSCALER
 #include "services/upscaler_service.h"
+#include "upscaler.h"
+#include <memory>
+#include <unordered_map>
 #endif
 
 #include <optional>
@@ -82,6 +86,10 @@ private:
     /// Run the editor's current graph with the debug dialog's inputs and show
     /// every output value (numeric or image) in that dialog.
     void runPipelineDebug();
+
+    /// Build the in-pipeline AI upscale callback (Upscale nodes).  Returns an
+    /// empty function in builds without the upscaler.
+    services::PipelineUpscaleFn makeUpscaleFn();
 
     /// Modal that collects Real Input parameter values before running.
     void drawPipelineParamDialog();
@@ -152,6 +160,8 @@ private:
     services::UpscalerService upscaler_service_;
     i32 upscale_model_index_ = 0;
     std::vector<UpscalerModel> upscale_models_;
+    // Cached upscalers (by model file stem) for in-pipeline Upscale nodes.
+    std::unordered_map<std::string, std::unique_ptr<Upscaler>> pipeline_upscalers_;
 #endif
 };
 

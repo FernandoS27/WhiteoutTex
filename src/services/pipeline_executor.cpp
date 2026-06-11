@@ -54,8 +54,9 @@ struct ExecEnv {
     std::filesystem::path presets_dir;
     std::filesystem::path pipelines_dir;
     TextureService& ts;
-    int depth = 0;                         // Subpipeline / local-call nesting depth.
-    const NodeGraph* graph = nullptr;      // The graph currently being run (for local.call).
+    int depth = 0;                          // Subpipeline / local-call nesting depth.
+    const NodeGraph* graph = nullptr;       // The graph currently being run (for local.call).
+    const PipelineUpscaleFn* upscale = nullptr; // AI upscale callback (Upscale node).
 };
 
 // Bounds recursion (a pipeline may reference itself directly or indirectly).
@@ -769,10 +770,103 @@ FBuf resizeBuf(const FBuf& s, int dstW, int dstH, ScaleFilter filt) {
     return out;
 }
 
+enum class DisplaceMode { Wrap = 0, Clamp = 1, Transparent = 2 };
+
+// Shift the buffer by (dx, dy) pixels.  A positive offset moves content toward
+// +X / +Y.  `mode` decides what fills the vacated region: Wrap scrolls, Clamp
+// smears the edge pixel, Transparent clears it (zero / transparent alpha).
+FBuf displaceBuf(const FBuf& s, int dx, int dy, DisplaceMode mode) {
+    FBuf o;
+    o.w = s.w;
+    o.h = s.h;
+    o.n = s.n;
+    o.data.assign(s.data.size(), 0.0f);
+    if (s.w <= 0 || s.h <= 0)
+        return o;
+    for (int y = 0; y < o.h; ++y)
+        for (int x = 0; x < o.w; ++x) {
+            int sx = x - dx, sy = y - dy;
+            bool cleared = false;
+            if (mode == DisplaceMode::Wrap) {
+                sx = ((sx % s.w) + s.w) % s.w;
+                sy = ((sy % s.h) + s.h) % s.h;
+            } else if (mode == DisplaceMode::Clamp) {
+                sx = std::clamp(sx, 0, s.w - 1);
+                sy = std::clamp(sy, 0, s.h - 1);
+            } else if (sx < 0 || sy < 0 || sx >= s.w || sy >= s.h) {
+                cleared = true;
+            }
+            for (int c = 0; c < o.n; ++c)
+                o.data[(static_cast<std::size_t>(y) * o.w + x) * o.n + c] =
+                    cleared ? 0.0f : s.at(sx, sy, c);
+        }
+    return o;
+}
+
+// Resize the canvas to dstW x dstH, keeping the source CENTERED — no resampling.
+// Larger dimensions pad with zero (transparent / black); smaller ones crop.
+FBuf resizeCanvasBuf(const FBuf& s, int dstW, int dstH) {
+    dstW = std::max(1, dstW);
+    dstH = std::max(1, dstH);
+    FBuf o;
+    o.w = dstW;
+    o.h = dstH;
+    o.n = s.n;
+    o.data.assign(static_cast<std::size_t>(dstW) * dstH * s.n, 0.0f);
+    const int ox = (dstW - s.w) / 2; // source origin within the destination
+    const int oy = (dstH - s.h) / 2;
+    for (int y = 0; y < dstH; ++y) {
+        const int sy = y - oy;
+        if (sy < 0 || sy >= s.h)
+            continue;
+        for (int x = 0; x < dstW; ++x) {
+            const int sx = x - ox;
+            if (sx < 0 || sx >= s.w)
+                continue;
+            for (int c = 0; c < s.n; ++c)
+                o.data[(static_cast<std::size_t>(y) * o.w + x) * o.n + c] = s.at(sx, sy, c);
+        }
+    }
+    return o;
+}
+
+// Make the buffer seamlessly tileable: blend the source with a half-offset
+// (wrapped) copy, weighted so the original tile borders — where the seams live —
+// are covered by interior content that is continuous across the tile boundary.
+// The weight peaks (= original) at the center and falls to 0 (= offset copy) at
+// every border.
+FBuf tilingBuf(const FBuf& s) {
+    FBuf o;
+    o.w = s.w;
+    o.h = s.h;
+    o.n = s.n;
+    o.data.assign(s.data.size(), 0.0f);
+    if (s.w <= 0 || s.h <= 0)
+        return o;
+    const int hx = s.w / 2, hy = s.h / 2;
+    for (int y = 0; y < s.h; ++y) {
+        const float wy = 1.0f - std::abs(2.0f * (y + 0.5f) / s.h - 1.0f); // triangle 0..1..0
+        const int sy = (y + hy) % s.h;
+        for (int x = 0; x < s.w; ++x) {
+            const float wx = 1.0f - std::abs(2.0f * (x + 0.5f) / s.w - 1.0f);
+            const float w = wx * wy; // 1 at center, 0 at the borders
+            const int sx = (x + hx) % s.w;
+            for (int c = 0; c < s.n; ++c) {
+                const float orig = s.at(x, y, c);
+                const float off = s.at(sx, sy, c);
+                o.data[(static_cast<std::size_t>(y) * o.w + x) * o.n + c] =
+                    orig * w + off * (1.0f - w);
+            }
+        }
+    }
+    return o;
+}
+
 // ── Per-node execution ──────────────────────────────────────────────────────
 // Returns this node's output pin values; appends any issues to `errors`.
 PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
-                 std::vector<std::string>& errors) {
+                 std::vector<std::string>& errors,
+                 const std::unordered_set<std::string>& linked = {}) {
     const std::string& type = n.typeId();
     PinMap out;
 
@@ -831,7 +925,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
         out["channel"].image = std::move(plane);
     } else if (type == "op.extract_channel") {
         if (const tex::Texture* img = inImage("image"))
-            out["channel"].image = extractChannel(*img, static_cast<int>(paramInt(n, "channel", 0)));
+            out["channel"].image =
+                extractChannel(toRGBA8(*img), static_cast<int>(paramInt(n, "channel", 0)));
     } else if (type == "op.invert_channel") {
         if (const tex::Texture* img = inImage("image")) {
             tex::Texture work = toRGBA8(*img);
@@ -901,7 +996,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["a kind"].integer = static_cast<i64>(img->channelKind(tex::Channel::A));
         }
     } else if (type == "op.mirror" || type == "op.rotate" || type == "op.scale_to" ||
-               type == "op.scale_by") {
+               type == "op.scale_by" || type == "op.displace" || type == "op.resize_canvas" ||
+               type == "op.tiling") {
         if (const auto it = in.find("input"); it != in.end()) {
             FBuf b;
             bool was_fchan = false;
@@ -915,6 +1011,22 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
                     if (const auto d = in.find("degrees"); d != in.end())
                         deg = scalarOf(d->second);
                     r = rotateBuf(b, static_cast<float>(deg));
+                } else if (type == "op.displace") {
+                    int dx = 0, dy = 0;
+                    if (const auto p = in.find("x"); p != in.end())
+                        dx = static_cast<int>(std::lround(scalarOf(p->second)));
+                    if (const auto p = in.find("y"); p != in.end())
+                        dy = static_cast<int>(std::lround(scalarOf(p->second)));
+                    r = displaceBuf(b, dx, dy, static_cast<DisplaceMode>(paramInt(n, "mode", 0)));
+                } else if (type == "op.resize_canvas") {
+                    int dw = b.w, dh = b.h;
+                    if (const auto p = in.find("width"); p != in.end())
+                        dw = static_cast<int>(scalarOf(p->second));
+                    if (const auto p = in.find("height"); p != in.end())
+                        dh = static_cast<int>(scalarOf(p->second));
+                    r = resizeCanvasBuf(b, dw, dh);
+                } else if (type == "op.tiling") {
+                    r = tilingBuf(b);
                 } else {
                     const auto filt = static_cast<ScaleFilter>(paramInt(n, "filter", 0));
                     int dw = b.w, dh = b.h;
@@ -958,10 +1070,19 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
                             : type == "op.multiply" ? ArithOp::Mul
                             : type == "op.min"      ? ArithOp::Min
                                                     : ArithOp::Max;
-        if (ia != in.end() && ib != in.end())
+        // A pin that is wired but carries no value is a DEAD branch (e.g. the
+        // inactive side of a Conditional), not an intentionally-unconnected
+        // operand.  In that case the whole op must stay dead so the deadness
+        // reaches a downstream Rendezvous; otherwise a constant on the live pin
+        // would leak through and both Rendezvous inputs would appear live.
+        const bool a_dead = ia == in.end() && linked.count("a");
+        const bool b_dead = ib == in.end() && linked.count("b");
+        if (a_dead || b_dead) {
+            // Inactive branch: produce nothing.
+        } else if (ia != in.end() && ib != in.end())
             out["result"] = binaryArith(ia->second, ib->second, aop, errors);
         else if (ia != in.end())
-            out["result"] = ia->second; // single operand -> passthrough
+            out["result"] = ia->second; // single (unconnected) operand -> passthrough
         else if (ib != in.end())
             out["result"] = ib->second;
     } else if (type == "ctrl.conditional") {
@@ -1072,11 +1193,24 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             out["image"].image = std::move(work);
         }
     } else if (type == "op.upscale") {
-        // The AI upscaler runs asynchronously and needs installed model files;
-        // it isn't executed inline yet — pass the image through unchanged.
-        if (const tex::Texture* img = inImage("image"))
-            out["image"].image = toRGBA8(*img);
-        errors.push_back("Upscale: AI upscaling is not run inside pipelines yet (passed through)");
+        if (const tex::Texture* img = inImage("image")) {
+            const std::string model = paramStr(n, "model");
+            const bool alpha = paramBool(n, "upscale_alpha", false);
+            tex::Texture in_rgba = toRGBA8(*img);
+            if (env.upscale && *env.upscale && !model.empty()) {
+                if (auto up = (*env.upscale)(in_rgba, model, alpha)) {
+                    out["image"].image = std::move(*up);
+                } else {
+                    errors.push_back("Upscale: model '" + model +
+                                     "' is not installed / failed (passed through)");
+                    out["image"].image = std::move(in_rgba);
+                }
+            } else {
+                errors.push_back(model.empty() ? "Upscale: no model selected (passed through)"
+                                               : "Upscale: not available here (passed through)");
+                out["image"].image = std::move(in_rgba);
+            }
+        }
     } else if (type == "op.subpipeline") {
         // The node's pins mirror the selected pipeline's interface, so its input
         // pin names ARE the sub-pipeline's input port names — pass them straight
@@ -1121,8 +1255,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             if (loaded && pipeline::fromJson(doc, sub, &errors)) {
                 // subenv.graph = &sub so any local.call inside the file resolves
                 // its frame against the sub-graph, not the parent.
-                const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1,
-                                     &sub};
+                const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts,
+                                     env.depth + 1,   &sub,                env.upscale};
                 std::vector<std::string> sub_errors;
                 // Bind POSITIONALLY: this node's pins were derived from the sub's
                 // interface in order, so input pin i feeds the sub's i-th input
@@ -1183,8 +1317,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             const std::vector<NodeId> member_list = env.graph->nodesInFrame(*frame);
             const std::unordered_set<NodeId> members(member_list.begin(), member_list.end());
             const pipeline::PipelineInterface iface = env.graph->localInterface(*frame);
-            const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts, env.depth + 1,
-                                 env.graph};
+            const ExecEnv subenv{env.presets_dir, env.pipelines_dir, env.ts,
+                                 env.depth + 1,   env.graph,           env.upscale};
             std::vector<std::string> sub_errors;
             PinMap bound;
             const auto node_ins = n.inputs();
@@ -1265,10 +1399,15 @@ PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId
             continue;
 
         // Gather this node's inputs by following in-scope links into its pins.
+        // `linked` records every pin that has an incoming wire, even if the
+        // upstream produced no value — letting a node tell an unconnected pin
+        // from a connected-but-dead (inactive-branch) one.
         PinMap in;
+        std::unordered_set<std::string> linked;
         for (const Link& l : graph.links()) {
             if (l.to.node != id || !linkActive(l))
                 continue;
+            linked.insert(l.to.pin);
             auto src = outputs.find(l.from.node);
             if (src == outputs.end())
                 continue;
@@ -1287,7 +1426,7 @@ PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId
                 o[n->outputs().front().name] = it->second;
                 outputs[id] = std::move(o);
             } else {
-                outputs[id] = applyNode(*n, in, env, errors); // default value, if any
+                outputs[id] = applyNode(*n, in, env, errors, linked); // default value, if any
             }
         } else if (port && n->category() == NodeCategory::Output && !n->inputs().empty()) {
             if (auto it = in.find(n->inputs().front().name); it != in.end())
@@ -1296,7 +1435,7 @@ PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId
                 errors.push_back("Output '" + *port + "' has no connected value");
             outputs[id] = {};
         } else {
-            outputs[id] = applyNode(*n, in, env, errors);
+            outputs[id] = applyNode(*n, in, env, errors, linked);
         }
 
         for (const Link& l : graph.links()) {
@@ -1318,9 +1457,10 @@ PinMap runGraphPortsImpl(const NodeGraph& graph, const std::unordered_set<NodeId
 PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture& input,
                                       const std::filesystem::path& presets_dir,
                                       const std::filesystem::path& pipelines_dir,
-                                      TextureService& texture_service, int depth) {
+                                      TextureService& texture_service, int depth,
+                                      const PipelineUpscaleFn& upscale) {
     PipelineRunResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph, &upscale};
 
     // Bind the supplied image to every Standard Input port (a standard pipeline
     // has exactly one).  Ports are keyed by the input node's "name" param.
@@ -1355,9 +1495,9 @@ PipelineRunResult runStandardPipeline(const NodeGraph& graph, const tex::Texture
 MultiPipelineRunResult runVaryingPipeline(
     const NodeGraph& graph, const std::unordered_map<std::string, tex::Texture>& inputs,
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
-    TextureService& texture_service, int depth) {
+    TextureService& texture_service, int depth, const PipelineUpscaleFn& upscale) {
     MultiPipelineRunResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph, &upscale};
 
     // Bind each supplied image to its named input port.
     PinMap bound;
@@ -1380,9 +1520,9 @@ MultiPipelineRunResult runVaryingPipeline(
 PipelineDebugResult runPipelineDebug(
     const NodeGraph& graph, const std::unordered_map<std::string, PipelinePortValue>& inputs,
     const std::filesystem::path& presets_dir, const std::filesystem::path& pipelines_dir,
-    TextureService& texture_service, int depth) {
+    TextureService& texture_service, int depth, const PipelineUpscaleFn& upscale) {
     PipelineDebugResult result;
-    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph};
+    const ExecEnv env{presets_dir, pipelines_dir, texture_service, depth, &graph, &upscale};
 
     // Bind each supplied value (image or scalar) to its named input port.
     PinMap bound;

@@ -51,6 +51,9 @@ const std::vector<std::string> kDerivativeModes = {"pipeline.deriv.quad", "pipel
 
 // Mirror axes and scale resampling filters (i18n keys).
 const std::vector<std::string> kMirrorAxes = {"pipeline.axis.x", "pipeline.axis.y"};
+// Edge handling for the Displace node (i18n keys).
+const std::vector<std::string> kDisplaceModes = {"pipeline.displace.wrap", "pipeline.displace.clamp",
+                                                 "pipeline.displace.transparent"};
 const std::vector<std::string> kScaleFilters = {"pipeline.filter.bicubic", "pipeline.filter.linear",
                                                 "pipeline.filter.lanczos"};
 
@@ -438,6 +441,42 @@ public:
     }
 };
 
+// Shift the image/channel by integer X/Y offsets.  Edge handling (mode):
+// Wrap (scroll), Clamp (smear edge) or Transparent (vacated area cleared).
+class DisplaceNode final : public Node {
+public:
+    DisplaceNode() : Node("op.displace", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addInput("x", PinType::Int);
+        addInput("y", PinType::Int);
+        addOutput("output", PinType::Any);
+        addEnumParam("mode", 0, kDisplaceModes);
+    }
+};
+
+// Resize the canvas to explicit width x height, keeping the source CENTERED.
+// Larger dimensions pad (transparent / black); smaller dimensions crop.  Unlike
+// Scale, the pixels are not resampled.
+class ResizeNode final : public Node {
+public:
+    ResizeNode() : Node("op.resize_canvas", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addInput("width", PinType::Int);
+        addInput("height", PinType::Int);
+        addOutput("output", PinType::Any);
+    }
+};
+
+// Make the image/channel seamlessly tileable by blending a half-offset copy
+// over the borders.
+class TilingNode final : public Node {
+public:
+    TilingNode() : Node("op.tiling", NodeCategory::Operation) {
+        addInput("input", PinType::Any);
+        addOutput("output", PinType::Any);
+    }
+};
+
 // Inputs `top layer` (over) and `bottom layer` (under), RGBA -> RGBA combined
 // per the chosen mode.
 class BlendNode final : public Node {
@@ -502,6 +541,7 @@ public:
         addInput("image", PinType::RGBA);
         addOutput("image", PinType::RGBA);
         addModelParam("model");
+        addParam("upscale_alpha", false); // run alpha through the model too
     }
 };
 
@@ -715,6 +755,12 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<ScaleToNode>(); }});
     reg.registerType({"op.scale_by", NodeCategory::Operation, "pipeline.node.scale_by",
                       [] { return std::make_unique<ScaleByNode>(); }});
+    reg.registerType({"op.displace", NodeCategory::Operation, "pipeline.node.displace",
+                      [] { return std::make_unique<DisplaceNode>(); }});
+    reg.registerType({"op.resize_canvas", NodeCategory::Operation, "pipeline.node.resize_canvas",
+                      [] { return std::make_unique<ResizeNode>(); }});
+    reg.registerType({"op.tiling", NodeCategory::Operation, "pipeline.node.tiling",
+                      [] { return std::make_unique<TilingNode>(); }});
     reg.registerType({"op.add", NodeCategory::Operation, "pipeline.node.add",
                       [] { return std::make_unique<AddNode>(); }});
     reg.registerType({"op.multiply", NodeCategory::Operation, "pipeline.node.multiply",

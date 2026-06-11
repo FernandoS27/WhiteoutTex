@@ -573,7 +573,7 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
             : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
     auto result = services::runStandardPipeline(graph, *tex_state_.texture, presets,
                                                 std::filesystem::path(pipelines_dir_),
-                                                texture_service_);
+                                                texture_service_, 0, makeUpscaleFn());
 
     std::string msg;
     if (result.output) {
@@ -590,6 +590,33 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     ui_.result_popup_message = std::move(msg);
     ui_.result_popup_success = result.output.has_value();
     ui_.show_result_popup = true;
+}
+
+services::PipelineUpscaleFn App::makeUpscaleFn() {
+#ifdef WHITEOUT_HAS_UPSCALER
+    return [this](const tex::Texture& input, const std::string& model_id,
+                  bool alpha) -> std::optional<tex::Texture> {
+        Upscaler* up = nullptr;
+        if (const auto it = pipeline_upscalers_.find(model_id); it != pipeline_upscalers_.end()) {
+            up = it->second.get();
+        } else {
+            for (const auto& m : Upscaler::catalog())
+                if (m.file_stem == model_id) {
+                    auto u = std::make_unique<Upscaler>();
+                    if (u->init(Upscaler::defaultModelDir(), m)) {
+                        up = u.get();
+                        pipeline_upscalers_[model_id] = std::move(u);
+                    }
+                    break;
+                }
+        }
+        if (!up)
+            return std::nullopt; // model not installed / failed to init
+        return up->process(input, alpha);
+    };
+#else
+    return {};
+#endif
 }
 
 void App::runPipelineDebug() {
@@ -616,8 +643,10 @@ void App::runPipelineDebug() {
         pipelines_dir_.empty()
             ? std::filesystem::path("presets")
             : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
-    auto result = services::runPipelineDebug(pipeline_editor_.graph(), inputs, presets,
-                                             std::filesystem::path(pipelines_dir_), texture_service_);
+    auto result =
+        services::runPipelineDebug(pipeline_editor_.graph(), inputs, presets,
+                                   std::filesystem::path(pipelines_dir_), texture_service_, 0,
+                                   makeUpscaleFn());
     pipeline_debug_dialog_.setResult(std::move(result));
 }
 
@@ -748,7 +777,7 @@ void App::runMultiPipeline() {
             : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
     auto result = services::runVaryingPipeline(graph, inputs, presets,
                                                std::filesystem::path(pipelines_dir_),
-                                               texture_service_);
+                                               texture_service_, 0, makeUpscaleFn());
     for (const auto& e : result.errors)
         errors += "\n- " + e;
 

@@ -1,0 +1,319 @@
+{
+  "links": [
+    {
+      "from": [
+        3,
+        "value"
+      ],
+      "to": [
+        2,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        3,
+        "value"
+      ],
+      "to": [
+        4,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "value"
+      ],
+      "to": [
+        7,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "false"
+      ],
+      "to": [
+        8,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "result"
+      ],
+      "to": [
+        8,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "result"
+      ],
+      "to": [
+        9,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        2,
+        "result"
+      ],
+      "to": [
+        4,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        2,
+        "result"
+      ],
+      "to": [
+        4,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "result"
+      ],
+      "to": [
+        10,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        10,
+        "value"
+      ],
+      "to": [
+        7,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "value"
+      ],
+      "to": [
+        5,
+        "amount"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "true"
+      ],
+      "to": [
+        5,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        13,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "result"
+      ],
+      "to": [
+        11,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "value"
+      ],
+      "to": [
+        11,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "result"
+      ],
+      "to": [
+        2,
+        "a"
+      ]
+    }
+  ],
+  "name": "Log2Ceil",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "value",
+        "value": 0
+      },
+      "pos": [
+        -327.0,
+        323.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 2,
+      "params": {},
+      "pos": [
+        263.0,
+        382.0
+      ],
+      "type": "op.max"
+    },
+    {
+      "id": 3,
+      "params": {
+        "value": 0
+      },
+      "pos": [
+        -70.0,
+        547.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 4,
+      "params": {
+        "comparator": 4,
+        "epsilon": 1e-06
+      },
+      "pos": [
+        477.0,
+        377.0
+      ],
+      "type": "ctrl.conditional"
+    },
+    {
+      "id": 5,
+      "params": {},
+      "pos": [
+        826.0,
+        307.0
+      ],
+      "type": "op.bit_shr"
+    },
+    {
+      "id": 6,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        698.0,
+        115.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 7,
+      "params": {},
+      "pos": [
+        1351.0,
+        227.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 8,
+      "params": {},
+      "pos": [
+        1511.0,
+        398.0
+      ],
+      "type": "ctrl.rendezvous"
+    },
+    {
+      "id": 9,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1703.0,
+        435.0
+      ],
+      "type": "output.integer"
+    },
+    {
+      "id": 10,
+      "params": {
+        "pipeline": "functions/log2_ceil.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "int"
+          }
+        ]
+      },
+      "pos": [
+        1048.0,
+        307.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 11,
+      "params": {},
+      "pos": [
+        87.0,
+        275.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 12,
+      "params": {
+        "value": 1
+      },
+      "pos": [
+        -326.0,
+        163.0
+      ],
+      "type": "input.const_int"
+    },
+    {
+      "id": 13,
+      "params": {},
+      "pos": [
+        -125.0,
+        195.0
+      ],
+      "type": "op.negate"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}
