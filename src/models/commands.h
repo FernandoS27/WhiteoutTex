@@ -103,6 +103,10 @@ struct LoadCascTextureCmd {
 /// Apply BC3N channel swap to the current texture.
 struct ApplyBC3NSwapCmd {};
 
+/// Undo / redo the last operation applied to the main image (Preview tab).
+struct UndoImageCmd {};
+struct RedoImageCmd {};
+
 /// Load a D4 TEX with user-specified payload paths.
 struct LoadD4PayloadCmd {
     std::string meta_path;
@@ -173,6 +177,8 @@ using AppCommand = std::variant<
     SetLanguageCmd,
     LoadCascTextureCmd,
     ApplyBC3NSwapCmd,
+    UndoImageCmd,
+    RedoImageCmd,
     LoadD4PayloadCmd,
     RunPipelineCmd,
     OpenMultiPipelineCmd

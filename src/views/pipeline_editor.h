@@ -97,6 +97,8 @@ private:
     // Node Palette: a Save/Load toolbar over a panel listing registered node
     // types (grouped by category); click an entry to spawn it onto the canvas.
     void drawPalette(f32 width, SDL_Window* window);
+    // Palette width, user-resizable by dragging the splitter to its right.
+    f32 palette_width_ = 190.0f;
 
     // Open the save/load file dialogs, and consume their async results
     // (serialize / deserialize the graph as JSON).

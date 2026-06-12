@@ -24,6 +24,7 @@
 #include <unordered_map>
 #endif
 
+#include <deque>
 #include <optional>
 
 #include <string>
@@ -96,6 +97,20 @@ private:
 
     /// Modal that collects Real Input parameter values before running.
     void drawPipelineParamDialog();
+
+    // ── Image edit history (Preview tab undo/redo) ─────────────────────
+    /// One restorable image state (the texture plus its display source format).
+    struct ImageSnapshot {
+        whiteout::textures::Texture texture;
+        whiteout::textures::PixelFormat source_fmt;
+    };
+    /// Record the current image as an undo step (call BEFORE replacing it).
+    /// Clears the redo stack — a new operation forks history.
+    void pushUndoSnapshot(ImageSnapshot snapshot);
+    void undoImage();
+    void redoImage();
+    std::deque<ImageSnapshot> undo_stack_;
+    std::deque<ImageSnapshot> redo_stack_;
 
     // SDL
     SDL_Window* window_ = nullptr;

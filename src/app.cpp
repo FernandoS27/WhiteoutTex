@@ -350,6 +350,9 @@ void App::applyLoadResult(const std::string& path, TextureLoadResult result) {
         tex_state_.file_format = result.file_format;
         tex_state_.path = path;
         tex_state_.status_message.clear();
+        // A fresh image starts a fresh edit history.
+        undo_stack_.clear();
+        redo_stack_.clear();
         viewer_.setTexture(*tex_state_.texture);
         if (result.needs_bc3n_dialog) {
             ui_.show_bc3n_dialog = true;
@@ -374,9 +377,12 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                 [&](RegenerateMipmapsCmd& c) {
                     if (!tex_state_.texture)
                         return;
+                    ImageSnapshot before{*tex_state_.texture, tex_state_.source_fmt};
                     auto op = texture_service_.regenerateMipmaps(*tex_state_.texture, c.mip_count);
-                    if (op.success)
+                    if (op.success) {
+                        pushUndoSnapshot(std::move(before));
                         viewer_.setTexture(*tex_state_.texture);
+                    }
                     ui_.result_popup_message = std::move(op.message);
                     ui_.result_popup_success = op.success;
                     ui_.show_result_popup = true;
@@ -384,9 +390,12 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                 [&](DownscaleCmd& c) {
                     if (!tex_state_.texture)
                         return;
+                    ImageSnapshot before{*tex_state_.texture, tex_state_.source_fmt};
                     auto op = texture_service_.downscale(*tex_state_.texture, c.levels);
-                    if (op.success)
+                    if (op.success) {
+                        pushUndoSnapshot(std::move(before));
                         viewer_.setTexture(*tex_state_.texture);
+                    }
                     ui_.result_popup_message = std::move(op.message);
                     ui_.result_popup_success = op.success;
                     ui_.show_result_popup = true;
@@ -494,10 +503,13 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                 },
                 [&](ApplyBC3NSwapCmd&) {
                     if (tex_state_.texture) {
+                        pushUndoSnapshot({*tex_state_.texture, tex_state_.source_fmt});
                         TextureService::applyBC3NSwap(*tex_state_.texture);
                         viewer_.setTexture(*tex_state_.texture);
                     }
                 },
+                [&](UndoImageCmd&) { undoImage(); },
+                [&](RedoImageCmd&) { redoImage(); },
                 [&](LoadD4PayloadCmd& c) {
                     auto result = texture_service_.loadD4WithPayload(
                         c.meta_path, c.payload_path,
@@ -589,6 +601,8 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
 
     std::string msg;
     if (result.output) {
+        // The replaced image becomes the undo step (moved, not copied).
+        pushUndoSnapshot({std::move(*tex_state_.texture), tex_state_.source_fmt});
         tex_state_.texture = std::move(*result.output);
         tex_state_.source_fmt = tex::PixelFormat::RGBA8;
         viewer_.setTexture(*tex_state_.texture);
@@ -602,6 +616,45 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     ui_.result_popup_message = std::move(msg);
     ui_.result_popup_success = result.output.has_value();
     ui_.show_result_popup = true;
+}
+
+// ── Image edit history (Preview tab undo/redo) ──────────────────────────────
+// Snapshots are full texture copies, so the history is capped to bound memory.
+namespace {
+constexpr std::size_t kMaxImageHistory = 10;
+}
+
+void App::pushUndoSnapshot(ImageSnapshot snapshot) {
+    undo_stack_.push_back(std::move(snapshot));
+    if (undo_stack_.size() > kMaxImageHistory)
+        undo_stack_.pop_front();
+    redo_stack_.clear(); // a new operation forks history
+}
+
+void App::undoImage() {
+    if (undo_stack_.empty() || !tex_state_.texture)
+        return;
+    redo_stack_.push_back({std::move(*tex_state_.texture), tex_state_.source_fmt});
+    if (redo_stack_.size() > kMaxImageHistory)
+        redo_stack_.pop_front();
+    ImageSnapshot& s = undo_stack_.back();
+    tex_state_.texture = std::move(s.texture);
+    tex_state_.source_fmt = s.source_fmt;
+    undo_stack_.pop_back();
+    viewer_.setTexture(*tex_state_.texture);
+}
+
+void App::redoImage() {
+    if (redo_stack_.empty() || !tex_state_.texture)
+        return;
+    undo_stack_.push_back({std::move(*tex_state_.texture), tex_state_.source_fmt});
+    if (undo_stack_.size() > kMaxImageHistory)
+        undo_stack_.pop_front();
+    ImageSnapshot& s = redo_stack_.back();
+    tex_state_.texture = std::move(s.texture);
+    tex_state_.source_fmt = s.source_fmt;
+    redo_stack_.pop_back();
+    viewer_.setTexture(*tex_state_.texture);
 }
 
 services::PipelineUpscaleFn App::makeUpscaleFn() {
@@ -942,6 +995,8 @@ void App::pollUpscaleResult() {
 
     image_details_.setUpscaleInProgress(false);
     if (upscale_result->success && upscale_result->texture) {
+        if (tex_state_.texture)
+            pushUndoSnapshot({std::move(*tex_state_.texture), tex_state_.source_fmt});
         tex_state_.texture = std::move(*upscale_result->texture);
         tex_state_.source_fmt = tex::PixelFormat::RGBA8;
         viewer_.setTexture(*tex_state_.texture);
@@ -1102,6 +1157,16 @@ i32 App::run(i32 argc, char** argv) {
             // Content area for the active tab.
             ImGui::BeginChild("##MainTabContent", ImVec2(0.0f, full_height));
             if (ui_.active_main_tab == 0) {
+                // Image edit history shortcuts (Preview only; not while typing).
+                if (!ImGui::GetIO().WantTextInput) {
+                    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z))
+                        undoImage();
+                    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) ||
+                        ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z))
+                        redoImage();
+                }
+                image_details_.setHistory(!undo_stack_.empty(), !redo_stack_.empty());
+
                 const f32 available_width = ImGui::GetContentRegionAvail().x;
                 const f32 available_height = ImGui::GetContentRegionAvail().y;
                 const f32 left_panel_width = available_width * 0.4f;

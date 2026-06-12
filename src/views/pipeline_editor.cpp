@@ -337,9 +337,23 @@ void PipelineEditor::draw(SDL_Window* window) {
     }
 
     // Palette (with Save/Load toolbar) on the left, node canvas filling the rest.
-    constexpr f32 kPaletteWidth = 190.0f;
-    drawPalette(kPaletteWidth, window);
-    ImGui::SameLine();
+    // The palette is horizontally resizable: a thin invisible splitter sits
+    // between it and the canvas; dragging it adjusts palette_width_ and the
+    // palette contents re-fit (they all size from GetContentRegionAvail).
+    constexpr f32 kPaletteMinWidth = 140.0f;
+    const f32 palette_max_width = std::max(kPaletteMinWidth,
+                                           ImGui::GetContentRegionAvail().x * 0.6f);
+    palette_width_ = std::clamp(palette_width_, kPaletteMinWidth, palette_max_width);
+    drawPalette(palette_width_, window);
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::InvisibleButton("##palette_splitter",
+                           ImVec2(6.0f, std::max(1.0f, ImGui::GetContentRegionAvail().y)));
+    if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (ImGui::IsItemActive())
+        palette_width_ = std::clamp(palette_width_ + ImGui::GetIO().MouseDelta.x,
+                                    kPaletteMinWidth, palette_max_width);
+    ImGui::SameLine(0.0f, 0.0f);
 
     // Remember the canvas rect so we can make it a drag-and-drop target.
     const ImVec2 canvas_min = ImGui::GetCursorScreenPos();

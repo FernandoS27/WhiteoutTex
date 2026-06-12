@@ -20,6 +20,51 @@ namespace whiteout::textool::views {
 using namespace models;
 using i18n::tr;
 
+namespace {
+
+/// A framed button drawing a curved undo / redo arrow (no font glyph needed,
+/// so it renders identically in every language).  Mirrored on X for redo.
+bool historyIconButton(const char* id, bool is_redo, bool enabled, f32 width) {
+    if (!enabled)
+        ImGui::BeginDisabled();
+    const bool clicked = ImGui::Button(id, ImVec2(width, ImGui::GetFrameHeight() * 1.25f));
+
+    const ImVec2 mn = ImGui::GetItemRectMin(), mx = ImGui::GetItemRectMax();
+    const ImVec2 c{(mn.x + mx.x) * 0.5f, (mn.y + mx.y) * 0.5f};
+    const f32 r = (mx.y - mn.y) * 0.28f;
+    const ImU32 col = ImGui::GetColorU32(enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    // Arc from just past the right horizon, over the top, to just past the left
+    // horizon (screen space, y down) — mirrored on X for the redo arrow.
+    const f32 sx = is_redo ? -1.0f : 1.0f;
+    const f32 th0 = 0.15f * 3.14159265f;
+    const f32 th1 = -1.15f * 3.14159265f;
+    const auto pt = [&](f32 th) {
+        return ImVec2(c.x + sx * r * std::cos(th), c.y + r * std::sin(th));
+    };
+    dl->PathClear();
+    constexpr int kSegs = 24;
+    for (int i = 0; i <= kSegs; ++i)
+        dl->PathLineTo(pt(th0 + (th1 - th0) * (static_cast<f32>(i) / kSegs)));
+    dl->PathStroke(col, ImDrawFlags_None, std::max(1.5f, r * 0.28f));
+
+    // Arrowhead at the end of the sweep, aligned with the direction of travel.
+    const ImVec2 end = pt(th1);
+    const ImVec2 tan{sx * std::sin(th1), -std::cos(th1)}; // unit tangent (decreasing angle)
+    const ImVec2 nrm{-tan.y, tan.x};
+    const f32 ah = r * 0.95f;
+    dl->AddTriangleFilled(ImVec2(end.x + tan.x * ah, end.y + tan.y * ah),
+                          ImVec2(end.x + nrm.x * ah * 0.55f, end.y + nrm.y * ah * 0.55f),
+                          ImVec2(end.x - nrm.x * ah * 0.55f, end.y - nrm.y * ah * 0.55f), col);
+
+    if (!enabled)
+        ImGui::EndDisabled();
+    return clicked;
+}
+
+} // namespace
+
 // ============================================================================
 // Details panel
 // ============================================================================
@@ -33,10 +78,25 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
     std::vector<AppCommand> commands;
 
     ImGui::BeginChild("##TextPanel", ImVec2(width, height), ImGuiChildFlags_Borders);
-    ImGui::SeparatorText(tr("details.image_details"));
 
     if (texture) {
         const auto& t = *texture;
+
+        // Edit history at the very top: step back / forward through operations
+        // applied to the image (mipmaps, downscale, upscale, pipelines, swaps).
+        {
+            const f32 half = (ImGui::GetContentRegionAvail().x -
+                              ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+            if (historyIconButton("##history_undo", /*is_redo=*/false, can_undo_, half))
+                commands.push_back(UndoImageCmd{});
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s (Ctrl+Z)", tr("details.undo"));
+            ImGui::SameLine();
+            if (historyIconButton("##history_redo", /*is_redo=*/true, can_redo_, half))
+                commands.push_back(RedoImageCmd{});
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s (Ctrl+Y)", tr("details.redo"));
+        }
 
         ImGui::SeparatorText(tr("details.file"));
         ImGui::Text(tr("details.path"), path.c_str());

@@ -41,6 +41,7 @@ enum class Language : i32 {
     ChineseTraditional,
     Japanese,
     Korean,
+    PortugueseBrazilian,
 };
 
 /// A selectable language: its stable file/config code and its native name.

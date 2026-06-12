@@ -55,6 +55,13 @@ public:
     void setPipelines(std::vector<models::PipelineInfo> pipelines,
                       std::unordered_map<std::string, std::vector<models::PipelineParam>> params);
 
+    /// Set whether image-edit undo / redo steps are available (drawn as the
+    /// History buttons; emits UndoImageCmd / RedoImageCmd).
+    void setHistory(bool can_undo, bool can_redo) {
+        can_undo_ = can_undo;
+        can_redo_ = can_redo;
+    }
+
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).
     void setUpscalerModels(std::vector<UpscalerModel> models);
@@ -77,6 +84,10 @@ private:
 
     // Downscale options
     i32 downscale_level_ = 0; // 0 = x2 (1 level), 1 = x4 (2 levels)
+
+    // Image edit history availability (set by the app each frame)
+    bool can_undo_ = false;
+    bool can_redo_ = false;
 
 #ifdef WHITEOUT_HAS_UPSCALER
     std::vector<UpscalerModel> upscale_models_;

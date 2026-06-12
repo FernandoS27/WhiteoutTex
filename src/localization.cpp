@@ -11,12 +11,13 @@ namespace whiteout::textool::i18n {
 
 namespace {
 
-constexpr std::array<LanguageEntry, 10> kLanguages = {{
+constexpr std::array<LanguageEntry, 11> kLanguages = {{
     {Language::English, "en", "English"},
     {Language::Spanish, "es", "Español"},
     {Language::German, "de", "Deutsch"},
     {Language::French, "fr", "Français"},
     {Language::Italian, "it", "Italiano"},
+    {Language::PortugueseBrazilian, "pt-br", "Português (Brasil)"},
     {Language::Russian, "ru", "Русский"},
     {Language::ChineseSimplified, "zh", "简体中文"},
     {Language::ChineseTraditional, "zh-hant", "繁體中文"},
