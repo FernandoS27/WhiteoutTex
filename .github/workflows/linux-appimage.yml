@@ -187,9 +187,13 @@ jobs:
             --library "${sdl3_lib}" \
             --output appimage
 
-          # linuxdeploy-plugin-appimage names output "<AppName>-<VERSION>-<arch>.AppImage".
+          # linuxdeploy-plugin-appimage names output "<AppName>-<VERSION>-<arch>.AppImage";
+          # rename to WhiteoutTex-<sha8>-<os>-<arch>.AppImage so the final asset
+          # carries the OS name like the Windows zip / macOS dmg.
           produced="$(ls WhiteoutTex-*.AppImage | head -n1)"
-          echo "ARTIFACT=${produced}" >> "${GITHUB_ENV}"
+          renamed="WhiteoutTex-${GITHUB_SHA::8}-linux-x86_64.AppImage"
+          mv "${produced}" "${renamed}"
+          echo "ARTIFACT=${renamed}" >> "${GITHUB_ENV}"
 
       - name: Smoke test extracted AppImage
         run: |

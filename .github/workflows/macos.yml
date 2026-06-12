@@ -203,7 +203,9 @@ jobs:
       - name: Create .dmg
         run: |
           set -eux
-          DMG="WhiteoutTex-${GITHUB_SHA::8}-arm64.dmg"
+          # Final asset name: WhiteoutTex-<sha8>-<os>-<arch>.<ext> (matches the
+          # Windows zip / Linux AppImage naming so release assets sort together).
+          DMG="WhiteoutTex-${GITHUB_SHA::8}-macos-arm64.dmg"
           STAGE=dmg-staging
           rm -rf "${STAGE}" "${DMG}"
           mkdir "${STAGE}"
