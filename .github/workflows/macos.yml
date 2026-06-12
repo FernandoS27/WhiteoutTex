@@ -142,6 +142,12 @@ jobs:
           cp -Rv resources/lang  "${APP}/Contents/Resources/lang"
           cp -Rv resources/fonts "${APP}/Contents/Resources/fonts"
 
+          # Built-in node pipelines (pipelines/**, incl. functions/) and their
+          # presets (presets/**), loaded from Contents/Resources/ via
+          # SDL_GetBasePath() (mirrors the CMake WhiteoutTexAssets copy).
+          cp -Rv resources/pipelines "${APP}/Contents/Resources/pipelines"
+          cp -Rv resources/presets   "${APP}/Contents/Resources/presets"
+
           # Community CASC listfile as listfile.csv where
           # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath()
           # (Contents/Resources/ for a macOS bundle). Always pull the latest

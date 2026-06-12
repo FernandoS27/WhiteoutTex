@@ -119,6 +119,12 @@ jobs:
           cp -av resources/lang  "${APPDIR}/usr/bin/lang"
           cp -av resources/fonts "${APPDIR}/usr/bin/fonts"
 
+          # Built-in node pipelines (pipelines/**, incl. functions/) and their
+          # presets (presets/**), next to the binary — the app loads pipelines
+          # from ./pipelines and presets from ./presets (mirrors WhiteoutTexAssets).
+          cp -av resources/pipelines "${APPDIR}/usr/bin/pipelines"
+          cp -av resources/presets   "${APPDIR}/usr/bin/presets"
+
           # Community CASC listfile, next to the binary as listfile.csv where
           # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath().
           # Always pull the latest release so new game files resolve.

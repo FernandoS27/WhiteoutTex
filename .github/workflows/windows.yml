@@ -100,6 +100,12 @@ jobs:
           Copy-Item resources/lang  $stage/lang  -Recurse
           Copy-Item resources/fonts $stage/fonts -Recurse
 
+          # Built-in node pipelines (pipelines/**, incl. functions/) and their
+          # presets (presets/**), next to the exe — the app loads pipelines from
+          # ./pipelines and presets from ./presets (mirrors WhiteoutTexAssets).
+          Copy-Item resources/pipelines $stage/pipelines -Recurse
+          Copy-Item resources/presets   $stage/presets   -Recurse
+
           # Community CASC listfile, next to the exe as listfile.csv where
           # CascBrowser::loadListfileFromExeDir() reads it via SDL_GetBasePath().
           # Always pull the latest release so new game files resolve.
