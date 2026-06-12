@@ -56,6 +56,9 @@ const std::vector<std::string> kDisplaceModes = {"pipeline.displace.wrap", "pipe
                                                  "pipeline.displace.transparent"};
 const std::vector<std::string> kScaleFilters = {"pipeline.filter.bicubic", "pipeline.filter.linear",
                                                 "pipeline.filter.lanczos"};
+// Rounding modes for the Real -> Integer conversion node (i18n keys).
+const std::vector<std::string> kRoundModes = {"pipeline.round.nearest", "pipeline.round.floor",
+                                              "pipeline.round.ceil", "pipeline.round.truncate"};
 
 // Comparison operators for the Conditional control node (i18n keys).
 const std::vector<std::string> kComparators = {
@@ -350,6 +353,25 @@ public:
         addInput("base", PinType::Number);
         addInput("exponent", PinType::Number);
         addOutput("result", PinType::Number);
+    }
+};
+
+// Convert a Real to an Integer using the selected rounding mode.
+class ToIntegerNode final : public Node {
+public:
+    ToIntegerNode() : Node("op.to_int", NodeCategory::Operation) {
+        addInput("value", PinType::Real);
+        addOutput("result", PinType::Int);
+        addEnumParam("mode", 0, kRoundModes); // 0=Nearest,1=Floor,2=Ceil,3=Truncate
+    }
+};
+
+// Convert an Integer to a Real (exact).
+class ToRealNode final : public Node {
+public:
+    ToRealNode() : Node("op.to_real", NodeCategory::Operation) {
+        addInput("value", PinType::Int);
+        addOutput("result", PinType::Real);
     }
 };
 
@@ -820,6 +842,10 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<NaturalLogNode>(); }});
     reg.registerType({"op.power", NodeCategory::Operation, "pipeline.node.power",
                       [] { return std::make_unique<PowerNode>(); }});
+    reg.registerType({"op.to_int", NodeCategory::Operation, "pipeline.node.to_int",
+                      [] { return std::make_unique<ToIntegerNode>(); }});
+    reg.registerType({"op.to_real", NodeCategory::Operation, "pipeline.node.to_real",
+                      [] { return std::make_unique<ToRealNode>(); }});
     reg.registerType({"op.bit_and", NodeCategory::Operation, "pipeline.node.bit_and",
                       [] { return std::make_unique<BitwiseBinaryNode>("op.bit_and"); }});
     reg.registerType({"op.bit_or", NodeCategory::Operation, "pipeline.node.bit_or",

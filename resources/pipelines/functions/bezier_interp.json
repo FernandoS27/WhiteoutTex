@@ -1,0 +1,275 @@
+{
+  "category": "Interpolation",
+  "links": [
+    {
+      "from": [
+        1,
+        "value"
+      ],
+      "to": [
+        6,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        2,
+        "value"
+      ],
+      "to": [
+        6,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "value"
+      ],
+      "to": [
+        6,
+        "t"
+      ]
+    },
+    {
+      "from": [
+        3,
+        "value"
+      ],
+      "to": [
+        7,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "value"
+      ],
+      "to": [
+        7,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "value"
+      ],
+      "to": [
+        7,
+        "t"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "value"
+      ],
+      "to": [
+        8,
+        "t"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "value"
+      ],
+      "to": [
+        8,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "value"
+      ],
+      "to": [
+        8,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "value"
+      ],
+      "to": [
+        10,
+        "value"
+      ]
+    }
+  ],
+  "name": "Bezier Interpolation",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "name": "a"
+      },
+      "pos": [
+        417.0,
+        -13.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 2,
+      "params": {
+        "name": "outTan"
+      },
+      "pos": [
+        417.0,
+        99.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 3,
+      "params": {
+        "name": "inTan"
+      },
+      "pos": [
+        417.0,
+        339.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 4,
+      "params": {
+        "name": "b"
+      },
+      "pos": [
+        417.0,
+        467.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 5,
+      "params": {
+        "name": "t"
+      },
+      "pos": [
+        417.0,
+        227.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 6,
+      "params": {
+        "pipeline": "functions/linear_interp.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "a",
+            "type": "number"
+          },
+          {
+            "name": "b",
+            "type": "number"
+          },
+          {
+            "name": "t",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "number"
+          }
+        ]
+      },
+      "pos": [
+        808.0,
+        36.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 7,
+      "params": {
+        "pipeline": "functions/linear_interp.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "a",
+            "type": "number"
+          },
+          {
+            "name": "b",
+            "type": "number"
+          },
+          {
+            "name": "t",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "number"
+          }
+        ]
+      },
+      "pos": [
+        808.0,
+        345.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 8,
+      "params": {
+        "pipeline": "functions/linear_interp.json"
+      },
+      "pins": {
+        "inputs": [
+          {
+            "name": "a",
+            "type": "number"
+          },
+          {
+            "name": "b",
+            "type": "number"
+          },
+          {
+            "name": "t",
+            "type": "number"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "value",
+            "type": "number"
+          }
+        ]
+      },
+      "pos": [
+        1128.0,
+        180.0
+      ],
+      "type": "op.subpipeline"
+    },
+    {
+      "id": 10,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1448.0,
+        179.0
+      ],
+      "type": "output.number"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

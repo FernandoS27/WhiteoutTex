@@ -3,16 +3,6 @@
   "links": [
     {
       "from": [
-        16,
-        "image"
-      ],
-      "to": [
-        3,
-        "image"
-      ]
-    },
-    {
-      "from": [
         1,
         "image"
       ],
@@ -250,9 +240,39 @@
         16,
         "blue"
       ]
+    },
+    {
+      "from": [
+        16,
+        "image"
+      ],
+      "to": [
+        47,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        47,
+        "image"
+      ],
+      "to": [
+        3,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        48,
+        "value"
+      ],
+      "to": [
+        47,
+        "kind"
+      ]
     }
   ],
-  "name": "BlizzNotrmalMapToStandard",
+  "name": "Blizzard's NormalMap To Standard",
   "nodes": [
     {
       "id": 1,
@@ -271,8 +291,8 @@
         "name": "Output"
       },
       "pos": [
-        2932.0,
-        248.0
+        3240.0,
+        211.0
       ],
       "type": "output.standard"
     },
@@ -495,6 +515,26 @@
         515.0
       ],
       "type": "op.subpipeline"
+    },
+    {
+      "id": 47,
+      "params": {},
+      "pos": [
+        3016.0,
+        211.0
+      ],
+      "type": "op.set_kind"
+    },
+    {
+      "id": 48,
+      "params": {
+        "kind": 2
+      },
+      "pos": [
+        2771.0,
+        355.0
+      ],
+      "type": "input.const_kind"
     }
   ],
   "type": "standard",

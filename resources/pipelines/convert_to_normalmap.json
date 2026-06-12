@@ -83,16 +83,6 @@
     },
     {
       "from": [
-        25,
-        "image"
-      ],
-      "to": [
-        26,
-        "image"
-      ]
-    },
-    {
-      "from": [
         12,
         "value"
       ],
@@ -180,9 +170,39 @@
         25,
         "red"
       ]
+    },
+    {
+      "from": [
+        25,
+        "image"
+      ],
+      "to": [
+        32,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        33,
+        "value"
+      ],
+      "to": [
+        32,
+        "kind"
+      ]
+    },
+    {
+      "from": [
+        32,
+        "image"
+      ],
+      "to": [
+        26,
+        "image"
+      ]
     }
   ],
-  "name": "DiffuseToNormalMap",
+  "name": "Diffuse To NormalMap",
   "nodes": [
     {
       "id": 1,
@@ -294,8 +314,8 @@
         "name": "Output"
       },
       "pos": [
-        2440.0,
-        371.0
+        2760.0,
+        403.0
       ],
       "type": "output.standard"
     },
@@ -414,6 +434,26 @@
         499.0
       ],
       "type": "op.subpipeline"
+    },
+    {
+      "id": 32,
+      "params": {},
+      "pos": [
+        2492.0,
+        403.0
+      ],
+      "type": "op.set_kind"
+    },
+    {
+      "id": 33,
+      "params": {
+        "kind": 2
+      },
+      "pos": [
+        2227.0,
+        547.0
+      ],
+      "type": "input.const_kind"
     }
   ],
   "type": "standard",

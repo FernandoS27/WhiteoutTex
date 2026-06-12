@@ -1,0 +1,170 @@
+{
+  "category": "Interpolation",
+  "links": [
+    {
+      "from": [
+        1,
+        "value"
+      ],
+      "to": [
+        5,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        5,
+        "result"
+      ],
+      "to": [
+        7,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        2,
+        "value"
+      ],
+      "to": [
+        7,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        7,
+        "result"
+      ],
+      "to": [
+        4,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        3,
+        "value"
+      ],
+      "to": [
+        4,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "value"
+      ],
+      "to": [
+        8,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "result"
+      ],
+      "to": [
+        8,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "result"
+      ],
+      "to": [
+        10,
+        "value"
+      ]
+    }
+  ],
+  "name": "Linear Interpolation",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "name": "a"
+      },
+      "pos": [
+        369.0,
+        -29.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 2,
+      "params": {
+        "name": "b"
+      },
+      "pos": [
+        369.0,
+        147.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 3,
+      "params": {
+        "name": "t"
+      },
+      "pos": [
+        369.0,
+        307.0
+      ],
+      "type": "input.number"
+    },
+    {
+      "id": 4,
+      "params": {},
+      "pos": [
+        1112.0,
+        179.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 5,
+      "params": {},
+      "pos": [
+        627.0,
+        83.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 7,
+      "params": {},
+      "pos": [
+        887.0,
+        115.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 8,
+      "params": {},
+      "pos": [
+        1272.0,
+        -34.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 10,
+      "params": {
+        "name": "value"
+      },
+      "pos": [
+        1496.0,
+        99.0
+      ],
+      "type": "output.number"
+    }
+  ],
+  "type": "function",
+  "version": 1
+}

@@ -1,4 +1,5 @@
 {
+  "category": "Interpolation",
   "links": [
     {
       "from": [
@@ -94,6 +95,96 @@
       "from": [
         9,
         "value"
+      ],
+      "to": [
+        11,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "value"
+      ],
+      "to": [
+        11,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        9,
+        "value"
+      ],
+      "to": [
+        13,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        12,
+        "value"
+      ],
+      "to": [
+        13,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        13,
+        "result"
+      ],
+      "to": [
+        14,
+        "value"
+      ]
+    },
+    {
+      "from": [
+        14,
+        "result"
+      ],
+      "to": [
+        16,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        15,
+        "value"
+      ],
+      "to": [
+        16,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        11,
+        "result"
+      ],
+      "to": [
+        17,
+        "a"
+      ]
+    },
+    {
+      "from": [
+        16,
+        "result"
+      ],
+      "to": [
+        17,
+        "b"
+      ]
+    },
+    {
+      "from": [
+        17,
+        "result"
       ],
       "to": [
         10,
@@ -212,10 +303,77 @@
         "name": "result"
       },
       "pos": [
-        1576.0,
+        2488.0,
         323.0
       ],
       "type": "output.number"
+    },
+    {
+      "id": 11,
+      "params": {},
+      "pos": [
+        1847.0,
+        254.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 12,
+      "params": {
+        "value": 2.0
+      },
+      "pos": [
+        1418.0,
+        531.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 13,
+      "params": {},
+      "pos": [
+        1672.0,
+        419.0
+      ],
+      "type": "op.multiply"
+    },
+    {
+      "id": 14,
+      "params": {},
+      "pos": [
+        1875.0,
+        419.0
+      ],
+      "type": "op.negate"
+    },
+    {
+      "id": 15,
+      "params": {
+        "value": 3.0
+      },
+      "pos": [
+        1930.0,
+        595.0
+      ],
+      "type": "input.const_real"
+    },
+    {
+      "id": 16,
+      "params": {},
+      "pos": [
+        2145.0,
+        498.0
+      ],
+      "type": "op.add"
+    },
+    {
+      "id": 17,
+      "params": {},
+      "pos": [
+        2264.0,
+        323.0
+      ],
+      "type": "op.multiply"
     }
   ],
   "type": "function",

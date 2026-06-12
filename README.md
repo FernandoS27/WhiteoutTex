@@ -41,13 +41,36 @@
 
 ## Features
 
-- **Open & save** textures: BLP, BMP, DDS, JPEG, PNG, TGA — plus read-only support for Blizzard TEX (Diablo III/IV).
+- **Open & save** textures: BLP, BMP, DDS, JPEG, PNG, PSD, TGA, TIFF, and Diablo II: Resurrected `.texture` — plus read-only support for Blizzard TEX (Diablo III/IV).
 - **Image viewer** with zoom, pan, per-channel RGBA filtering, mip level selection, and auto-detection of normal maps and ORM textures.
 - **Texture details** — dimensions, pixel format, mip chain info, and automatic texture kind classification (Diffuse, Normal, ORM, etc.) with manual override.
 - **Mipmap generation** — one-click regeneration that respects texture kind (normal maps get renormalized, PBR textures keep correct properties).
 - **Batch conversion** — convert entire directories at once, multi-threaded, with per-format filters and per-kind DDS targeting.
+- **Pipelines** — a visual node-graph editor for building reusable image-processing pipelines (channel ops, math, filters, geometry, control flow, subpipelines) that run on individual textures or as a batch step.
 - **CASC browser** — open Blizzard game archives directly and browse/extract textures, including full Diablo IV TEX support.
 - **Save options** — format-specific settings (BLP encoding & dithering, DDS format, JPEG quality), mipmap generation on save, and preferences remembered across sessions.
+
+### Pipelines & Node Editor
+
+Build reusable image-processing graphs in a visual node editor and run them on your textures — no code required.
+
+<p align="center">
+  <img src="resources/media/media_6.png" alt="Pipeline Node Editor" width="80%" />
+</p>
+
+- **Rich node library** — channel ops (extract / merge / invert / luma / prism), arithmetic and math (add, multiply, min/max, power, sine, cosine, natural log…), bitwise integer ops, filters (blur, sharpen, Sobel, derivatives), geometry (mirror, rotate, scale, displace, resize, tiling), mipmap tools, and image properties.
+- **Control flow** — Conditional / Select / Rendezvous nodes and recursive **subpipelines**, including in-canvas **local pipelines** (frames).
+- **Three pipeline kinds** — *Standard* (one image in/out, run straight from the Preview panel), *Varying* (many images in/out, run from the MultiPipelines dialog), and *Function* (typed numeric I/O, callable from other pipelines).
+- **Categories & inline parameters** — organize pipelines by category and adjust a pipeline's extra inputs right in the Preview panel before running.
+- **Debugger** — run the current graph with custom inputs and inspect every output, numeric or image, in a results dialog.
+- **Batch integration** — drop a pipeline into the batch converter as a processing step, with overridable parameters.
+- **AI upscaling node** — call Real-ESRGAN models from inside a pipeline (when built with the upscaler).
+
+A library of ready-made pipelines ships in `resources/pipelines` (grayscale, invert, normal-map conversion, ORM pack/unpack, button generators, and more), with reusable building blocks under `functions/`.
+
+<p align="center">
+  <img src="resources/media/media_7.png" alt="Pipeline Debugger" width="80%" />
+</p>
 
 ### AI Upscaling (Optional)
 
@@ -90,6 +113,8 @@ This requires the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Run `scripts
 | Library | License |
 |---------|---------|
 | [Dear ImGui](https://github.com/ocornut/imgui) | MIT |
+| [imgui-node-editor](https://github.com/thedmd/imgui-node-editor) | MIT |
+| [nlohmann/json](https://github.com/nlohmann/json) | MIT |
 | [SDL3](https://github.com/libsdl-org/SDL) | zlib |
 | [WhiteoutLib](https://github.com/FernandoS27/WhiteoutLib) | See library license |
 | [CascLib](https://github.com/ladislav-zezula/CascLib) | MIT |

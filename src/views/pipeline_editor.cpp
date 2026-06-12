@@ -8,6 +8,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -510,7 +511,7 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
           "op.merge_channels", "op.prims", "op.luma"}},
         {"pipeline.group.arithmetic",
          {"op.add", "op.multiply", "op.min", "op.max", "op.negate", "op.sqrt", "op.reciprocal",
-          "op.power", "op.sine", "op.cosine", "op.ln"}},
+          "op.power", "op.sine", "op.cosine", "op.ln", "op.to_int", "op.to_real"}},
         {"pipeline.group.bitwise",
          {"op.bit_and", "op.bit_or", "op.bit_xor", "op.bit_not", "op.bit_shl", "op.bit_shr"}},
         {"pipeline.group.filters",
@@ -1063,14 +1064,42 @@ void PipelineEditor::drawNodes() {
                         ImGui::OpenPopup(pop.c_str());
                     if (ImGui::BeginPopup(pop.c_str())) {
                         std::string& cur = std::get<std::string>(p.value);
-                        if (pipelines_.empty())
+                        if (pipelines_.empty()) {
                             ImGui::TextDisabled("%s", i18n::tr("pipeline.resource.no_pipeline"));
-                        for (const auto& info : pipelines_) {
-                            if (ImGui::Selectable(info.display_name.c_str(), info.file == cur) &&
-                                info.file != cur) {
-                                cur = info.file;
-                                // Reshape this node's pins to the picked pipeline.
-                                syncSubpipelinePins(*n);
+                        } else {
+                            // Group by category into submenus for easier navigation;
+                            // uncategorized pipelines sit at the top level.
+                            std::map<std::string, std::vector<const models::PipelineInfo*>> by_cat;
+                            std::vector<const models::PipelineInfo*> loose;
+                            for (const auto& info : pipelines_) {
+                                if (info.category.empty())
+                                    loose.push_back(&info);
+                                else
+                                    by_cat[info.category].push_back(&info);
+                            }
+                            const auto pick = [&](const models::PipelineInfo& info) {
+                                if (info.file != cur) {
+                                    cur = info.file;
+                                    // Reshape this node's pins to the picked pipeline.
+                                    syncSubpipelinePins(*n);
+                                }
+                            };
+                            const auto entry = [&](const models::PipelineInfo& info) {
+                                const std::string lbl = info.display_name + "##" + info.file;
+                                if (ImGui::MenuItem(lbl.c_str(), nullptr, info.file == cur))
+                                    pick(info);
+                            };
+                            for (const auto& [cat, list] : by_cat)
+                                if (ImGui::BeginMenu(cat.c_str())) {
+                                    for (const auto* info : list)
+                                        entry(*info);
+                                    ImGui::EndMenu();
+                                }
+                            if (!loose.empty()) {
+                                if (!by_cat.empty())
+                                    ImGui::Separator();
+                                for (const auto* info : loose)
+                                    entry(*info);
                             }
                         }
                         ImGui::EndPopup();

@@ -1149,6 +1149,20 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
         const auto ie = in.find("exponent");
         if (ib != in.end() && ie != in.end())
             out["result"] = binaryArith(ib->second, ie->second, ArithOp::Pow, errors);
+    } else if (type == "op.to_int") {
+        // Real -> Integer with the chosen rounding mode.
+        if (const auto it = in.find("value"); it != in.end()) {
+            const double v = scalarOf(it->second);
+            const double r = paramInt(n, "mode", 0) == 1   ? std::floor(v)
+                             : paramInt(n, "mode", 0) == 2 ? std::ceil(v)
+                             : paramInt(n, "mode", 0) == 3 ? std::trunc(v)
+                                                           : std::round(v);
+            out["result"].integer = static_cast<i64>(r);
+        }
+    } else if (type == "op.to_real") {
+        // Integer -> Real (exact).
+        if (const auto it = in.find("value"); it != in.end())
+            out["result"].real = static_cast<f64>(intOf(it->second));
     } else if (type == "op.derivatives") {
         if (const auto it = in.find("channel"); it != in.end()) {
             const auto mode = static_cast<DerivMode>(paramInt(n, "mode", 0));
