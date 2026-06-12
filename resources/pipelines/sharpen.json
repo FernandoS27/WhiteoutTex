@@ -1,5 +1,5 @@
 {
-  "category": "Filter",
+  "category": "Image Operations",
   "links": [
     {
       "from": [
@@ -7,32 +7,32 @@
         "image"
       ],
       "to": [
-        4,
+        6,
         "image"
       ]
     },
     {
       "from": [
-        4,
-        "channel"
-      ],
-      "to": [
-        5,
-        "channel"
-      ]
-    },
-    {
-      "from": [
-        5,
+        6,
         "image"
       ],
       "to": [
         3,
         "image"
       ]
+    },
+    {
+      "from": [
+        5,
+        "value"
+      ],
+      "to": [
+        6,
+        "strength"
+      ]
     }
   ],
-  "name": "Grayscale",
+  "name": "",
   "nodes": [
     {
       "id": 1,
@@ -40,8 +40,8 @@
         "name": "Input"
       },
       "pos": [
-        12.0,
-        278.0
+        40.0,
+        60.0
       ],
       "type": "input.standard"
     },
@@ -51,30 +51,34 @@
         "name": "Output"
       },
       "pos": [
-        1060.0,
-        326.0
+        560.0,
+        60.0
       ],
       "type": "output.standard"
     },
     {
-      "id": 4,
+      "id": 5,
       "params": {
-        "method": 0
+        "clamp": false,
+        "max": 1.0,
+        "min": 0.0,
+        "name": "Strength",
+        "value": 1.0
       },
       "pos": [
-        356.0,
-        214.0
+        25.0,
+        195.0
       ],
-      "type": "op.luma"
+      "type": "input.real"
     },
     {
-      "id": 5,
+      "id": 6,
       "params": {},
       "pos": [
-        683.0,
-        230.0
+        312.0,
+        78.0
       ],
-      "type": "op.prims"
+      "type": "op.sharpen"
     }
   ],
   "type": "standard",

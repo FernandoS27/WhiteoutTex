@@ -16,11 +16,14 @@
 #include "views/save_helpers.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <thread>
 #include <unordered_map>
+#include <utility>
+#include <variant>
 
 #include <SDL3/SDL.h>
 #include <imgui.h>
@@ -501,7 +504,7 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                         c.paylow_path.empty() ? std::string{} : c.paylow_path);
                     applyLoadResult(c.meta_path, std::move(result));
                 },
-                [&](RunPipelineCmd& c) { runPipeline(c.name); },
+                [&](RunPipelineCmd& c) { runPipeline(c.name, c.overrides); },
                 [&](OpenMultiPipelineCmd& c) { openMultiPipeline(c.name); },
                 [&](OpenCascCmd&) { /* reserved for future use */ },
             },
@@ -509,7 +512,8 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
     }
 }
 
-void App::runPipeline(const std::string& name) {
+void App::runPipeline(const std::string& name,
+                      const std::vector<std::pair<std::string, double>>& overrides) {
     if (!tex_state_.texture)
         return;
 
@@ -544,18 +548,26 @@ void App::runPipeline(const std::string& name) {
         return;
     }
 
-    // If the pipeline has Real Input parameters, prompt for them first;
-    // otherwise run immediately.
-    const bool has_params = std::any_of(graph.nodes().begin(), graph.nodes().end(),
-                                        [](const std::unique_ptr<pipeline::Node>& nd) {
-                                            return nd->typeId() == "input.real";
-                                        });
-    if (has_params) {
-        param_graph_ = std::move(graph);
-        param_dialog_request_ = true;
-    } else {
-        executePipelineGraph(graph);
+    // Apply the inline parameter overrides (collected in the Preview panel) onto
+    // the matching Real/Integer Input nodes, then run.
+    for (const auto& [pname, pval] : overrides) {
+        for (const auto& nd : graph.nodes()) {
+            const std::string& t = nd->typeId();
+            if (t != "input.real" && t != "input.integer")
+                continue;
+            auto* namep = nd->findParam("name");
+            if (!namep || !std::holds_alternative<std::string>(namep->value) ||
+                std::get<std::string>(namep->value) != pname)
+                continue;
+            if (auto* vp = nd->findParam("value")) {
+                if (t == "input.integer")
+                    vp->value = static_cast<i64>(std::llround(pval));
+                else
+                    vp->value = pval;
+            }
+        }
     }
+    executePipelineGraph(graph);
 }
 
 void App::executePipelineGraph(pipeline::NodeGraph& graph) {
@@ -680,6 +692,7 @@ void App::scanPipelines() {
                 nlohmann::json doc;
                 pf >> doc;
                 info.display_name = doc.value("name", std::string{});
+                info.category = doc.value("category", std::string{});
                 pipeline::NodeGraph g;
                 if (pipeline::fromJson(doc, g, nullptr)) {
                     pipeline_interfaces_[info.file] = g.interface();
@@ -702,11 +715,19 @@ void App::scanPipelines() {
     const auto byName = [](const models::PipelineInfo& a, const models::PipelineInfo& b) {
         return a.display_name < b.display_name;
     };
+    // The Preview picker groups by category, so order Standard pipelines by
+    // (category, name) — each category then forms one contiguous run.
+    const auto byCategoryThenName = [](const models::PipelineInfo& a,
+                                       const models::PipelineInfo& b) {
+        return a.category != b.category ? a.category < b.category
+                                        : a.display_name < b.display_name;
+    };
     std::sort(pipeline_files_.begin(), pipeline_files_.end(), byName);
-    std::sort(standard_pipeline_files_.begin(), standard_pipeline_files_.end(), byName);
+    std::sort(standard_pipeline_files_.begin(), standard_pipeline_files_.end(),
+              byCategoryThenName);
     std::sort(varying_pipeline_files_.begin(), varying_pipeline_files_.end(), byName);
 
-    image_details_.setPipelines(standard_pipeline_files_);
+    image_details_.setPipelines(standard_pipeline_files_, pipeline_params_);
     pipeline_editor_.setPipelines(pipeline_files_);
     pipeline_editor_.setPipelineInterfaces(pipeline_interfaces_);
     batch_convert_.setPipelines(standard_pipeline_files_, pipelines_dir_, pipeline_params_);

@@ -108,6 +108,10 @@ public:
     const std::string& name() const noexcept { return name_; }
     void setName(std::string name) { name_ = std::move(name); }
 
+    /// Optional category used to group pipelines in pickers (empty = none).
+    const std::string& category() const noexcept { return category_; }
+    void setCategory(std::string category) { category_ = std::move(category); }
+
     // ── Pipeline type (external interface contract) ────────────────────
     PipelineType pipelineType() const noexcept { return type_; }
     void setPipelineType(PipelineType t) noexcept { type_ = t; }
@@ -141,6 +145,7 @@ private:
     std::vector<std::unique_ptr<Node>> nodes_;
     std::vector<Link> links_;
     std::string name_;
+    std::string category_;
     PipelineType type_ = PipelineType::Standard;
     NodeId next_node_id_ = 1;
     LinkId next_link_id_ = 1;

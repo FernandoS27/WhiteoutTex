@@ -1,5 +1,5 @@
 {
-  "category": "Filter",
+  "category": "Image Operations",
   "links": [
     {
       "from": [
@@ -8,23 +8,13 @@
       ],
       "to": [
         4,
-        "image"
+        "input"
       ]
     },
     {
       "from": [
         4,
-        "channel"
-      ],
-      "to": [
-        5,
-        "channel"
-      ]
-    },
-    {
-      "from": [
-        5,
-        "image"
+        "output"
       ],
       "to": [
         3,
@@ -32,7 +22,7 @@
       ]
     }
   ],
-  "name": "Grayscale",
+  "name": "Tile",
   "nodes": [
     {
       "id": 1,
@@ -40,8 +30,8 @@
         "name": "Input"
       },
       "pos": [
-        12.0,
-        278.0
+        40.0,
+        60.0
       ],
       "type": "input.standard"
     },
@@ -51,30 +41,19 @@
         "name": "Output"
       },
       "pos": [
-        1060.0,
-        326.0
+        616.0,
+        115.0
       ],
       "type": "output.standard"
     },
     {
       "id": 4,
-      "params": {
-        "method": 0
-      },
-      "pos": [
-        356.0,
-        214.0
-      ],
-      "type": "op.luma"
-    },
-    {
-      "id": 5,
       "params": {},
       "pos": [
-        683.0,
-        230.0
+        323.0,
+        147.0
       ],
-      "type": "op.prims"
+      "type": "op.tiling"
     }
   ],
   "type": "standard",

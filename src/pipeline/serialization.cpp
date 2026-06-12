@@ -47,6 +47,8 @@ json toJson(const NodeGraph& graph) {
     json doc;
     doc["version"] = kPipelineSchemaVersion;
     doc["name"] = graph.name();
+    if (!graph.category().empty())
+        doc["category"] = graph.category();
     doc["type"] = graph.pipelineType() == PipelineType::Function ? "function"
                   : graph.pipelineType() == PipelineType::Varying ? "varying"
                                                                   : "standard";
@@ -106,6 +108,7 @@ bool fromJson(const json& doc, NodeGraph& graph, std::vector<std::string>* warni
     graph.clear();
 
     graph.setName(doc.value("name", std::string{}));
+    graph.setCategory(doc.value("category", std::string{}));
     const std::string ptype = doc.value("type", std::string{"standard"});
     graph.setPipelineType(ptype == "function" ? PipelineType::Function
                           : ptype == "varying" ? PipelineType::Varying

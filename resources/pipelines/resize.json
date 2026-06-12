@@ -1,0 +1,111 @@
+{
+  "category": "Image Operations",
+  "links": [
+    {
+      "from": [
+        7,
+        "value"
+      ],
+      "to": [
+        4,
+        "width"
+      ]
+    },
+    {
+      "from": [
+        8,
+        "value"
+      ],
+      "to": [
+        4,
+        "height"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        4,
+        "input"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "output"
+      ],
+      "to": [
+        3,
+        "image"
+      ]
+    }
+  ],
+  "name": "Resize",
+  "nodes": [
+    {
+      "id": 1,
+      "params": {
+        "name": "Input"
+      },
+      "pos": [
+        40.0,
+        60.0
+      ],
+      "type": "input.standard"
+    },
+    {
+      "id": 3,
+      "params": {
+        "name": "Output"
+      },
+      "pos": [
+        712.0,
+        99.0
+      ],
+      "type": "output.standard"
+    },
+    {
+      "id": 4,
+      "params": {},
+      "pos": [
+        424.0,
+        121.0
+      ],
+      "type": "op.resize_canvas"
+    },
+    {
+      "id": 7,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "New Width",
+        "value": 0
+      },
+      "pos": [
+        41.0,
+        227.0
+      ],
+      "type": "input.integer"
+    },
+    {
+      "id": 8,
+      "params": {
+        "clamp": false,
+        "max": 255,
+        "min": 0,
+        "name": "New Height",
+        "value": 0
+      },
+      "pos": [
+        126.0,
+        438.0
+      ],
+      "type": "input.integer"
+    }
+  ],
+  "type": "standard",
+  "version": 1
+}

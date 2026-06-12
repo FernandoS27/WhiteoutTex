@@ -379,7 +379,7 @@ std::optional<tex::Texture> channelR8(const PinMap& in, const char* pin) {
     return std::nullopt;
 }
 
-enum class ArithOp { Add, Mul, Min, Max };
+enum class ArithOp { Add, Mul, Min, Max, Pow };
 
 PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
                     std::vector<std::string>& errors) {
@@ -387,11 +387,14 @@ PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
     // Generic over float (channels) and int/double (scalars); each call site
     // passes matching operand types.
     const auto apply = [op](auto x, auto y) -> decltype(x + y) {
+        using T = decltype(x + y);
         switch (op) {
         case ArithOp::Add: return x + y;
         case ArithOp::Mul: return x * y;
         case ArithOp::Min: return x < y ? x : y;
         case ArithOp::Max: return x > y ? x : y;
+        case ArithOp::Pow:
+            return static_cast<T>(std::pow(static_cast<double>(x), static_cast<double>(y)));
         }
         return x;
     };
@@ -423,7 +426,7 @@ PinData binaryArith(const PinData& a, const PinData& b, ArithOp op,
     return out;
 }
 
-enum class UnaryOp { Negate, Sqrt, Reciprocal };
+enum class UnaryOp { Negate, Sqrt, Reciprocal, Sine, Cosine, Ln };
 
 PinData unaryArith(const PinData& a, UnaryOp op, std::vector<std::string>&) {
     PinData out;
@@ -432,6 +435,9 @@ PinData unaryArith(const PinData& a, UnaryOp op, std::vector<std::string>&) {
         case UnaryOp::Negate: return -x;
         case UnaryOp::Sqrt: return std::sqrt(std::max(0.0f, x));
         case UnaryOp::Reciprocal: return x != 0.0f ? 1.0f / x : 0.0f;
+        case UnaryOp::Sine: return std::sin(x);
+        case UnaryOp::Cosine: return std::cos(x);
+        case UnaryOp::Ln: return x > 0.0f ? std::log(x) : 0.0f;
         }
         return x;
     };
@@ -1125,13 +1131,24 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
     } else if (type == "op.bit_not") {
         if (const auto it = in.find("value"); it != in.end())
             out["result"].integer = ~intOf(it->second);
-    } else if (type == "op.negate" || type == "op.sqrt" || type == "op.reciprocal") {
+    } else if (type == "op.negate" || type == "op.sqrt" || type == "op.reciprocal" ||
+               type == "op.sine" || type == "op.cosine" || type == "op.ln") {
         if (const auto it = in.find("value"); it != in.end()) {
-            const UnaryOp uo = type == "op.negate"  ? UnaryOp::Negate
-                               : type == "op.sqrt"  ? UnaryOp::Sqrt
-                                                    : UnaryOp::Reciprocal;
+            const UnaryOp uo = type == "op.negate"       ? UnaryOp::Negate
+                               : type == "op.sqrt"       ? UnaryOp::Sqrt
+                               : type == "op.reciprocal" ? UnaryOp::Reciprocal
+                               : type == "op.sine"       ? UnaryOp::Sine
+                               : type == "op.cosine"     ? UnaryOp::Cosine
+                                                         : UnaryOp::Ln;
             out["result"] = unaryArith(it->second, uo, errors);
         }
+    } else if (type == "op.power") {
+        // base ^ exponent, polymorphic over channel / int / real (per element for
+        // a channel base).  Both operands must be present.
+        const auto ib = in.find("base");
+        const auto ie = in.find("exponent");
+        if (ib != in.end() && ie != in.end())
+            out["result"] = binaryArith(ib->second, ie->second, ArithOp::Pow, errors);
     } else if (type == "op.derivatives") {
         if (const auto it = in.find("channel"); it != in.end()) {
             const auto mode = static_cast<DerivMode>(paramInt(n, "mode", 0));

@@ -28,6 +28,8 @@
 
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <SDL3/SDL.h>
 
@@ -76,9 +78,10 @@ private:
     void applyLoadResult(const std::string& path, services::TextureLoadResult result);
 
     /// Run a standard pipeline (file name within pipelines_dir_) on the current
-    /// image, replacing it with the result.  Prompts for Real Input parameters
-    /// first if the pipeline has any.
-    void runPipeline(const std::string& name);
+    /// image, replacing it with the result.  @p overrides set the pipeline's
+    /// Real/Integer Input nodes (by name) from the Preview panel's inline fields.
+    void runPipeline(const std::string& name,
+                     const std::vector<std::pair<std::string, double>>& overrides = {});
 
     /// Execute an already-loaded pipeline graph on the current image.
     void executePipelineGraph(pipeline::NodeGraph& graph);

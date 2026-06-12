@@ -14,6 +14,7 @@
 #endif
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <whiteout/textures/texture.h>
@@ -49,8 +50,10 @@ public:
                                                 i32 selected_mip, f32 width, f32 height);
 
     /// Set the runnable standard pipelines shown by the Pipeline section's
-    /// combobox (displays each pipeline's name, runs its file).
-    void setPipelines(std::vector<models::PipelineInfo> pipelines);
+    /// category-grouped list, along with each pipeline's settable Real/Integer
+    /// parameters (keyed by file) shown inline when a pipeline is selected.
+    void setPipelines(std::vector<models::PipelineInfo> pipelines,
+                      std::unordered_map<std::string, std::vector<models::PipelineParam>> params);
 
 #ifdef WHITEOUT_HAS_UPSCALER
     /// Set the list of available upscaler models (call when models change).
@@ -60,9 +63,13 @@ public:
 #endif
 
 private:
-    // Pipeline runner
+    // Pipeline runner (category-grouped list + inline parameters)
     std::vector<models::PipelineInfo> pipelines_;
-    i32 pipeline_index_ = 0;
+    std::unordered_map<std::string, std::vector<models::PipelineParam>> pipeline_params_;
+    std::string selected_pipeline_file_;  ///< File of the selected pipeline ("" = none).
+    std::vector<double> param_values_;    ///< Working values for the selection's params.
+    /// Select a pipeline by file and reset its parameter working values to defaults.
+    void selectPipeline(const std::string& file);
     // Mipmap regeneration options
     bool generate_mips_ = true;
     MipmapMode mipmap_mode_ = MipmapMode::KeepOriginal;

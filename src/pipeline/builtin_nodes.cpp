@@ -316,6 +316,43 @@ public:
     }
 };
 
+// Trigonometric sine of the input (radians).  Channels are processed per element.
+class SineNode final : public Node {
+public:
+    SineNode() : Node("op.sine", NodeCategory::Operation) {
+        addInput("value", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
+// Trigonometric cosine of the input (radians).  Per element for channels.
+class CosineNode final : public Node {
+public:
+    CosineNode() : Node("op.cosine", NodeCategory::Operation) {
+        addInput("value", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
+// Natural logarithm (base e) of the input; non-positive values yield 0.
+class NaturalLogNode final : public Node {
+public:
+    NaturalLogNode() : Node("op.ln", NodeCategory::Operation) {
+        addInput("value", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
+// base raised to the exponent.  A channel base is processed per element.
+class PowerNode final : public Node {
+public:
+    PowerNode() : Node("op.power", NodeCategory::Operation) {
+        addInput("base", PinType::Number);
+        addInput("exponent", PinType::Number);
+        addOutput("result", PinType::Number);
+    }
+};
+
 // ── Bitwise (Integer) ───────────────────────────────────────────────────────
 // Operands are coerced to a 64-bit integer; the result is an Integer.
 
@@ -775,6 +812,14 @@ void registerBuiltinNodes() {
                       [] { return std::make_unique<SquareRootNode>(); }});
     reg.registerType({"op.reciprocal", NodeCategory::Operation, "pipeline.node.reciprocal",
                       [] { return std::make_unique<ReciprocalNode>(); }});
+    reg.registerType({"op.sine", NodeCategory::Operation, "pipeline.node.sine",
+                      [] { return std::make_unique<SineNode>(); }});
+    reg.registerType({"op.cosine", NodeCategory::Operation, "pipeline.node.cosine",
+                      [] { return std::make_unique<CosineNode>(); }});
+    reg.registerType({"op.ln", NodeCategory::Operation, "pipeline.node.ln",
+                      [] { return std::make_unique<NaturalLogNode>(); }});
+    reg.registerType({"op.power", NodeCategory::Operation, "pipeline.node.power",
+                      [] { return std::make_unique<PowerNode>(); }});
     reg.registerType({"op.bit_and", NodeCategory::Operation, "pipeline.node.bit_and",
                       [] { return std::make_unique<BitwiseBinaryNode>("op.bit_and"); }});
     reg.registerType({"op.bit_or", NodeCategory::Operation, "pipeline.node.bit_or",

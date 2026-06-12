@@ -11,6 +11,7 @@
 #include "localization.h"
 
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -112,6 +113,9 @@ struct LoadD4PayloadCmd {
 /// Run a standard pipeline (from resources/pipelines) on the current image.
 struct RunPipelineCmd {
     std::string name; ///< Pipeline file name (within the pipelines folder).
+    /// Overrides for the pipeline's settable Real/Integer Input nodes, by name
+    /// (collected from the Preview panel's inline parameter fields).
+    std::vector<std::pair<std::string, double>> overrides;
 };
 
 /// Open the MultiPipeline dialog for a Varying pipeline (multiple image
@@ -125,6 +129,7 @@ struct OpenMultiPipelineCmd {
 struct PipelineInfo {
     std::string file;         ///< File name within the pipelines folder.
     std::string display_name; ///< Shown in pickers.
+    std::string category;     ///< Optional grouping category (empty = none).
 };
 
 /// A settable numeric parameter of a standard pipeline (a Real/Integer Input

@@ -1,5 +1,5 @@
 {
-  "category": "Filter",
+  "category": "Image Operations",
   "links": [
     {
       "from": [
@@ -7,23 +7,33 @@
         "image"
       ],
       "to": [
-        4,
+        7,
         "image"
       ]
     },
     {
       "from": [
-        4,
+        7,
         "channel"
       ],
       "to": [
-        5,
+        6,
         "channel"
       ]
     },
     {
       "from": [
-        5,
+        6,
+        "channel"
+      ],
+      "to": [
+        8,
+        "channel"
+      ]
+    },
+    {
+      "from": [
+        8,
         "image"
       ],
       "to": [
@@ -32,7 +42,7 @@
       ]
     }
   ],
-  "name": "Grayscale",
+  "name": "Edges",
   "nodes": [
     {
       "id": 1,
@@ -40,8 +50,8 @@
         "name": "Input"
       },
       "pos": [
-        12.0,
-        278.0
+        40.0,
+        60.0
       ],
       "type": "input.standard"
     },
@@ -51,28 +61,37 @@
         "name": "Output"
       },
       "pos": [
-        1060.0,
-        326.0
+        1112.0,
+        83.0
       ],
       "type": "output.standard"
     },
     {
-      "id": 4,
+      "id": 6,
+      "params": {},
+      "pos": [
+        568.0,
+        83.0
+      ],
+      "type": "op.sobel"
+    },
+    {
+      "id": 7,
       "params": {
         "method": 0
       },
       "pos": [
-        356.0,
-        214.0
+        305.0,
+        67.0
       ],
       "type": "op.luma"
     },
     {
-      "id": 5,
+      "id": 8,
       "params": {},
       "pos": [
-        683.0,
-        230.0
+        840.0,
+        83.0
       ],
       "type": "op.prims"
     }

@@ -412,6 +412,17 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
     }
     ImGui::Spacing();
 
+    // Category (used to group pipelines in the Preview picker; optional).
+    ImGui::TextUnformatted(i18n::tr("pipeline.category_label"));
+    {
+        char cat_buf[128];
+        std::snprintf(cat_buf, sizeof(cat_buf), "%s", graph_.category().c_str());
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText("##pipelinecategory", cat_buf, sizeof(cat_buf)))
+            graph_.setCategory(cat_buf);
+    }
+    ImGui::Spacing();
+
     // Pipeline type: a Function is an explicit choice; otherwise the type is
     // derived from the graph — Standard (one Standard Input + one Standard
     // Output) or Varying (anything else).
@@ -498,7 +509,8 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
          {"op.extract_channel", "op.invert_channel", "op.fill_channel", "op.invert",
           "op.merge_channels", "op.prims", "op.luma"}},
         {"pipeline.group.arithmetic",
-         {"op.add", "op.multiply", "op.min", "op.max", "op.negate", "op.sqrt", "op.reciprocal"}},
+         {"op.add", "op.multiply", "op.min", "op.max", "op.negate", "op.sqrt", "op.reciprocal",
+          "op.power", "op.sine", "op.cosine", "op.ln"}},
         {"pipeline.group.bitwise",
          {"op.bit_and", "op.bit_or", "op.bit_xor", "op.bit_not", "op.bit_shl", "op.bit_shr"}},
         {"pipeline.group.filters",
