@@ -49,5 +49,13 @@ target_include_directories(ImGuiNodeEditor PUBLIC
 )
 target_link_libraries(ImGuiNodeEditor PUBLIC DearImgui)
 
+# crude_json.cpp calls std::terminate() but does not include <exception>; newer
+# libc++ (Xcode 16+) stopped providing it transitively, breaking the build.
+# Force-include the header for this upstream source (it is a submodule we don't
+# patch in-tree).  MSVC's STL still pulls it in, so it is not needed there.
+if(NOT MSVC)
+    target_compile_options(ImGuiNodeEditor PRIVATE -include exception)
+endif()
+
 # Real-ESRGAN AI Upscaler (optional — requires Vulkan SDK)
 add_subdirectory(upscaler)

@@ -62,10 +62,13 @@ jobs:
           "VULKAN_SDK=$sdk" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "$sdk\Bin"        | Out-File $env:GITHUB_PATH -Append -Encoding utf8
 
+      # The policy floor for old vendored subprojects (psd_sdk/ncnn/glslang) is
+      # set inside the root CMakeLists.txt; passing it as a -D flag breaks on
+      # this runner (PowerShell mangles "3.5" to "3", and cmake_minimum_required
+      # rejects the invalid cache value before CMake code can correct it).
       - name: Configure
         run: >
           cmake -S . -B build -A x64
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           -DWHITEOUT_ENABLE_UPSCALER=ON
           -DWHITEOUT_BUILD_CLI=OFF
 

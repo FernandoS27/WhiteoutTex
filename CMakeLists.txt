@@ -11,6 +11,15 @@ endif()
 option(WHITEOUT_ENABLE_UPSCALER "Enable AI upscaling via Real-ESRGAN / ncnn / Vulkan" OFF)
 option(WHITEOUT_BUILD_CLI "Build WhiteoutTexCLI command-line tool" OFF)
 
+# Several vendored externals (psd_sdk, ncnn, its bundled glslang) declare an old
+# cmake_minimum_required (VERSION < 3.5).  CMake >= 4.0 refuses that compatibility
+# unless this floor is set to a valid major.minor.  Set it once here, before any
+# subproject is added, so they all configure.  This does not lower our own
+# requirement (3.15) above; it only provides a policy floor for the subbuilds.
+# Set in CMake rather than relying on a -D flag, which can arrive mangled (e.g.
+# to "3") through shell quoting on some CI runners.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 add_subdirectory(externals)
 
 add_executable(WhiteoutTex

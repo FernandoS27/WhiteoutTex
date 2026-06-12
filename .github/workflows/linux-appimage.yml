@@ -81,7 +81,6 @@ jobs:
             -DCMAKE_CXX_COMPILER=g++-15 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DSDL_X11_XTEST=OFF \
             -DWHITEOUT_ENABLE_UPSCALER=ON \
             -DWHITEOUT_BUILD_CLI=OFF

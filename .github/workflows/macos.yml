@@ -70,7 +70,6 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DSDL_X11_XTEST=OFF \
             -DWHITEOUT_ENABLE_UPSCALER=ON \
             -DWHITEOUT_BUILD_CLI=OFF
