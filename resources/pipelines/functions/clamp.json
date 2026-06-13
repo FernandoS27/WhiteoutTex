@@ -1,5 +1,84 @@
 {
   "category": "Math",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Limitar",
+      "ports": {
+        "min": "mín",
+        "value": "valor",
+        "max": "máx"
+      }
+    },
+    "de": {
+      "name": "Begrenzen",
+      "ports": {
+        "min": "Min",
+        "value": "Wert",
+        "max": "Max"
+      }
+    },
+    "fr": {
+      "name": "Limiter",
+      "ports": {
+        "value": "valeur"
+      }
+    },
+    "it": {
+      "name": "Limita",
+      "ports": {
+        "value": "valore"
+      }
+    },
+    "pt-br": {
+      "name": "Limitar",
+      "ports": {
+        "min": "mín",
+        "value": "valor",
+        "max": "máx"
+      }
+    },
+    "ru": {
+      "name": "Ограничить",
+      "ports": {
+        "min": "мин",
+        "value": "значение",
+        "max": "макс"
+      }
+    },
+    "zh": {
+      "name": "钳制",
+      "ports": {
+        "min": "最小",
+        "value": "值",
+        "max": "最大"
+      }
+    },
+    "zh-hant": {
+      "name": "鉗制",
+      "ports": {
+        "min": "最小",
+        "value": "值",
+        "max": "最大"
+      }
+    },
+    "ja": {
+      "name": "クランプ",
+      "ports": {
+        "min": "最小",
+        "value": "値",
+        "max": "最大"
+      }
+    },
+    "ko": {
+      "name": "클램프",
+      "ports": {
+        "min": "최소",
+        "value": "값",
+        "max": "최대"
+      }
+    }
+  },
   "links": [
     {
       "from": [

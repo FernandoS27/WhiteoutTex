@@ -1,5 +1,88 @@
 {
   "category": "Interpolation",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "ports": {
+        "low": "bajo",
+        "high": "alto",
+        "step": "paso",
+        "result": "resultado"
+      }
+    },
+    "de": {
+      "ports": {
+        "low": "Niedrig",
+        "high": "Hoch",
+        "step": "Schritt",
+        "result": "Ergebnis"
+      }
+    },
+    "fr": {
+      "ports": {
+        "low": "bas",
+        "high": "haut",
+        "step": "pas",
+        "result": "résultat"
+      }
+    },
+    "it": {
+      "ports": {
+        "low": "basso",
+        "high": "alto",
+        "step": "passo",
+        "result": "risultato"
+      }
+    },
+    "pt-br": {
+      "ports": {
+        "low": "baixo",
+        "high": "alto",
+        "step": "passo",
+        "result": "resultado"
+      }
+    },
+    "ru": {
+      "ports": {
+        "low": "нижн.",
+        "high": "верхн.",
+        "step": "шаг",
+        "result": "результат"
+      }
+    },
+    "zh": {
+      "ports": {
+        "low": "低",
+        "high": "高",
+        "step": "步长",
+        "result": "结果"
+      }
+    },
+    "zh-hant": {
+      "ports": {
+        "low": "低",
+        "high": "高",
+        "step": "步長",
+        "result": "結果"
+      }
+    },
+    "ja": {
+      "ports": {
+        "low": "下限",
+        "high": "上限",
+        "step": "ステップ",
+        "result": "結果"
+      }
+    },
+    "ko": {
+      "ports": {
+        "low": "하한",
+        "high": "상한",
+        "step": "스텝",
+        "result": "결과"
+      }
+    }
+  },
   "links": [
     {
       "from": [

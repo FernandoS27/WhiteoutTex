@@ -1,5 +1,98 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Redimensionar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida",
+        "New Width": "Ancho nuevo",
+        "New Height": "Alto nuevo"
+      }
+    },
+    "de": {
+      "name": "Größe ändern",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang",
+        "New Width": "Neue Breite",
+        "New Height": "Neue Höhe"
+      }
+    },
+    "fr": {
+      "name": "Redimensionner",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie",
+        "New Width": "Nouvelle largeur",
+        "New Height": "Nouvelle hauteur"
+      }
+    },
+    "it": {
+      "name": "Ridimensiona",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita",
+        "New Width": "Nuova larghezza",
+        "New Height": "Nuova altezza"
+      }
+    },
+    "pt-br": {
+      "name": "Redimensionar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída",
+        "New Width": "Nova largura",
+        "New Height": "Nova altura"
+      }
+    },
+    "ru": {
+      "name": "Изменить размер",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход",
+        "New Width": "Новая ширина",
+        "New Height": "Новая высота"
+      }
+    },
+    "zh": {
+      "name": "调整尺寸",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出",
+        "New Width": "新宽度",
+        "New Height": "新高度"
+      }
+    },
+    "zh-hant": {
+      "name": "調整尺寸",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出",
+        "New Width": "新寬度",
+        "New Height": "新高度"
+      }
+    },
+    "ja": {
+      "name": "サイズ変更",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力",
+        "New Width": "新しい幅",
+        "New Height": "新しい高さ"
+      }
+    },
+    "ko": {
+      "name": "크기 조정",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력",
+        "New Width": "새 너비",
+        "New Height": "새 높이"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -139,7 +139,8 @@ struct PipelineInfo {
 /// A settable numeric parameter of a standard pipeline (a Real/Integer Input
 /// node).  Used to let callers (e.g. batch steps) override the node's value.
 struct PipelineParam {
-    std::string name;          ///< The input node's "name".
+    std::string name;          ///< The input node's "name" (override binding key).
+    std::string label;         ///< Translated display label (empty = show name).
     bool is_integer = false;   ///< true for Integer Input, false for Real Input.
     double default_value = 0.0; ///< The node's authored default.
     bool clamp = false;        ///< Whether the value is clamped to [min, max].

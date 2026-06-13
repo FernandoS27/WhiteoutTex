@@ -1,5 +1,65 @@
 {
   "category": "Math",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Calcular distancia",
+      "ports": {
+        "Distance": "Distancia"
+      }
+    },
+    "de": {
+      "name": "Distanz berechnen",
+      "ports": {
+        "Distance": "Distanz"
+      }
+    },
+    "fr": {
+      "name": "Calculer la distance"
+    },
+    "it": {
+      "name": "Calcola distanza",
+      "ports": {
+        "Distance": "Distanza"
+      }
+    },
+    "pt-br": {
+      "name": "Calcular distância",
+      "ports": {
+        "Distance": "Distância"
+      }
+    },
+    "ru": {
+      "name": "Вычислить расстояние",
+      "ports": {
+        "Distance": "Расстояние"
+      }
+    },
+    "zh": {
+      "name": "计算距离",
+      "ports": {
+        "Distance": "距离"
+      }
+    },
+    "zh-hant": {
+      "name": "計算距離",
+      "ports": {
+        "Distance": "距離"
+      }
+    },
+    "ja": {
+      "name": "距離を計算",
+      "ports": {
+        "Distance": "距離"
+      }
+    },
+    "ko": {
+      "name": "거리 계산",
+      "ports": {
+        "Distance": "거리"
+      }
+    }
+  },
   "links": [
     {
       "from": [

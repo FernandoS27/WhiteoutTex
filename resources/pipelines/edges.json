@@ -1,5 +1,78 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Bordes",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "Kanten",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Contours",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Bordi",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Bordas",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Края",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "边缘",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "邊緣",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "エッジ",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "가장자리",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

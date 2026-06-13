@@ -1,5 +1,123 @@
 {
   "category": "UI Tools",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Aplicar botón",
+      "ports": {
+        "Blended": "Mezclado",
+        "Overlay": "Superposición",
+        "Input": "Entrada",
+        "value": "valor",
+        "Output": "Salida",
+        "expected_dimension": "dimensión esperada"
+      }
+    },
+    "de": {
+      "name": "Schaltfläche anwenden",
+      "ports": {
+        "Base": "Basis",
+        "Blended": "Überblendet",
+        "Input": "Eingang",
+        "value": "Wert",
+        "Output": "Ausgang",
+        "expected_dimension": "erwartete Dimension"
+      }
+    },
+    "fr": {
+      "name": "Appliquer le bouton",
+      "ports": {
+        "Blended": "Mélangé",
+        "Overlay": "Superposition",
+        "Input": "Entrée",
+        "value": "valeur",
+        "Output": "Sortie",
+        "expected_dimension": "dimension attendue"
+      }
+    },
+    "it": {
+      "name": "Applica pulsante",
+      "ports": {
+        "Blended": "Miscelato",
+        "Overlay": "Sovrapposizione",
+        "Input": "Ingresso",
+        "value": "valore",
+        "Output": "Uscita",
+        "expected_dimension": "dimensione prevista"
+      }
+    },
+    "pt-br": {
+      "name": "Aplicar botão",
+      "ports": {
+        "Blended": "Mesclado",
+        "Overlay": "Sobreposição",
+        "Input": "Entrada",
+        "value": "valor",
+        "Output": "Saída",
+        "expected_dimension": "dimensão esperada"
+      }
+    },
+    "ru": {
+      "name": "Применить кнопку",
+      "ports": {
+        "Base": "Основа",
+        "Blended": "Смешанный",
+        "Overlay": "Наложение",
+        "Input": "Вход",
+        "value": "значение",
+        "Output": "Выход",
+        "expected_dimension": "ожидаемый размер"
+      }
+    },
+    "zh": {
+      "name": "应用按钮",
+      "ports": {
+        "Base": "基底",
+        "Blended": "混合",
+        "Overlay": "叠加",
+        "Input": "输入",
+        "value": "值",
+        "Output": "输出",
+        "expected_dimension": "预期尺寸"
+      }
+    },
+    "zh-hant": {
+      "name": "套用按鈕",
+      "ports": {
+        "Base": "基底",
+        "Blended": "混合",
+        "Overlay": "疊加",
+        "Input": "輸入",
+        "value": "值",
+        "Output": "輸出",
+        "expected_dimension": "預期尺寸"
+      }
+    },
+    "ja": {
+      "name": "ボタンを適用",
+      "ports": {
+        "Base": "ベース",
+        "Blended": "合成済み",
+        "Overlay": "オーバーレイ",
+        "Input": "入力",
+        "value": "値",
+        "Output": "出力",
+        "expected_dimension": "想定サイズ"
+      }
+    },
+    "ko": {
+      "name": "버튼 적용",
+      "ports": {
+        "Base": "베이스",
+        "Blended": "혼합됨",
+        "Overlay": "오버레이",
+        "Input": "입력",
+        "value": "값",
+        "Output": "출력",
+        "expected_dimension": "예상 크기"
+      }
+    }
+  },
   "links": [
     {
       "from": [

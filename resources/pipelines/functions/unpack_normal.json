@@ -1,5 +1,78 @@
 {
   "category": "Normals",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Desempaquetar normal",
+      "ports": {
+        "normalUnpacked": "normal desempaquetado",
+        "packedNormal": "normal empaquetado"
+      }
+    },
+    "de": {
+      "name": "Normal entpacken",
+      "ports": {
+        "normalUnpacked": "Normal entpackt",
+        "packedNormal": "Normal gepackt"
+      }
+    },
+    "fr": {
+      "name": "Désempaqueter normale",
+      "ports": {
+        "normalUnpacked": "normale désempaquetée",
+        "packedNormal": "normale empaquetée"
+      }
+    },
+    "it": {
+      "name": "Decomprimi normale",
+      "ports": {
+        "normalUnpacked": "normale decompressa",
+        "packedNormal": "normale compressa"
+      }
+    },
+    "pt-br": {
+      "name": "Desempacotar normal",
+      "ports": {
+        "normalUnpacked": "normal desempacotado",
+        "packedNormal": "normal empacotado"
+      }
+    },
+    "ru": {
+      "name": "Распаковать нормаль",
+      "ports": {
+        "normalUnpacked": "нормаль распакована",
+        "packedNormal": "упакованная нормаль"
+      }
+    },
+    "zh": {
+      "name": "解包法线",
+      "ports": {
+        "normalUnpacked": "法线解包",
+        "packedNormal": "打包法线"
+      }
+    },
+    "zh-hant": {
+      "name": "解包法線",
+      "ports": {
+        "normalUnpacked": "法線解包",
+        "packedNormal": "打包法線"
+      }
+    },
+    "ja": {
+      "name": "法線をアンパック",
+      "ports": {
+        "normalUnpacked": "法線アンパック済み",
+        "packedNormal": "法線パック"
+      }
+    },
+    "ko": {
+      "name": "노멀 언패킹",
+      "ports": {
+        "normalUnpacked": "노멀 언패킹됨",
+        "packedNormal": "노멀 패킹"
+      }
+    }
+  },
   "links": [
     {
       "from": [

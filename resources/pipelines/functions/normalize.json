@@ -1,5 +1,38 @@
 {
   "category": "Normal",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Normalizar"
+    },
+    "de": {
+      "name": "Normalisieren"
+    },
+    "fr": {
+      "name": "Normaliser"
+    },
+    "it": {
+      "name": "Normalizza"
+    },
+    "pt-br": {
+      "name": "Normalizar"
+    },
+    "ru": {
+      "name": "Нормализовать"
+    },
+    "zh": {
+      "name": "归一化"
+    },
+    "zh-hant": {
+      "name": "正規化"
+    },
+    "ja": {
+      "name": "正規化"
+    },
+    "ko": {
+      "name": "정규화"
+    }
+  },
   "links": [
     {
       "from": [

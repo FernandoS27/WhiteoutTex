@@ -1,5 +1,103 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Desempaquetar ORM",
+      "ports": {
+        "ORM Map": "Mapa ORM",
+        "AmbientOcclussion Map": "Mapa de oclusión ambiental",
+        "Roughness": "Rugosidad",
+        "Metalness": "Metalicidad",
+        "Alpha Map": "Mapa alfa"
+      }
+    },
+    "de": {
+      "name": "ORM entpacken",
+      "ports": {
+        "AmbientOcclussion Map": "Umgebungsverdeckungs-Map",
+        "Roughness": "Rauheit",
+        "Metalness": "Metallizität"
+      }
+    },
+    "fr": {
+      "name": "Désempaqueter ORM",
+      "ports": {
+        "ORM Map": "Carte ORM",
+        "AmbientOcclussion Map": "Carte d'occlusion ambiante",
+        "Roughness": "Rugosité",
+        "Metalness": "Métallicité",
+        "Alpha Map": "Carte alpha"
+      }
+    },
+    "it": {
+      "name": "Decomprimi ORM",
+      "ports": {
+        "AmbientOcclussion Map": "Mappa di occlusione ambientale",
+        "Roughness": "Rugosità",
+        "Metalness": "Metallicità"
+      }
+    },
+    "pt-br": {
+      "name": "Desempacotar ORM",
+      "ports": {
+        "AmbientOcclussion Map": "Mapa de oclusão ambiente",
+        "Roughness": "Rugosidade",
+        "Metalness": "Metalicidade",
+        "Alpha Map": "Mapa de alfa"
+      }
+    },
+    "ru": {
+      "name": "Распаковать ORM",
+      "ports": {
+        "ORM Map": "ORM карта",
+        "AmbientOcclussion Map": "Карта затенения",
+        "Roughness": "Шероховатость",
+        "Metalness": "Металличность",
+        "Alpha Map": "Карта прозрачности"
+      }
+    },
+    "zh": {
+      "name": "解包ORM",
+      "ports": {
+        "ORM Map": "ORM 贴图",
+        "AmbientOcclussion Map": "环境光遮蔽贴图",
+        "Roughness": "粗糙度",
+        "Metalness": "金属度",
+        "Alpha Map": "Alpha 贴图"
+      }
+    },
+    "zh-hant": {
+      "name": "解包ORM",
+      "ports": {
+        "ORM Map": "ORM 貼圖",
+        "AmbientOcclussion Map": "環境光遮蔽貼圖",
+        "Roughness": "粗糙度",
+        "Metalness": "金屬度",
+        "Alpha Map": "Alpha 貼圖"
+      }
+    },
+    "ja": {
+      "name": "ORM をアンパック",
+      "ports": {
+        "ORM Map": "ORM マップ",
+        "AmbientOcclussion Map": "アンビエントオクルージョンマップ",
+        "Roughness": "ラフネス",
+        "Metalness": "メタルネス",
+        "Alpha Map": "アルファマップ"
+      }
+    },
+    "ko": {
+      "name": "ORM 언패킹",
+      "ports": {
+        "ORM Map": "ORM 맵",
+        "AmbientOcclussion Map": "앰비언트 오클루전 맵",
+        "Roughness": "러프니스",
+        "Metalness": "메탈니스",
+        "Alpha Map": "알파 맵"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -1,5 +1,88 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Difuso a mapa normal",
+      "ports": {
+        "Input": "Entrada",
+        "Strength": "Intensidad",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "Diffus zu Normal Map",
+      "ports": {
+        "Input": "Eingang",
+        "Strength": "Stärke",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Diffus vers normal map",
+      "ports": {
+        "Input": "Entrée",
+        "Strength": "Intensité",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Diffuse a normal map",
+      "ports": {
+        "Input": "Ingresso",
+        "Strength": "Intensità",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Difuso para normal map",
+      "ports": {
+        "Input": "Entrada",
+        "Strength": "Intensidade",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Диффуз в карту нормалей",
+      "ports": {
+        "Input": "Вход",
+        "Strength": "Сила",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "漫反射转法线贴图",
+      "ports": {
+        "Input": "输入",
+        "Strength": "强度",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "漫反射轉法線貼圖",
+      "ports": {
+        "Input": "輸入",
+        "Strength": "強度",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "ディフューズを法線マップへ",
+      "ports": {
+        "Input": "入力",
+        "Strength": "強度",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "디퓨즈를 노멀 맵으로",
+      "ports": {
+        "Input": "입력",
+        "Strength": "강도",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

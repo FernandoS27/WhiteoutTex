@@ -1,5 +1,88 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Convertir mapa normal a mapa de cavidad",
+      "ports": {
+        "Input": "Entrada",
+        "Strength": "Intensidad",
+        "CavetyMap": "Mapa de cavidad"
+      }
+    },
+    "de": {
+      "name": "Normal Map zu Cavity Map konvertieren",
+      "ports": {
+        "Input": "Eingang",
+        "Strength": "Stärke",
+        "CavetyMap": "Cavity Map"
+      }
+    },
+    "fr": {
+      "name": "Convertir normal map en carte de cavité",
+      "ports": {
+        "Input": "Entrée",
+        "Strength": "Intensité",
+        "CavetyMap": "carte de cavité"
+      }
+    },
+    "it": {
+      "name": "Converti normal map in mappa di cavità",
+      "ports": {
+        "Input": "Ingresso",
+        "Strength": "Intensità",
+        "CavetyMap": "mappa di cavità"
+      }
+    },
+    "pt-br": {
+      "name": "Converter normal map para mapa de cavidade",
+      "ports": {
+        "Input": "Entrada",
+        "Strength": "Intensidade",
+        "CavetyMap": "mapa de cavidade"
+      }
+    },
+    "ru": {
+      "name": "Преобразовать карту нормалей в карту полостей",
+      "ports": {
+        "Input": "Вход",
+        "Strength": "Сила",
+        "CavetyMap": "карта полостей"
+      }
+    },
+    "zh": {
+      "name": "法线贴图转空腔贴图",
+      "ports": {
+        "Input": "输入",
+        "Strength": "强度",
+        "CavetyMap": "空腔贴图"
+      }
+    },
+    "zh-hant": {
+      "name": "法線貼圖轉空腔貼圖",
+      "ports": {
+        "Input": "輸入",
+        "Strength": "強度",
+        "CavetyMap": "空腔貼圖"
+      }
+    },
+    "ja": {
+      "name": "法線マップをキャビティマップへ変換",
+      "ports": {
+        "Input": "入力",
+        "Strength": "強度",
+        "CavetyMap": "キャビティマップ"
+      }
+    },
+    "ko": {
+      "name": "노멀 맵을 캐비티 맵으로 변환",
+      "ports": {
+        "Input": "입력",
+        "Strength": "강도",
+        "CavetyMap": "캐비티 맵"
+      }
+    }
+  },
   "links": [
     {
       "from": [

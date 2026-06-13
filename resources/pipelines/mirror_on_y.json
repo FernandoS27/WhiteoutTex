@@ -1,5 +1,78 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Reflejar en Y",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "An Y spiegeln",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Miroir sur Y",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Specchia su Y",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Espelhar em Y",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Отразить по Y",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "沿Y镜像",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "沿Y鏡像",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "Y軸でミラー",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "Y축 미러",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

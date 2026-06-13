@@ -1,5 +1,84 @@
 {
   "category": "Math",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Potencia entera",
+      "ports": {
+        "power": "potencia",
+        "output": "salida"
+      }
+    },
+    "de": {
+      "name": "Ganzzahlpotenz",
+      "ports": {
+        "base": "Basis",
+        "power": "Potenz",
+        "output": "Ausgabe"
+      }
+    },
+    "fr": {
+      "name": "Puissance entière",
+      "ports": {
+        "power": "puissance",
+        "output": "sortie"
+      }
+    },
+    "it": {
+      "name": "Potenza intera",
+      "ports": {
+        "power": "potenza",
+        "output": "uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Potência inteira",
+      "ports": {
+        "power": "potência",
+        "output": "saída"
+      }
+    },
+    "ru": {
+      "name": "Целая степень",
+      "ports": {
+        "base": "основа",
+        "power": "степень",
+        "output": "выход"
+      }
+    },
+    "zh": {
+      "name": "整数幂",
+      "ports": {
+        "base": "基底",
+        "power": "幂",
+        "output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "整數次方",
+      "ports": {
+        "base": "基底",
+        "power": "次方",
+        "output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "整数べき乗",
+      "ports": {
+        "base": "基数",
+        "power": "指数",
+        "output": "出力"
+      }
+    },
+    "ko": {
+      "name": "정수 거듭제곱",
+      "ports": {
+        "base": "밑",
+        "power": "지수",
+        "output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -98,6 +98,9 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
                 ImGui::SetTooltip("%s (Ctrl+Y)", tr("details.redo"));
         }
 
+        // Pipeline runner first — it's the primary action on a loaded image.
+        drawPipelineSection(commands);
+
         ImGui::SeparatorText(tr("details.file"));
         ImGui::Text(tr("details.path"), path.c_str());
         ImGui::Text(tr("details.file_format"), TC::fileFormatName(file_format));
@@ -194,89 +197,6 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
             }
         }
 
-        // Run a standard pipeline (from resources/pipelines) on this image.  The
-        // pipelines are shown in a list grouped by category; selecting one reveals
-        // its extra (non-Standard) inputs as inline fields plus a Run button.
-        if (!pipelines_.empty()) {
-            ImGui::SeparatorText(tr("details.pipeline"));
-
-            const float list_h = ImGui::GetTextLineHeightWithSpacing() * 7.0f;
-            ImGui::BeginChild("##PipelineList", ImVec2(0.0f, list_h), ImGuiChildFlags_Borders);
-            // pipelines_ is sorted by (category, name), so each category is one
-            // contiguous run — open a header when the category changes.
-            std::string cur_cat;
-            bool cat_open = false;
-            bool have_cat = false;
-            for (i32 i = 0; i < static_cast<i32>(pipelines_.size()); ++i) {
-                const auto& p = pipelines_[i];
-                const std::string cat =
-                    p.category.empty() ? std::string(tr("details.pipeline_uncategorized"))
-                                       : p.category;
-                if (!have_cat || cat != cur_cat) {
-                    cur_cat = cat;
-                    have_cat = true;
-                    cat_open = ImGui::CollapsingHeader((cat + "##plcat").c_str(),
-                                                       ImGuiTreeNodeFlags_DefaultOpen);
-                }
-                if (!cat_open)
-                    continue;
-                ImGui::Indent();
-                const bool selected = (p.file == selected_pipeline_file_);
-                const std::string lbl = p.display_name + "##pl" + std::to_string(i);
-                if (ImGui::Selectable(lbl.c_str(), selected))
-                    selectPipeline(p.file);
-                ImGui::Unindent();
-            }
-            ImGui::EndChild();
-
-            // Inline parameters + Run for the selected pipeline.
-            if (!selected_pipeline_file_.empty()) {
-                const auto it = pipeline_params_.find(selected_pipeline_file_);
-                const std::vector<models::PipelineParam>* params =
-                    it != pipeline_params_.end() ? &it->second : nullptr;
-                if (params) {
-                    param_values_.resize(params->size());
-                    for (std::size_t i = 0; i < params->size(); ++i) {
-                        const auto& pp = (*params)[i];
-                        const std::string lbl =
-                            (pp.name.empty() ? std::string("value") : pp.name) + "##plp" +
-                            std::to_string(i);
-                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.6f);
-                        if (pp.is_integer) {
-                            int v = static_cast<int>(std::lround(param_values_[i]));
-                            if (pp.clamp) {
-                                int mn = static_cast<int>(pp.min), mx = static_cast<int>(pp.max);
-                                if (mx < mn)
-                                    std::swap(mn, mx);
-                                if (ImGui::SliderInt(lbl.c_str(), &v, mn, mx))
-                                    param_values_[i] = v;
-                            } else if (ImGui::InputInt(lbl.c_str(), &v)) {
-                                param_values_[i] = v;
-                            }
-                        } else {
-                            float v = static_cast<float>(param_values_[i]);
-                            if (pp.clamp) {
-                                float mn = static_cast<float>(pp.min), mx = static_cast<float>(pp.max);
-                                if (mx < mn)
-                                    std::swap(mn, mx);
-                                if (ImGui::SliderFloat(lbl.c_str(), &v, mn, mx))
-                                    param_values_[i] = v;
-                            } else if (ImGui::InputFloat(lbl.c_str(), &v)) {
-                                param_values_[i] = v;
-                            }
-                        }
-                    }
-                }
-                if (ImGui::Button(tr("details.run_pipeline"))) {
-                    RunPipelineCmd cmd{selected_pipeline_file_, {}};
-                    if (params)
-                        for (std::size_t i = 0; i < params->size(); ++i)
-                            cmd.overrides.emplace_back((*params)[i].name, param_values_[i]);
-                    commands.push_back(std::move(cmd));
-                }
-            }
-        }
-
 #ifdef WHITEOUT_HAS_UPSCALER
         if (!upscale_models_.empty()) {
             ImGui::SeparatorText(tr("details.upscale"));
@@ -311,6 +231,96 @@ std::vector<AppCommand> ImageDetails::drawDetailsPanel(tex::Texture* texture,
     ImGui::EndChild();
 
     return commands;
+}
+
+// ============================================================================
+// Pipeline runner (category-grouped list + inline params + Run)
+// ============================================================================
+
+void ImageDetails::drawPipelineSection(std::vector<AppCommand>& commands) {
+    if (pipelines_.empty())
+        return;
+
+    ImGui::SeparatorText(tr("details.pipeline"));
+
+    // Tall list: the pipeline picker is the panel's primary control, so give it
+    // generous room (more categories/pipelines visible without scrolling).
+    const float list_h = ImGui::GetTextLineHeightWithSpacing() * 12.0f;
+    ImGui::BeginChild("##PipelineList", ImVec2(0.0f, list_h), ImGuiChildFlags_Borders);
+    // pipelines_ is sorted by (category, name), so each category is one
+    // contiguous run — open a header when the category changes.
+    std::string cur_cat;
+    bool cat_open = false;
+    bool have_cat = false;
+    for (i32 i = 0; i < static_cast<i32>(pipelines_.size()); ++i) {
+        const auto& p = pipelines_[i];
+        const std::string cat = p.category.empty()
+                                    ? std::string(tr("details.pipeline_uncategorized"))
+                                    : p.category;
+        if (!have_cat || cat != cur_cat) {
+            cur_cat = cat;
+            have_cat = true;
+            cat_open = ImGui::CollapsingHeader((cat + "##plcat").c_str(),
+                                               ImGuiTreeNodeFlags_DefaultOpen);
+        }
+        if (!cat_open)
+            continue;
+        ImGui::Indent();
+        const bool selected = (p.file == selected_pipeline_file_);
+        const std::string lbl = p.display_name + "##pl" + std::to_string(i);
+        if (ImGui::Selectable(lbl.c_str(), selected))
+            selectPipeline(p.file);
+        ImGui::Unindent();
+    }
+    ImGui::EndChild();
+
+    // Inline parameters + Run for the selected pipeline.
+    if (selected_pipeline_file_.empty())
+        return;
+    const auto it = pipeline_params_.find(selected_pipeline_file_);
+    const std::vector<models::PipelineParam>* params =
+        it != pipeline_params_.end() ? &it->second : nullptr;
+    if (params) {
+        param_values_.resize(params->size());
+        for (std::size_t i = 0; i < params->size(); ++i) {
+            const auto& pp = (*params)[i];
+            const std::string shown = !pp.label.empty() ? pp.label
+                                      : !pp.name.empty() ? pp.name
+                                                         : std::string("value");
+            const std::string lbl = shown + "##plp" + std::to_string(i);
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.6f);
+            if (pp.is_integer) {
+                int v = static_cast<int>(std::lround(param_values_[i]));
+                if (pp.clamp) {
+                    int mn = static_cast<int>(pp.min), mx = static_cast<int>(pp.max);
+                    if (mx < mn)
+                        std::swap(mn, mx);
+                    if (ImGui::SliderInt(lbl.c_str(), &v, mn, mx))
+                        param_values_[i] = v;
+                } else if (ImGui::InputInt(lbl.c_str(), &v)) {
+                    param_values_[i] = v;
+                }
+            } else {
+                float v = static_cast<float>(param_values_[i]);
+                if (pp.clamp) {
+                    float mn = static_cast<float>(pp.min), mx = static_cast<float>(pp.max);
+                    if (mx < mn)
+                        std::swap(mn, mx);
+                    if (ImGui::SliderFloat(lbl.c_str(), &v, mn, mx))
+                        param_values_[i] = v;
+                } else if (ImGui::InputFloat(lbl.c_str(), &v)) {
+                    param_values_[i] = v;
+                }
+            }
+        }
+    }
+    if (ImGui::Button(tr("details.run_pipeline"))) {
+        RunPipelineCmd cmd{selected_pipeline_file_, {}};
+        if (params)
+            for (std::size_t i = 0; i < params->size(); ++i)
+                cmd.overrides.emplace_back((*params)[i].name, param_values_[i]);
+        commands.push_back(std::move(cmd));
+    }
 }
 
 // ============================================================================

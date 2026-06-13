@@ -1,5 +1,68 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Crear botones clásicos",
+      "ports": {
+        "Input": "Entrada"
+      }
+    },
+    "de": {
+      "name": "Klassische Schaltflächen erstellen",
+      "ports": {
+        "Input": "Eingang"
+      }
+    },
+    "fr": {
+      "name": "Créer des boutons classiques",
+      "ports": {
+        "Input": "Entrée"
+      }
+    },
+    "it": {
+      "name": "Crea pulsanti classici",
+      "ports": {
+        "Input": "Ingresso"
+      }
+    },
+    "pt-br": {
+      "name": "Criar botões clássicos",
+      "ports": {
+        "Input": "Entrada"
+      }
+    },
+    "ru": {
+      "name": "Создать классические кнопки",
+      "ports": {
+        "Input": "Вход"
+      }
+    },
+    "zh": {
+      "name": "创建经典按钮",
+      "ports": {
+        "Input": "输入"
+      }
+    },
+    "zh-hant": {
+      "name": "建立經典按鈕",
+      "ports": {
+        "Input": "輸入"
+      }
+    },
+    "ja": {
+      "name": "クラシックボタンを作成",
+      "ports": {
+        "Input": "入力"
+      }
+    },
+    "ko": {
+      "name": "클래식 버튼 생성",
+      "ports": {
+        "Input": "입력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -3,6 +3,8 @@
 
 #include "localization.h"
 
+#include "fs_utf8.h"
+
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -85,7 +87,9 @@ void Localizer::loadInto(StrMap& map, Language lang) const {
     if (dir_.empty())
         return;
 
-    const auto path = std::filesystem::path(dir_) / (std::string(languageCode(lang)) + ".ini");
+    // dir_ is UTF-8 (derived from SDL's base path); convert explicitly so a
+    // non-ASCII install directory still resolves on Windows.
+    const auto path = utf8ToPath(dir_) / (std::string(languageCode(lang)) + ".ini");
     std::ifstream in(path);
     if (!in.is_open())
         return;

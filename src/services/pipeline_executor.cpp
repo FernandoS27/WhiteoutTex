@@ -15,6 +15,7 @@
 #include <nlohmann/json.hpp>
 
 #include "common_types.h"
+#include "fs_utf8.h"
 #include "pipeline/serialization.h"
 #include "services/texture_service.h"
 
@@ -888,7 +889,10 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
         if (rel.empty()) {
             errors.push_back("Resource input: no path set");
         } else {
-            auto load = env.ts.loadFromFile((env.presets_dir / rel).string());
+            // rel comes from JSON (UTF-8); join and render back as UTF-8 so
+            // non-ASCII preset names survive on Windows (loadFromFile expects
+            // UTF-8 and converts internally).
+            auto load = env.ts.loadFromFile(pathToUtf8(env.presets_dir / utf8ToPath(rel)));
             if (load.texture)
                 out["image"].image = toRGBA8(*load.texture);
             else
@@ -1272,7 +1276,8 @@ PinMap applyNode(const Node& n, const PinMap& in, const ExecEnv& env,
             errors.push_back("Subpipeline: nesting too deep (passed through)");
             passthrough();
         } else {
-            std::ifstream f(env.pipelines_dir / name, std::ios::binary);
+            // name comes from JSON (UTF-8); convert so CJK file names resolve.
+            std::ifstream f(env.pipelines_dir / utf8ToPath(name), std::ios::binary);
             nlohmann::json doc;
             bool loaded = false;
             if (f) {

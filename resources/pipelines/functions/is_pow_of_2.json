@@ -1,5 +1,78 @@
 {
   "category": "Math",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Es potencia de 2",
+      "ports": {
+        "number": "número",
+        "result": "resultado"
+      }
+    },
+    "de": {
+      "name": "Ist Zweierpotenz",
+      "ports": {
+        "number": "Zahl",
+        "result": "Ergebnis"
+      }
+    },
+    "fr": {
+      "name": "Est une puissance de 2",
+      "ports": {
+        "number": "nombre",
+        "result": "résultat"
+      }
+    },
+    "it": {
+      "name": "È potenza di 2",
+      "ports": {
+        "number": "numero",
+        "result": "risultato"
+      }
+    },
+    "pt-br": {
+      "name": "É potência de 2",
+      "ports": {
+        "number": "número",
+        "result": "resultado"
+      }
+    },
+    "ru": {
+      "name": "Степень двойки",
+      "ports": {
+        "number": "число",
+        "result": "результат"
+      }
+    },
+    "zh": {
+      "name": "是否2的幂",
+      "ports": {
+        "number": "数字",
+        "result": "结果"
+      }
+    },
+    "zh-hant": {
+      "name": "是否2的次方",
+      "ports": {
+        "number": "數字",
+        "result": "結果"
+      }
+    },
+    "ja": {
+      "name": "2のべき乗か",
+      "ports": {
+        "number": "数値",
+        "result": "結果"
+      }
+    },
+    "ko": {
+      "name": "2의 거듭제곱 여부",
+      "ports": {
+        "number": "숫자",
+        "result": "결과"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -1,5 +1,68 @@
 {
   "category": "Pixel Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Saturar",
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "de": {
+      "name": "Sättigen",
+      "ports": {
+        "value": "Wert"
+      }
+    },
+    "fr": {
+      "name": "Saturer",
+      "ports": {
+        "value": "valeur"
+      }
+    },
+    "it": {
+      "name": "Satura",
+      "ports": {
+        "value": "valore"
+      }
+    },
+    "pt-br": {
+      "name": "Saturar",
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "ru": {
+      "name": "Насытить",
+      "ports": {
+        "value": "значение"
+      }
+    },
+    "zh": {
+      "name": "饱和",
+      "ports": {
+        "value": "值"
+      }
+    },
+    "zh-hant": {
+      "name": "飽和",
+      "ports": {
+        "value": "值"
+      }
+    },
+    "ja": {
+      "name": "飽和",
+      "ports": {
+        "value": "値"
+      }
+    },
+    "ko": {
+      "name": "채도",
+      "ports": {
+        "value": "값"
+      }
+    }
+  },
   "links": [
     {
       "from": [

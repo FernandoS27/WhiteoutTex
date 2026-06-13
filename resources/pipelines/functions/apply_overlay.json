@@ -1,5 +1,83 @@
 {
   "category": "Filter",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Aplicar superposición",
+      "ports": {
+        "Blended": "Mezclado",
+        "Overlay": "Superposición"
+      }
+    },
+    "de": {
+      "name": "Overlay anwenden",
+      "ports": {
+        "Base": "Basis",
+        "Blended": "Überblendet"
+      }
+    },
+    "fr": {
+      "name": "Appliquer la superposition",
+      "ports": {
+        "Blended": "Mélangé",
+        "Overlay": "Superposition"
+      }
+    },
+    "it": {
+      "name": "Applica sovrapposizione",
+      "ports": {
+        "Blended": "Miscelato",
+        "Overlay": "Sovrapposizione"
+      }
+    },
+    "pt-br": {
+      "name": "Aplicar sobreposição",
+      "ports": {
+        "Blended": "Mesclado",
+        "Overlay": "Sobreposição"
+      }
+    },
+    "ru": {
+      "name": "Применить наложение",
+      "ports": {
+        "Base": "Основа",
+        "Blended": "Смешанный",
+        "Overlay": "Наложение"
+      }
+    },
+    "zh": {
+      "name": "应用叠加",
+      "ports": {
+        "Base": "基底",
+        "Blended": "混合",
+        "Overlay": "叠加"
+      }
+    },
+    "zh-hant": {
+      "name": "套用疊加",
+      "ports": {
+        "Base": "基底",
+        "Blended": "混合",
+        "Overlay": "疊加"
+      }
+    },
+    "ja": {
+      "name": "オーバーレイを適用",
+      "ports": {
+        "Base": "ベース",
+        "Blended": "合成済み",
+        "Overlay": "オーバーレイ"
+      }
+    },
+    "ko": {
+      "name": "오버레이 적용",
+      "ports": {
+        "Base": "베이스",
+        "Blended": "혼합됨",
+        "Overlay": "오버레이"
+      }
+    }
+  },
   "links": [
     {
       "from": [

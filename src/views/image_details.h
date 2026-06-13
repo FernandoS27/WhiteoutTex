@@ -77,6 +77,9 @@ private:
     std::vector<double> param_values_;    ///< Working values for the selection's params.
     /// Select a pipeline by file and reset its parameter working values to defaults.
     void selectPipeline(const std::string& file);
+    /// Draw the category-grouped pipeline runner (list + inline params + Run),
+    /// appending any RunPipelineCmd to @p commands.  Shown first in the panel.
+    void drawPipelineSection(std::vector<models::AppCommand>& commands);
     // Mipmap regeneration options
     bool generate_mips_ = true;
     MipmapMode mipmap_mode_ = MipmapMode::KeepOriginal;

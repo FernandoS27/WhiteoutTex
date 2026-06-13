@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "common_types.h"
+#include "fs_utf8.h"
 #include "pipeline/node_graph.h"
 #include "pipeline/node_registry.h"
 #include "pipeline/serialization.h"
@@ -269,32 +270,67 @@ void App::initImGui() {
 
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
+    ui_scale_ = main_scale;
 
-    // Fonts: the default font covers Latin (incl. Latin-1 accents for ES/DE/FR/IT).
-    // Merge CJK fonts so the non-Latin languages render.  Noto Sans SC already
-    // covers Cyrillic (Russian), Simplified + Traditional Han and Japanese kana;
-    // Noto Sans KR adds Korean Hangul.  With ImGui 1.92's RendererHasTextures
-    // backend, glyphs rasterize on demand — no glyph ranges or atlas rebuilds are
-    // needed, so this one-time merge serves every language.
-    io.Fonts->AddFontDefault();
-    const std::filesystem::path fonts_dir =
-        std::filesystem::path(lang_dir_).parent_path() / "fonts";
-    for (const char* font_file : {"NotoSansSC-Regular.ttf", "NotoSansKR-Regular.ttf"}) {
-        const std::filesystem::path font_path = fonts_dir / font_file;
-        if (std::filesystem::exists(font_path)) {
+    // Fonts: use Noto Sans SC as the BASE font for every script.  It carries
+    // real vector glyphs for Latin (incl. accents), Cyrillic, kana and Han, so
+    // text re-rasterizes sharply at any monitor scale — unlike the previous
+    // ProggyClean default, a 13px BITMAP font that blurs whenever
+    // FontScaleDpi != 1 (the "hard to read on some monitors" complaint).  One
+    // family for all scripts also keeps weight/baseline consistent between
+    // Latin and non-Latin text.  Noto Sans KR is merged for Hangul.  With
+    // ImGui 1.92's dynamic fonts, glyphs rasterize on demand at the size and
+    // density in effect — no glyph ranges or atlas rebuilds needed.
+    style.FontSizeBase = 16.0f;
+    // Medium-weight (wght 500) Noto Sans cuts are bundled instead of Regular:
+    // on the dark theme the heavier stems read clearly as bright text, where
+    // Regular's thin antialiased strokes looked grey.  A light rasterizer boost
+    // nudges the coverage a touch further toward full white.
+    constexpr float kFontDensityBoost = 1.1f;
+    const std::filesystem::path fonts_dir = utf8ToPath(lang_dir_).parent_path() / "fonts";
+    bool base_font_loaded = false;
+    {
+        const std::filesystem::path base_font = fonts_dir / "NotoSansSC-Medium.ttf";
+        if (std::filesystem::exists(base_font)) {
+            ImFontConfig cfg;
+            cfg.RasterizerMultiply = kFontDensityBoost;
+            const std::string font_str = pathToUtf8(base_font); // ImGui wants UTF-8
+            base_font_loaded =
+                io.Fonts->AddFontFromFileTTF(font_str.c_str(), 0.0f, &cfg) != nullptr;
+        }
+    }
+    if (!base_font_loaded) {
+        SDL_Log("Base font NotoSansSC-Medium.ttf not found; falling back to the "
+                "built-in bitmap font (text may look blurry on scaled displays).");
+        io.Fonts->AddFontDefault();
+    }
+    {
+        const std::filesystem::path kr_font = fonts_dir / "NotoSansKR-Medium.ttf";
+        if (std::filesystem::exists(kr_font)) {
             ImFontConfig cfg;
             cfg.MergeMode = true;
-            // Build a stable narrow string for ImGui (UTF-8 path on disk).
-            const std::string font_str = font_path.string();
+            cfg.RasterizerMultiply = kFontDensityBoost;
+            const std::string font_str = pathToUtf8(kr_font);
             io.Fonts->AddFontFromFileTTF(font_str.c_str(), 0.0f, &cfg);
         } else {
             SDL_Log("CJK font not found at %s; some glyphs may not render.",
-                    font_path.string().c_str());
+                    pathToUtf8(kr_font).c_str());
         }
     }
 
     ImGui_ImplSDL3_InitForSDLRenderer(window_, renderer_);
     ImGui_ImplSDLRenderer3_Init(renderer_);
+}
+
+void App::applyUiScale(f32 scale) {
+    if (scale <= 0.0f || std::abs(scale - ui_scale_) < 0.01f)
+        return;
+    ImGuiStyle& style = ImGui::GetStyle();
+    // Rescale the style metrics by the ratio (ScaleAllSizes is multiplicative)
+    // and re-rasterize fonts at the new pixel density.
+    style.ScaleAllSizes(scale / ui_scale_);
+    style.FontScaleDpi = scale;
+    ui_scale_ = scale;
 }
 
 void App::shutdown() {
@@ -489,6 +525,9 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                     app_prefs_.language = c.language;
                     app_prefs_.language_chosen = true;
                     i18n::Localizer::instance().setLanguage(c.language);
+                    // Multilingual pipelines resolve their display strings at
+                    // scan time — re-resolve for the new language.
+                    scanPipelines();
                 },
                 [&](LoadCascTextureCmd& c) {
                     TextureLoadResult load_result;
@@ -529,14 +568,13 @@ void App::runPipeline(const std::string& name,
     if (!tex_state_.texture)
         return;
 
-    const std::filesystem::path file = pipelines_dir_.empty()
-                                           ? std::filesystem::path("pipelines") / name
-                                           : std::filesystem::path(pipelines_dir_) / name;
+    const std::filesystem::path file =
+        utf8ToPath(pipelines_dir_.empty() ? "pipelines" : pipelines_dir_) / utf8ToPath(name);
 
     // Load + parse the pipeline graph.
     std::ifstream f(file, std::ios::binary);
     if (!f) {
-        ui_.result_popup_message = "Could not open pipeline: " + file.string();
+        ui_.result_popup_message = "Could not open pipeline: " + pathToUtf8(file);
         ui_.result_popup_success = false;
         ui_.show_result_popup = true;
         return;
@@ -594,9 +632,9 @@ void App::executePipelineGraph(pipeline::NodeGraph& graph) {
     const std::filesystem::path presets =
         pipelines_dir_.empty()
             ? std::filesystem::path("presets")
-            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+            : utf8ToPath(pipelines_dir_).parent_path() / "presets";
     auto result = services::runStandardPipeline(graph, *tex_state_.texture, presets,
-                                                std::filesystem::path(pipelines_dir_),
+                                                utf8ToPath(pipelines_dir_),
                                                 texture_service_, 0, makeUpscaleFn());
 
     std::string msg;
@@ -707,10 +745,10 @@ void App::runPipelineDebug() {
     const std::filesystem::path presets =
         pipelines_dir_.empty()
             ? std::filesystem::path("presets")
-            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+            : utf8ToPath(pipelines_dir_).parent_path() / "presets";
     auto result =
         services::runPipelineDebug(pipeline_editor_.graph(), inputs, presets,
-                                   std::filesystem::path(pipelines_dir_), texture_service_, 0,
+                                   utf8ToPath(pipelines_dir_), texture_service_, 0,
                                    makeUpscaleFn());
     pipeline_debug_dialog_.setResult(std::move(result));
 }
@@ -725,19 +763,26 @@ void App::scanPipelines() {
     pipeline_interfaces_.clear();
     pipeline_params_.clear();
 
+    // Multilingual pipelines carry per-language display strings; resolve them
+    // for the active app language here (the scan re-runs on language switch).
+    const std::string lang = i18n::languageCode(i18n::Localizer::instance().current());
+
     std::error_code ec;
-    for (std::filesystem::recursive_directory_iterator it(pipelines_dir_, ec), end; it != end;
+    const std::filesystem::path root = utf8ToPath(pipelines_dir_);
+    for (std::filesystem::recursive_directory_iterator it(root, ec), end; it != end;
          it.increment(ec)) {
         if (ec)
             break;
-        if (!it->is_regular_file(ec) || to_lower(it->path().extension().string()) != ".json")
+        if (!it->is_regular_file(ec) ||
+            to_lower(pathToUtf8(it->path().extension())) != ".json")
             continue;
         models::PipelineInfo info;
         // Store the path relative to the pipelines folder (forward slashes) so
         // pipelines in subfolders stay addressable (e.g. functions/foo.json).
-        info.file = std::filesystem::relative(it->path(), pipelines_dir_, ec).generic_string();
+        // Converted as UTF-8 so non-ASCII (e.g. CJK) file names survive.
+        info.file = pathToUtf8Generic(std::filesystem::relative(it->path(), root, ec));
         if (info.file.empty())
-            info.file = it->path().filename().string();
+            info.file = pathToUtf8(it->path().filename());
         auto ptype = pipeline::PipelineType::Standard; // default when untyped
         std::ifstream pf(it->path(), std::ios::binary);
         if (pf) {
@@ -748,15 +793,35 @@ void App::scanPipelines() {
                 info.category = doc.value("category", std::string{});
                 pipeline::NodeGraph g;
                 if (pipeline::fromJson(doc, g, nullptr)) {
-                    pipeline_interfaces_[info.file] = g.interface();
-                    pipeline_params_[info.file] = extractPipelineParams(g);
+                    pipeline::PipelineInterface iface = g.interface();
+                    auto params = extractPipelineParams(g);
+                    // Overlay the active language's display strings (canonical
+                    // names stay the binding keys; labels are display-only).
+                    if (const pipeline::PipelineTranslation* tr = g.translationFor(lang)) {
+                        if (!tr->name.empty())
+                            info.display_name = tr->name;
+                        if (!tr->category.empty())
+                            info.category = tr->category;
+                        const auto portLabel = [&](const std::string& port) {
+                            const auto pit = tr->ports.find(port);
+                            return pit != tr->ports.end() ? pit->second : std::string{};
+                        };
+                        for (auto& p : iface.inputs)
+                            p.label = portLabel(p.name);
+                        for (auto& p : iface.outputs)
+                            p.label = portLabel(p.name);
+                        for (auto& pp : params)
+                            pp.label = portLabel(pp.name);
+                    }
+                    pipeline_interfaces_[info.file] = std::move(iface);
+                    pipeline_params_[info.file] = std::move(params);
                     ptype = g.pipelineType();
                 }
             } catch (const nlohmann::json::exception&) {
             }
         }
         if (info.display_name.empty())
-            info.display_name = it->path().stem().string();
+            info.display_name = pathToUtf8(it->path().stem());
         // Standard pipelines run on the current image (Preview); Varying
         // pipelines run from the MultiPipelines dialog (file in/out).
         if (ptype == pipeline::PipelineType::Standard)
@@ -794,14 +859,15 @@ void App::openMultiPipeline(const std::string& name) {
         ui_.show_result_popup = true;
         return;
     }
-    // Map the pipeline's image (RGBA) ports to file rows.
-    std::vector<std::string> ins, outs;
+    // Map the pipeline's image (RGBA) ports to file rows: the canonical port
+    // name binds the run; the (possibly translated) label is what's displayed.
+    std::vector<std::pair<std::string, std::string>> ins, outs;
     for (const auto& p : it->second.inputs)
         if (p.type == pipeline::PinType::RGBA)
-            ins.push_back(p.name);
+            ins.emplace_back(p.name, p.label.empty() ? p.name : p.label);
     for (const auto& p : it->second.outputs)
         if (p.type == pipeline::PinType::RGBA)
-            outs.push_back(p.name);
+            outs.emplace_back(p.name, p.label.empty() ? p.name : p.label);
 
     std::string display = name;
     for (const auto& info : varying_pipeline_files_)
@@ -814,9 +880,8 @@ void App::openMultiPipeline(const std::string& name) {
 
 void App::runMultiPipeline() {
     const std::string name = multi_pipeline_dialog_.file();
-    const std::filesystem::path file = pipelines_dir_.empty()
-                                           ? std::filesystem::path("pipelines") / name
-                                           : std::filesystem::path(pipelines_dir_) / name;
+    const std::filesystem::path file =
+        utf8ToPath(pipelines_dir_.empty() ? "pipelines" : pipelines_dir_) / utf8ToPath(name);
 
     pipeline::NodeGraph graph;
     bool loaded = false;
@@ -848,9 +913,9 @@ void App::runMultiPipeline() {
     const std::filesystem::path presets =
         pipelines_dir_.empty()
             ? std::filesystem::path("presets")
-            : std::filesystem::path(pipelines_dir_).parent_path() / "presets";
+            : utf8ToPath(pipelines_dir_).parent_path() / "presets";
     auto result = services::runVaryingPipeline(graph, inputs, presets,
-                                               std::filesystem::path(pipelines_dir_),
+                                               utf8ToPath(pipelines_dir_),
                                                texture_service_, 0, makeUpscaleFn());
     for (const auto& e : result.errors)
         errors += "\n- " + e;
@@ -1023,22 +1088,26 @@ i32 App::run(i32 argc, char** argv) {
 
     // Prepare INI + resource paths (next to the executable).
     if (const char* base_path = SDL_GetBasePath(); base_path) {
-        const std::filesystem::path base(base_path);
-        imgui_ini_path_ = (base / "config.ini").string();
-        lang_dir_ = (base / "lang").string();
-        pipelines_dir_ = (base / "pipelines").string();
+        // SDL returns UTF-8; keep these members UTF-8 so non-ASCII install
+        // directories survive (ImGui's ini writer also expects UTF-8).
+        const std::filesystem::path base = utf8ToPath(base_path);
+        imgui_ini_path_ = pathToUtf8(base / "config.ini");
+        lang_dir_ = pathToUtf8(base / "lang");
+        pipelines_dir_ = pathToUtf8(base / "pipelines");
     } else {
         imgui_ini_path_ = "config.ini";
         lang_dir_ = "lang";
         pipelines_dir_ = "pipelines";
     }
 
-    scanPipelines();
-
     app_prefs_ = load_app_prefs(imgui_ini_path_);
     i18n::Localizer::instance().load(lang_dir_, app_prefs_.language);
     // First run (no language chosen yet) → prompt the user to pick one.
     ui_.show_language_prompt = !app_prefs_.language_chosen;
+
+    // After the localizer, so Multilingual pipelines resolve display strings
+    // for the active language during the scan.
+    scanPipelines();
 
     save_prefs_ = load_save_prefs(imgui_ini_path_);
     batch_prefs_ = load_batch_prefs(imgui_ini_path_);
@@ -1089,6 +1158,13 @@ i32 App::run(i32 argc, char** argv) {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
                 event.window.windowID == SDL_GetWindowID(window_)) {
                 done = true;
+            }
+            // The window moved to a monitor with a different content scale
+            // (or the user changed the display's scaling): keep text sharp by
+            // re-applying the UI scale instead of stretching the old atlas.
+            if (event.type == SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED &&
+                event.window.windowID == SDL_GetWindowID(window_)) {
+                applyUiScale(SDL_GetWindowDisplayScale(window_));
             }
         }
 
@@ -1173,7 +1249,7 @@ i32 App::run(i32 argc, char** argv) {
 
                 const bool show_mip_list =
                     tex_state_.texture && tex_state_.texture->mipCount() > 1;
-                const f32 mip_list_height = show_mip_list ? available_height * 0.3f : 0.0f;
+                const f32 mip_list_height = show_mip_list ? available_height * 0.22f : 0.0f;
                 const f32 details_height = available_height - mip_list_height;
 
                 // Left column

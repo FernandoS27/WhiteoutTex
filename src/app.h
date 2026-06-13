@@ -62,6 +62,12 @@ private:
     void initImGui();
     void shutdown();
 
+    /// Re-apply the UI scale when the window moves to a monitor with a
+    /// different content scale: rescales style metrics by the ratio and sets
+    /// FontScaleDpi so fonts re-rasterize at the new density (stays sharp).
+    void applyUiScale(f32 scale);
+    f32 ui_scale_ = 1.0f; ///< Content scale currently applied to style + fonts.
+
     void processOpenResult();
     void processSaveResult();
 

@@ -9,6 +9,7 @@
 ///        format-specific options).  Execution + saving is driven by App.
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common_types.h"
@@ -23,16 +24,18 @@ namespace whiteout::textool::views {
 
 /// One image input port mapped to a source file.
 struct MultiInputRow {
-    std::string port; ///< Input node name (the bound port).
-    std::string path; ///< Chosen source image file.
+    std::string port;  ///< Input node name (the bound port — binding key).
+    std::string label; ///< Display label (translated for Multilingual pipelines).
+    std::string path;  ///< Chosen source image file.
 };
 
 /// One image output port mapped to a destination file plus save options.
 struct MultiOutputRow {
-    std::string port; ///< Output node name (the captured port).
-    std::string path; ///< Chosen destination file.
-    SavePrefs prefs;  ///< Per-format encoding + mipmap options.
-    i32 kind = 0;     ///< TextureKind value to tag the saved image with.
+    std::string port;  ///< Output node name (the captured port — binding key).
+    std::string label; ///< Display label (translated for Multilingual pipelines).
+    std::string path;  ///< Chosen destination file.
+    SavePrefs prefs;   ///< Per-format encoding + mipmap options.
+    i32 kind = 0;      ///< TextureKind value to tag the saved image with.
 };
 
 /// Modal for running a multi-input/output (Varying) pipeline against files.
@@ -40,10 +43,12 @@ struct MultiOutputRow {
 /// performs the load/execute/save and reports back via finishRun().
 class MultiPipelineDialog {
 public:
-    /// Populate the dialog from a pipeline's image ports and show it.
+    /// Populate the dialog from a pipeline's image ports and show it.  Each
+    /// port is a (canonical name, display label) pair — binding uses the name.
     void open(std::string file, std::string display_name,
-              const std::vector<std::string>& image_inputs,
-              const std::vector<std::string>& image_outputs, const SavePrefs& default_prefs);
+              const std::vector<std::pair<std::string, std::string>>& image_inputs,
+              const std::vector<std::pair<std::string, std::string>>& image_outputs,
+              const SavePrefs& default_prefs);
 
     bool isOpen() const { return open_; }
     void close();

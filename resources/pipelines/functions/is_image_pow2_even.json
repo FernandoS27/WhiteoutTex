@@ -1,5 +1,78 @@
 {
   "category": "Image Properties",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "La imagen es potencia de 2 par",
+      "ports": {
+        "Input": "Entrada",
+        "result": "resultado"
+      }
+    },
+    "de": {
+      "name": "Ist Bild Zweierpotenz gerade",
+      "ports": {
+        "Input": "Eingang",
+        "result": "Ergebnis"
+      }
+    },
+    "fr": {
+      "name": "L'image est-elle une puissance de 2 paire",
+      "ports": {
+        "Input": "Entrée",
+        "result": "résultat"
+      }
+    },
+    "it": {
+      "name": "L'immagine è Pow2 pari",
+      "ports": {
+        "Input": "Ingresso",
+        "result": "risultato"
+      }
+    },
+    "pt-br": {
+      "name": "A imagem é Pow2 par",
+      "ports": {
+        "Input": "Entrada",
+        "result": "resultado"
+      }
+    },
+    "ru": {
+      "name": "Изображение чётной степени двойки",
+      "ports": {
+        "Input": "Вход",
+        "result": "результат"
+      }
+    },
+    "zh": {
+      "name": "图像是否2的偶次幂",
+      "ports": {
+        "Input": "输入",
+        "result": "结果"
+      }
+    },
+    "zh-hant": {
+      "name": "圖片是否為2的次方且為偶數",
+      "ports": {
+        "Input": "輸入",
+        "result": "結果"
+      }
+    },
+    "ja": {
+      "name": "画像が Pow2 か",
+      "ports": {
+        "Input": "入力",
+        "result": "結果"
+      }
+    },
+    "ko": {
+      "name": "이미지가 Pow2 짝수 여부",
+      "ports": {
+        "Input": "입력",
+        "result": "결과"
+      }
+    }
+  },
   "links": [
     {
       "from": [

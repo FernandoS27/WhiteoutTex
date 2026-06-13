@@ -14,6 +14,7 @@
  * The graph is a DAG; topological evaluation lands in a later stage.
  */
 
+#include <map>
 #include <memory>
 #include <span>
 #include <string>
@@ -32,10 +33,24 @@ using LinkId = u32;
 enum class PipelineType : u8 { Standard, Varying, Function };
 
 /// One named, typed port of a pipeline's external interface (derived from an
-/// Input or Output node carrying a "name" param).
+/// Input or Output node carrying a "name" param).  @c name is the canonical
+/// identifier (binding key); @c label is an optional translated display string
+/// resolved by the pipeline catalog scan (empty = show the name).
 struct PipelinePort {
     std::string name;
     PinType type = PinType::RGBA;
+    std::string label;
+};
+
+/// Display strings of one language for a Multilingual pipeline.  All entries
+/// are OPTIONAL overrides over the pipeline's base name/category/port names —
+/// an empty (or missing) entry falls back to the base string.  Port labels are
+/// keyed by the canonical port name; they never participate in binding.
+struct PipelineTranslation {
+    std::string name;
+    std::string category;
+    std::map<std::string, std::string> ports;
+    bool empty() const { return name.empty() && category.empty() && ports.empty(); }
 };
 
 /// A pipeline's external interface: its named input and output ports, in node
@@ -112,6 +127,26 @@ public:
     const std::string& category() const noexcept { return category_; }
     void setCategory(std::string category) { category_ = std::move(category); }
 
+    // ── Multilingual display strings (stored in the pipeline file) ─────
+    /// When true the pipeline carries per-language display strings and the
+    /// `i18n` table is serialized; when false the table is kept in memory for
+    /// the session but NOT written (the file behaves like a classic pipeline).
+    bool multilingual() const noexcept { return multilingual_; }
+    void setMultilingual(bool v) noexcept { multilingual_ = v; }
+    /// Per-language display overrides, keyed by app language code ("es", "zh"…).
+    std::map<std::string, PipelineTranslation>& translations() { return translations_; }
+    const std::map<std::string, PipelineTranslation>& translations() const {
+        return translations_;
+    }
+    /// The translation entry for @p lang_code, or nullptr (no fallback logic —
+    /// callers fall back to the base name/category/port strings themselves).
+    const PipelineTranslation* translationFor(std::string_view lang_code) const {
+        if (!multilingual_)
+            return nullptr;
+        const auto it = translations_.find(std::string(lang_code));
+        return it != translations_.end() ? &it->second : nullptr;
+    }
+
     // ── Pipeline type (external interface contract) ────────────────────
     PipelineType pipelineType() const noexcept { return type_; }
     void setPipelineType(PipelineType t) noexcept { type_ = t; }
@@ -146,6 +181,8 @@ private:
     std::vector<Link> links_;
     std::string name_;
     std::string category_;
+    bool multilingual_ = false;
+    std::map<std::string, PipelineTranslation> translations_;
     PipelineType type_ = PipelineType::Standard;
     NodeId next_node_id_ = 1;
     LinkId next_link_id_ = 1;

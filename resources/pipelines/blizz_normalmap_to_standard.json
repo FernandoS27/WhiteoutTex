@@ -1,5 +1,78 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Mapa normal de Blizzard a estándar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "Blizzards Normal Map zu Standard",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Normal map Blizzard vers standard",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Da normal map di Blizzard a standard",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Normal map da Blizzard para padrão",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Карта нормалей Blizzard в стандартную",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "Blizzard 法线贴图转标准",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "Blizzard 法線貼圖轉標準",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "Blizzard の法線マップを標準へ",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "Blizzard 노멀 맵을 표준으로",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

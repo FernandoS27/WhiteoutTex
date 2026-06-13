@@ -3,6 +3,8 @@
 
 #include "views/pipeline_editor.h"
 
+#include "fs_utf8.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -186,8 +188,8 @@ void drawPinIcon(bool is_input, ImU32 color, bool connected, float size = 14.0f)
 // Absolute path of the bundled presets folder (copied next to the exe on
 // build).  Resource input nodes store paths relative to this.
 std::filesystem::path presetsRoot() {
-    if (const char* base = SDL_GetBasePath())
-        return std::filesystem::path(base) / "presets";
+    if (const char* base = SDL_GetBasePath()) // SDL returns UTF-8
+        return utf8ToPath(base) / "presets";
     return std::filesystem::path("presets");
 }
 
@@ -210,11 +212,11 @@ void drawPresetPicker(std::string& path_value) {
             break;
         if (!it->is_regular_file(ec))
             continue;
-        const std::string ext = to_lower(it->path().extension().string());
+        const std::string ext = to_lower(pathToUtf8(it->path().extension()));
         if (whiteout::textures::classifyExtension(ext) ==
             whiteout::textures::TextureFileFormat::Unknown)
             continue;
-        const std::string rel = fs::relative(it->path(), root, ec).generic_string();
+        const std::string rel = pathToUtf8Generic(fs::relative(it->path(), root, ec));
         if (rel.empty())
             continue;
         any = true;
@@ -295,9 +297,11 @@ void PipelineEditor::processDialogs() {
 }
 
 void PipelineEditor::savePipeline(const std::string& path) {
-    // Ensure a .json extension (the dialog filter doesn't always append it).
-    std::filesystem::path out(path);
-    if (to_lower(out.extension().string()) != ".json")
+    // The dialog path is UTF-8; convert explicitly so non-ASCII (e.g. CJK)
+    // characters survive on Windows.  Ensure a .json extension (the dialog
+    // filter doesn't always append it).
+    std::filesystem::path out = utf8ToPath(path);
+    if (to_lower(pathToUtf8(out.extension())) != ".json")
         out += ".json";
 
     std::ofstream f(out, std::ios::binary | std::ios::trunc);
@@ -307,7 +311,7 @@ void PipelineEditor::savePipeline(const std::string& path) {
 }
 
 bool PipelineEditor::loadPipeline(const std::string& path) {
-    std::ifstream f(path, std::ios::binary);
+    std::ifstream f(utf8ToPath(path), std::ios::binary);
     if (!f)
         return false;
 
@@ -452,6 +456,67 @@ void PipelineEditor::drawPalette(f32 width, SDL_Window* window) {
                                                                        : "pipeline.type.standard";
         ImGui::SameLine();
         ImGui::TextDisabled("(%s)", i18n::tr(tkey));
+    }
+
+    // Multilingual: per-language display strings (name / category / port
+    // labels) stored INSIDE the pipeline file so it stays transferable.  The
+    // base fields above remain the canonical fallback; translations are
+    // display-only and never participate in binding.
+    {
+        bool multilingual = graph_.multilingual();
+        if (ImGui::Checkbox(i18n::tr("pipeline.multilingual"), &multilingual))
+            graph_.setMultilingual(multilingual);
+        if (multilingual) {
+            const auto langs = i18n::languages();
+            if (i18n_lang_index_ < 0 || i18n_lang_index_ >= static_cast<i32>(langs.size()))
+                i18n_lang_index_ = 0;
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::BeginCombo("##i18nlang", langs[i18n_lang_index_].endonym)) {
+                for (i32 i = 0; i < static_cast<i32>(langs.size()); ++i)
+                    if (ImGui::Selectable(langs[i].endonym, i == i18n_lang_index_))
+                        i18n_lang_index_ = i;
+                ImGui::EndCombo();
+            }
+
+            auto& entry = graph_.translations()[langs[i18n_lang_index_].code];
+            char buf[128];
+
+            // Translated name / category; the hint shows the base fallback.
+            ImGui::TextDisabled("%s", i18n::tr("pipeline.name"));
+            std::snprintf(buf, sizeof(buf), "%s", entry.name.c_str());
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputTextWithHint("##i18nname", graph_.name().c_str(), buf, sizeof(buf)))
+                entry.name = buf;
+            ImGui::TextDisabled("%s", i18n::tr("pipeline.category_label"));
+            std::snprintf(buf, sizeof(buf), "%s", entry.category.c_str());
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputTextWithHint("##i18ncat", graph_.category().c_str(), buf,
+                                         sizeof(buf)))
+                entry.category = buf;
+
+            // One label field per interface port (canonical name shown as the
+            // field label; empty = fall back to the canonical name).
+            const pipeline::PipelineInterface iface = graph_.interface();
+            if (!iface.inputs.empty() || !iface.outputs.empty())
+                ImGui::TextDisabled("%s", i18n::tr("pipeline.i18n.ports"));
+            const auto portRow = [&](const pipeline::PipelinePort& p, const char* tag, int i) {
+                const auto pit = entry.ports.find(p.name);
+                std::snprintf(buf, sizeof(buf), "%s",
+                              pit != entry.ports.end() ? pit->second.c_str() : "");
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.55f);
+                const std::string id = p.name + "##i18np_" + tag + std::to_string(i);
+                if (ImGui::InputText(id.c_str(), buf, sizeof(buf))) {
+                    if (buf[0] != '\0')
+                        entry.ports[p.name] = buf;
+                    else
+                        entry.ports.erase(p.name); // no override -> keep the table lean
+                }
+            };
+            for (std::size_t i = 0; i < iface.inputs.size(); ++i)
+                portRow(iface.inputs[i], "i", static_cast<int>(i));
+            for (std::size_t i = 0; i < iface.outputs.size(); ++i)
+                portRow(iface.outputs[i], "o", static_cast<int>(i));
+        }
     }
     ImGui::Spacing();
 

@@ -99,6 +99,9 @@ private:
     void drawPalette(f32 width, SDL_Window* window);
     // Palette width, user-resizable by dragging the splitter to its right.
     f32 palette_width_ = 190.0f;
+    // Language currently selected in the Multilingual translation editor
+    // (index into i18n::languages()).
+    i32 i18n_lang_index_ = 0;
 
     // Open the save/load file dialogs, and consume their async results
     // (serialize / deserialize the graph as JSON).

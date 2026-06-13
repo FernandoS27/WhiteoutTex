@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Fernando Sahmkow
 
 #include "services/batch_service.h"
+#include "fs_utf8.h"
 #include "pipeline/node_graph.h"
 #include "pipeline/serialization.h"
 #include "services/pipeline_executor.h"
@@ -224,7 +225,10 @@ void BatchService::workerFunc() {
                         pipeline_failed = true;
                         break;
                     }
-                    const fs::path pf = fs::path(job_.pipelines_dir) / step.pipeline_file;
+                    // Both strings are UTF-8; convert explicitly so non-ASCII
+                    // (e.g. CJK) directories / file names survive on Windows.
+                    const fs::path pf =
+                        utf8ToPath(job_.pipelines_dir) / utf8ToPath(step.pipeline_file);
                     nlohmann::json doc;
                     pipeline::NodeGraph graph;
                     bool ok = false;
@@ -266,9 +270,9 @@ void BatchService::workerFunc() {
                         }
                     }
                     const fs::path presets =
-                        fs::path(job_.pipelines_dir).parent_path() / "presets";
+                        utf8ToPath(job_.pipelines_dir).parent_path() / "presets";
                     auto res = runStandardPipeline(graph, *loaded, presets,
-                                                   fs::path(job_.pipelines_dir), texture_service, 0,
+                                                   utf8ToPath(job_.pipelines_dir), texture_service, 0,
                                                    pipeline_upscale);
                     if (!res.output) {
                         pipeline_failed = true;

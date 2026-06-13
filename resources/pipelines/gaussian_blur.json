@@ -1,5 +1,87 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Desenfoque gaussiano",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida",
+        "Radius": "Radio"
+      }
+    },
+    "de": {
+      "name": "Gaußscher Weichzeichner",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Flou gaussien",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie",
+        "Radius": "Rayon"
+      }
+    },
+    "it": {
+      "name": "Sfocatura gaussiana",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita",
+        "Radius": "Raggio"
+      }
+    },
+    "pt-br": {
+      "name": "Desfoque gaussiano",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída",
+        "Radius": "Raio"
+      }
+    },
+    "ru": {
+      "name": "Размытие по Гауссу",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход",
+        "Radius": "Радиус"
+      }
+    },
+    "zh": {
+      "name": "高斯模糊",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出",
+        "Radius": "半径"
+      }
+    },
+    "zh-hant": {
+      "name": "高斯模糊",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出",
+        "Radius": "半徑"
+      }
+    },
+    "ja": {
+      "name": "ガウスぼかし",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力",
+        "Radius": "半径"
+      }
+    },
+    "ko": {
+      "name": "가우시안 블러",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력",
+        "Radius": "반지름"
+      }
+    }
+  },
   "links": [
     {
       "from": [

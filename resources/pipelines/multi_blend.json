@@ -1,5 +1,93 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Mezcla múltiple",
+      "ports": {
+        "Overlay": "Superposición",
+        "Blended": "Mezclado",
+        "BaseCopy": "Copia de base"
+      }
+    },
+    "de": {
+      "name": "Mehrfach-Überblendung",
+      "ports": {
+        "Base": "Basis",
+        "Blended": "Überblendet",
+        "BaseCopy": "Basiskopie"
+      }
+    },
+    "fr": {
+      "name": "Mélange multiple",
+      "ports": {
+        "Overlay": "Superposition",
+        "Blended": "Mélangé",
+        "BaseCopy": "Copie de base"
+      }
+    },
+    "it": {
+      "name": "Miscelazione multipla",
+      "ports": {
+        "Overlay": "Sovrapposizione",
+        "Blended": "Miscelato",
+        "BaseCopy": "Copia base"
+      }
+    },
+    "pt-br": {
+      "name": "Mesclagem múltipla",
+      "ports": {
+        "Overlay": "Sobreposição",
+        "Blended": "Mesclado",
+        "BaseCopy": "Cópia da base"
+      }
+    },
+    "ru": {
+      "name": "Множественное смешивание",
+      "ports": {
+        "Base": "Основа",
+        "Overlay": "Наложение",
+        "Blended": "Смешанный",
+        "BaseCopy": "Копия основы"
+      }
+    },
+    "zh": {
+      "name": "多重混合",
+      "ports": {
+        "Base": "基底",
+        "Overlay": "叠加",
+        "Blended": "混合",
+        "BaseCopy": "基底副本"
+      }
+    },
+    "zh-hant": {
+      "name": "多重混合",
+      "ports": {
+        "Base": "基底",
+        "Overlay": "疊加",
+        "Blended": "混合",
+        "BaseCopy": "基底副本"
+      }
+    },
+    "ja": {
+      "name": "マルチブレンド",
+      "ports": {
+        "Base": "ベース",
+        "Overlay": "オーバーレイ",
+        "Blended": "合成済み",
+        "BaseCopy": "ベースのコピー"
+      }
+    },
+    "ko": {
+      "name": "멀티 블렌드",
+      "ports": {
+        "Base": "베이스",
+        "Overlay": "오버레이",
+        "Blended": "혼합됨",
+        "BaseCopy": "베이스 복사본"
+      }
+    }
+  },
   "links": [
     {
       "from": [

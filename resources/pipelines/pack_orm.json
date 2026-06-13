@@ -1,5 +1,100 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Empaquetar ORM",
+      "ports": {
+        "AO Map": "Mapa AO",
+        "Roughness Map": "Mapa de rugosidad",
+        "Metalness Map": "Mapa de metalicidad",
+        "Alpha Map": "Mapa alfa",
+        "ORM Map": "Mapa ORM"
+      }
+    },
+    "de": {
+      "name": "ORM packen",
+      "ports": {
+        "Roughness Map": "Rauheits-Map",
+        "Metalness Map": "Metallizitäts-Map"
+      }
+    },
+    "fr": {
+      "name": "Empaqueter ORM",
+      "ports": {
+        "AO Map": "Carte AO",
+        "Roughness Map": "Carte de rugosité",
+        "Metalness Map": "Carte de métallicité",
+        "Alpha Map": "Carte alpha",
+        "ORM Map": "Carte ORM"
+      }
+    },
+    "it": {
+      "name": "Comprimi ORM",
+      "ports": {
+        "Roughness Map": "Mappa di rugosità",
+        "Metalness Map": "Mappa di metallicità"
+      }
+    },
+    "pt-br": {
+      "name": "Empacotar ORM",
+      "ports": {
+        "Roughness Map": "Mapa de rugosidade",
+        "Metalness Map": "Mapa de metalicidade",
+        "Alpha Map": "Mapa de alfa"
+      }
+    },
+    "ru": {
+      "name": "Упаковать ORM",
+      "ports": {
+        "AO Map": "AO карта",
+        "Roughness Map": "Карта шероховатости",
+        "Metalness Map": "Карта металличности",
+        "Alpha Map": "Карта прозрачности",
+        "ORM Map": "ORM карта"
+      }
+    },
+    "zh": {
+      "name": "打包ORM",
+      "ports": {
+        "AO Map": "AO 贴图",
+        "Roughness Map": "粗糙度贴图",
+        "Metalness Map": "金属度贴图",
+        "Alpha Map": "Alpha 贴图",
+        "ORM Map": "ORM 贴图"
+      }
+    },
+    "zh-hant": {
+      "name": "打包ORM",
+      "ports": {
+        "AO Map": "AO 貼圖",
+        "Roughness Map": "粗糙度貼圖",
+        "Metalness Map": "金屬度貼圖",
+        "Alpha Map": "Alpha 貼圖",
+        "ORM Map": "ORM 貼圖"
+      }
+    },
+    "ja": {
+      "name": "ORM をパック",
+      "ports": {
+        "AO Map": "AO マップ",
+        "Roughness Map": "ラフネスマップ",
+        "Metalness Map": "メタルネスマップ",
+        "Alpha Map": "アルファマップ",
+        "ORM Map": "ORM マップ"
+      }
+    },
+    "ko": {
+      "name": "ORM 패킹",
+      "ports": {
+        "AO Map": "AO 맵",
+        "Roughness Map": "러프니스 맵",
+        "Metalness Map": "메탈니스 맵",
+        "Alpha Map": "알파 맵",
+        "ORM Map": "ORM 맵"
+      }
+    }
+  },
   "links": [
     {
       "from": [

@@ -1,5 +1,58 @@
 {
   "category": "Math",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "de": {
+      "ports": {
+        "value": "Wert"
+      }
+    },
+    "fr": {
+      "ports": {
+        "value": "valeur"
+      }
+    },
+    "it": {
+      "ports": {
+        "value": "valore"
+      }
+    },
+    "pt-br": {
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "ru": {
+      "ports": {
+        "value": "значение"
+      }
+    },
+    "zh": {
+      "ports": {
+        "value": "值"
+      }
+    },
+    "zh-hant": {
+      "ports": {
+        "value": "值"
+      }
+    },
+    "ja": {
+      "ports": {
+        "value": "値"
+      }
+    },
+    "ko": {
+      "ports": {
+        "value": "값"
+      }
+    }
+  },
   "links": [
     {
       "from": [

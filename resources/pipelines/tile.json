@@ -1,5 +1,78 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Mosaico",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "Kacheln",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Mosaïque",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Affianca",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Ladrilhar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Замостить",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "平铺",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "平鋪",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "タイル",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "타일",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

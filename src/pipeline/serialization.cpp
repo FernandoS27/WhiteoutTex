@@ -49,6 +49,34 @@ json toJson(const NodeGraph& graph) {
     doc["name"] = graph.name();
     if (!graph.category().empty())
         doc["category"] = graph.category();
+    // Multilingual display strings travel inside the file (pipelines are
+    // transferable).  Written only when the pipeline is marked Multilingual;
+    // entries are display-only overrides — canonical names stay authoritative.
+    if (graph.multilingual()) {
+        doc["multilingual"] = true;
+        json i18n = json::object();
+        for (const auto& [code, tr] : graph.translations()) {
+            if (tr.empty())
+                continue;
+            json entry = json::object();
+            if (!tr.name.empty())
+                entry["name"] = tr.name;
+            if (!tr.category.empty())
+                entry["category"] = tr.category;
+            if (!tr.ports.empty()) {
+                json ports = json::object();
+                for (const auto& [port, label] : tr.ports)
+                    if (!label.empty())
+                        ports[port] = label;
+                if (!ports.empty())
+                    entry["ports"] = std::move(ports);
+            }
+            if (!entry.empty())
+                i18n[code] = std::move(entry);
+        }
+        if (!i18n.empty())
+            doc["i18n"] = std::move(i18n);
+    }
     doc["type"] = graph.pipelineType() == PipelineType::Function ? "function"
                   : graph.pipelineType() == PipelineType::Varying ? "varying"
                                                                   : "standard";
@@ -109,6 +137,25 @@ bool fromJson(const json& doc, NodeGraph& graph, std::vector<std::string>* warni
 
     graph.setName(doc.value("name", std::string{}));
     graph.setCategory(doc.value("category", std::string{}));
+    // Optional multilingual block (absent in classic pipelines — they load
+    // unchanged).  A file carrying an i18n table is multilingual even without
+    // the explicit flag.
+    if (const auto it = doc.find("i18n"); it != doc.end() && it->is_object()) {
+        for (const auto& [code, entry] : it->items()) {
+            if (!entry.is_object())
+                continue;
+            PipelineTranslation tr;
+            tr.name = entry.value("name", std::string{});
+            tr.category = entry.value("category", std::string{});
+            if (const auto pit = entry.find("ports"); pit != entry.end() && pit->is_object())
+                for (const auto& [port, label] : pit->items())
+                    if (label.is_string())
+                        tr.ports[port] = label.get<std::string>();
+            if (!tr.empty())
+                graph.translations()[code] = std::move(tr);
+        }
+    }
+    graph.setMultilingual(doc.value("multilingual", false) || !graph.translations().empty());
     const std::string ptype = doc.value("type", std::string{"standard"});
     graph.setPipelineType(ptype == "function" ? PipelineType::Function
                           : ptype == "varying" ? PipelineType::Varying

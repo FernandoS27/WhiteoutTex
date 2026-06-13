@@ -1,5 +1,68 @@
 {
   "category": "Interpolation",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Interpolación lineal",
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "de": {
+      "name": "Lineare Interpolation",
+      "ports": {
+        "value": "Wert"
+      }
+    },
+    "fr": {
+      "name": "Interpolation linéaire",
+      "ports": {
+        "value": "valeur"
+      }
+    },
+    "it": {
+      "name": "Interpolazione lineare",
+      "ports": {
+        "value": "valore"
+      }
+    },
+    "pt-br": {
+      "name": "Interpolação linear",
+      "ports": {
+        "value": "valor"
+      }
+    },
+    "ru": {
+      "name": "Линейная интерполяция",
+      "ports": {
+        "value": "значение"
+      }
+    },
+    "zh": {
+      "name": "线性插值",
+      "ports": {
+        "value": "值"
+      }
+    },
+    "zh-hant": {
+      "name": "線性插值",
+      "ports": {
+        "value": "值"
+      }
+    },
+    "ja": {
+      "name": "線形補間",
+      "ports": {
+        "value": "値"
+      }
+    },
+    "ko": {
+      "name": "선형 보간",
+      "ports": {
+        "value": "값"
+      }
+    }
+  },
   "links": [
     {
       "from": [

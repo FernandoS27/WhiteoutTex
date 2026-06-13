@@ -1,5 +1,78 @@
 {
   "category": "Filter",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Invertir colores",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
+      }
+    },
+    "de": {
+      "name": "Farben invertieren",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang"
+      }
+    },
+    "fr": {
+      "name": "Inverser les couleurs",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Inverti colori",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita"
+      }
+    },
+    "pt-br": {
+      "name": "Inverter cores",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída"
+      }
+    },
+    "ru": {
+      "name": "Инвертировать цвета",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход"
+      }
+    },
+    "zh": {
+      "name": "反转颜色",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出"
+      }
+    },
+    "zh-hant": {
+      "name": "反轉顏色",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出"
+      }
+    },
+    "ja": {
+      "name": "色を反転",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "색상 반전",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

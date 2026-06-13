@@ -1,5 +1,68 @@
 {
   "category": "Conversion",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Crear botones Reforged",
+      "ports": {
+        "Input": "Entrada"
+      }
+    },
+    "de": {
+      "name": "Reforged-Schaltflächen erstellen",
+      "ports": {
+        "Input": "Eingang"
+      }
+    },
+    "fr": {
+      "name": "Créer des boutons Reforged",
+      "ports": {
+        "Input": "Entrée"
+      }
+    },
+    "it": {
+      "name": "Crea pulsanti Reforged",
+      "ports": {
+        "Input": "Ingresso"
+      }
+    },
+    "pt-br": {
+      "name": "Criar botões Reforged",
+      "ports": {
+        "Input": "Entrada"
+      }
+    },
+    "ru": {
+      "name": "Создать кнопки Reforged",
+      "ports": {
+        "Input": "Вход"
+      }
+    },
+    "zh": {
+      "name": "创建重制版按钮",
+      "ports": {
+        "Input": "输入"
+      }
+    },
+    "zh-hant": {
+      "name": "建立重製版按鈕",
+      "ports": {
+        "Input": "輸入"
+      }
+    },
+    "ja": {
+      "name": "リフォージドボタンを作成",
+      "ports": {
+        "Input": "入力"
+      }
+    },
+    "ko": {
+      "name": "리포지드 버튼 생성",
+      "ports": {
+        "Input": "입력"
+      }
+    }
+  },
   "links": [
     {
       "from": [

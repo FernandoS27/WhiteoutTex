@@ -1,5 +1,86 @@
 {
   "category": "Image Operations",
+  "i18n": {
+    "de": {
+      "name": "Drehen",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang",
+        "angle": "Winkel"
+      }
+    },
+    "es": {
+      "name": "Rotar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida",
+        "angle": "ángulo"
+      }
+    },
+    "fr": {
+      "name": "Pivoter",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie"
+      }
+    },
+    "it": {
+      "name": "Ruota",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita",
+        "angle": "angolo"
+      }
+    },
+    "ja": {
+      "name": "回転",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力",
+        "angle": "角度"
+      }
+    },
+    "ko": {
+      "name": "회전",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력",
+        "angle": "각도"
+      }
+    },
+    "pt-br": {
+      "name": "Girar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída",
+        "angle": "ângulo"
+      }
+    },
+    "ru": {
+      "name": "Повернуть",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход",
+        "angle": "угол"
+      }
+    },
+    "zh": {
+      "name": "旋转",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出",
+        "angle": "角度"
+      }
+    },
+    "zh-hant": {
+      "name": "旋轉",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出",
+        "angle": "角度"
+      }
+    }
+  },
   "links": [
     {
       "from": [
@@ -32,6 +113,7 @@
       ]
     }
   ],
+  "multilingual": true,
   "name": "Rotate",
   "nodes": [
     {
@@ -68,7 +150,7 @@
     {
       "id": 6,
       "params": {
-        "clamp": true,
+        "clamp": false,
         "max": 360.0,
         "min": 0.0,
         "name": "angle",

@@ -7,9 +7,10 @@ copyright notices and license terms are reproduced here.
 
 ## Noto Sans (CJK)
 
-Bundled to render non-Latin UI languages: `fonts/NotoSansSC-Regular.ttf` (Cyrillic,
-Simplified + Traditional Chinese, Japanese kana) and `fonts/NotoSansKR-Regular.ttf`
-(Korean Hangul).
+Bundled as the application's UI font for every language: `fonts/NotoSansSC-Medium.ttf`
+(Latin, Cyrillic, Simplified + Traditional Chinese, Japanese kana) and
+`fonts/NotoSansKR-Medium.ttf` (Korean Hangul).  These are the Medium (weight 500)
+static instances generated from the upstream variable fonts.
 
 - **Project:** Noto Fonts / Google Fonts
 - **Repository:** <https://github.com/notofonts/noto-cjk>

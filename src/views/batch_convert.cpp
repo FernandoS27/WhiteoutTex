@@ -431,9 +431,13 @@ void BatchConvert::drawTransformPipeline() {
                         val = &step.pipeline_params.back().second;
                     }
                     ImGui::SetNextItemWidth(200.0f);
+                    // Show the translated label when present; the ##name suffix
+                    // keeps the widget id stable on the canonical (binding) name.
+                    const std::string plabel =
+                        (d.label.empty() ? d.name : d.label) + "##bp_" + d.name;
                     if (d.is_integer) {
                         i32 iv = static_cast<i32>(std::lround(*val));
-                        if (ImGui::InputInt(d.name.c_str(), &iv)) {
+                        if (ImGui::InputInt(plabel.c_str(), &iv)) {
                             if (d.clamp)
                                 iv = std::clamp(iv, static_cast<i32>(d.min),
                                                 static_cast<i32>(d.max));
@@ -441,7 +445,7 @@ void BatchConvert::drawTransformPipeline() {
                         }
                     } else {
                         float fv = static_cast<float>(*val);
-                        if (ImGui::InputFloat(d.name.c_str(), &fv)) {
+                        if (ImGui::InputFloat(plabel.c_str(), &fv)) {
                             if (d.clamp)
                                 fv = std::clamp(fv, static_cast<float>(d.min),
                                                 static_cast<float>(d.max));

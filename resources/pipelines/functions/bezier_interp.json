@@ -1,5 +1,88 @@
 {
   "category": "Interpolation",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Interpolación de Bézier",
+      "ports": {
+        "outTan": "tangente salida",
+        "inTan": "tangente entrada",
+        "value": "valor"
+      }
+    },
+    "de": {
+      "name": "Bézier-Interpolation",
+      "ports": {
+        "outTan": "Ausgangstangente",
+        "inTan": "Eingangstangente",
+        "value": "Wert"
+      }
+    },
+    "fr": {
+      "name": "Interpolation de Bézier",
+      "ports": {
+        "outTan": "tangente sortie",
+        "inTan": "tangente entrée",
+        "value": "valeur"
+      }
+    },
+    "it": {
+      "name": "Interpolazione di Bézier",
+      "ports": {
+        "outTan": "tangente uscita",
+        "inTan": "tangente entrata",
+        "value": "valore"
+      }
+    },
+    "pt-br": {
+      "name": "Interpolação de Bézier",
+      "ports": {
+        "outTan": "tangente de saída",
+        "inTan": "tangente de entrada",
+        "value": "valor"
+      }
+    },
+    "ru": {
+      "name": "Интерполяция Безье",
+      "ports": {
+        "outTan": "выходная касательная",
+        "inTan": "входная касательная",
+        "value": "значение"
+      }
+    },
+    "zh": {
+      "name": "贝塞尔插值",
+      "ports": {
+        "outTan": "出切线",
+        "inTan": "入切线",
+        "value": "值"
+      }
+    },
+    "zh-hant": {
+      "name": "貝茲插值",
+      "ports": {
+        "outTan": "出切線",
+        "inTan": "入切線",
+        "value": "值"
+      }
+    },
+    "ja": {
+      "name": "ベジェ補間",
+      "ports": {
+        "outTan": "出力接線",
+        "inTan": "入力接線",
+        "value": "値"
+      }
+    },
+    "ko": {
+      "name": "베지어 보간",
+      "ports": {
+        "outTan": "출력 탄젠트",
+        "inTan": "입력 탄젠트",
+        "value": "값"
+      }
+    }
+  },
   "links": [
     {
       "from": [

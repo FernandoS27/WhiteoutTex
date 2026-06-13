@@ -1,5 +1,88 @@
 {
   "category": "Image Operations",
+  "multilingual": true,
+  "i18n": {
+    "es": {
+      "name": "Enfocar",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida",
+        "Strength": "Intensidad"
+      }
+    },
+    "de": {
+      "name": "Schärfen",
+      "ports": {
+        "Input": "Eingang",
+        "Output": "Ausgang",
+        "Strength": "Stärke"
+      }
+    },
+    "fr": {
+      "name": "Netteté",
+      "ports": {
+        "Input": "Entrée",
+        "Output": "Sortie",
+        "Strength": "Intensité"
+      }
+    },
+    "it": {
+      "name": "Nitidezza",
+      "ports": {
+        "Input": "Ingresso",
+        "Output": "Uscita",
+        "Strength": "Intensità"
+      }
+    },
+    "pt-br": {
+      "name": "Nitidez",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Saída",
+        "Strength": "Intensidade"
+      }
+    },
+    "ru": {
+      "name": "Резкость",
+      "ports": {
+        "Input": "Вход",
+        "Output": "Выход",
+        "Strength": "Сила"
+      }
+    },
+    "zh": {
+      "name": "锐化",
+      "ports": {
+        "Input": "输入",
+        "Output": "输出",
+        "Strength": "强度"
+      }
+    },
+    "zh-hant": {
+      "name": "銳化",
+      "ports": {
+        "Input": "輸入",
+        "Output": "輸出",
+        "Strength": "強度"
+      }
+    },
+    "ja": {
+      "name": "シャープ",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力",
+        "Strength": "強度"
+      }
+    },
+    "ko": {
+      "name": "선명화",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력",
+        "Strength": "강도"
+      }
+    }
+  },
   "links": [
     {
       "from": [

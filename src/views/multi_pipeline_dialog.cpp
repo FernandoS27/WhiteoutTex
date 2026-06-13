@@ -96,18 +96,19 @@ void drawOutputOptions(MultiOutputRow& row, const std::string& id_suffix) {
 
 } // namespace
 
-void MultiPipelineDialog::open(std::string file, std::string display_name,
-                               const std::vector<std::string>& image_inputs,
-                               const std::vector<std::string>& image_outputs,
-                               const SavePrefs& default_prefs) {
+void MultiPipelineDialog::open(
+    std::string file, std::string display_name,
+    const std::vector<std::pair<std::string, std::string>>& image_inputs,
+    const std::vector<std::pair<std::string, std::string>>& image_outputs,
+    const SavePrefs& default_prefs) {
     file_ = std::move(file);
     display_name_ = std::move(display_name);
     inputs_.clear();
     outputs_.clear();
-    for (const auto& name : image_inputs)
-        inputs_.push_back({name, {}});
-    for (const auto& name : image_outputs)
-        outputs_.push_back({name, {}, default_prefs, 0});
+    for (const auto& [name, label] : image_inputs)
+        inputs_.push_back({name, label, {}});
+    for (const auto& [name, label] : image_outputs)
+        outputs_.push_back({name, label, {}, default_prefs, 0});
     result_message_.clear();
     result_ok_ = false;
     run_requested_ = false;
@@ -225,13 +226,16 @@ void MultiPipelineDialog::draw(SDL_Window* window) {
     if (!inputs_.empty())
         ImGui::SeparatorText(tr("multipipeline.inputs"));
     for (std::size_t i = 0; i < inputs_.size(); ++i)
-        pathField(inputs_[i].port.c_str(), inputs_[i].path, static_cast<int>(i), /*save=*/false);
+        pathField(inputs_[i].label.empty() ? inputs_[i].port.c_str() : inputs_[i].label.c_str(),
+                  inputs_[i].path, static_cast<int>(i), /*save=*/false);
 
     const int in_count = static_cast<int>(inputs_.size());
     if (!outputs_.empty())
         ImGui::SeparatorText(tr("multipipeline.outputs"));
     for (std::size_t j = 0; j < outputs_.size(); ++j) {
-        pathField(outputs_[j].port.c_str(), outputs_[j].path, in_count + static_cast<int>(j),
+        pathField(outputs_[j].label.empty() ? outputs_[j].port.c_str()
+                                            : outputs_[j].label.c_str(),
+                  outputs_[j].path, in_count + static_cast<int>(j),
                   /*save=*/true);
         if (!outputs_[j].path.empty()) {
             ImGui::Indent();
