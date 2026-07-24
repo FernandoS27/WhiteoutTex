@@ -46,6 +46,7 @@ private:
         bool is_d4_tex = false;///< True if this is a D4 TEX meta entry.
         std::vector<TreeNode> children;
         bool is_file = false;
+        u32 total_files = 0;   ///< Files in this subtree (folders only).
     };
 
     // ── Methods ────────────────────────────────────────────────────────
@@ -61,6 +62,9 @@ private:
     void loadListfileFromExeDir();
     void buildTree();
     void insertPathIntoTree(TreeNode& root, const std::string& file_path);
+    /// Sort @p node recursively (folders first, then files, each
+    /// case-insensitively by name) and return the subtree's file count.
+    static u32 sortTree(TreeNode& node);
     std::vector<models::AppCommand> drawTree(const TreeNode& node);
 
     // ── State ──────────────────────────────────────────────────────────
@@ -84,6 +88,7 @@ private:
 
     // Display
     TreeNode root_;
+    bool auto_expand_ = false; ///< Force folders open while a filter is active.
     std::string product_name_;
     u32 file_count_ = 0;
     std::string status_;

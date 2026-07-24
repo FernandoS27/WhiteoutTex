@@ -217,32 +217,70 @@ void CascBrowser::insertPathIntoTree(TreeNode& root, const std::string& file_pat
     TreeNode* current = &root;
     std::string::size_type start = 0;
     while (start < file_path.size()) {
-        auto sep = file_path.find_first_of("/\\", start);
+        // ':' is a separator too: Warcraft III (and other TVFS roots) namespace
+        // their content as `war3.w3mod:_hd.w3mod:units/human/...`, which would
+        // otherwise collapse into one unreadable top-level segment.
+        auto sep = file_path.find_first_of("/\\:", start);
         if (sep == std::string::npos)
             sep = file_path.size();
 
-        const std::string segment = file_path.substr(start, sep - start);
-        const bool is_last = (sep >= file_path.size());
+        if (sep > start) {
+            const std::string segment = file_path.substr(start, sep - start);
+            const bool is_last = (sep >= file_path.size());
 
-        TreeNode* child = nullptr;
-        for (auto& c : current->children) {
-            if (c.name == segment) {
-                child = &c;
-                break;
+            TreeNode* child = nullptr;
+            for (auto& c : current->children) {
+                if (c.name == segment && c.is_file == is_last) {
+                    child = &c;
+                    break;
+                }
             }
-        }
-        if (!child) {
-            current->children.push_back({});
-            child = &current->children.back();
-            child->name = segment;
-            if (is_last) {
-                child->is_file = true;
-                child->full_path = file_path;
+            if (!child) {
+                current->children.push_back({});
+                child = &current->children.back();
+                child->name = segment;
+                if (is_last) {
+                    child->is_file = true;
+                    child->full_path = file_path;
+                }
             }
+            current = child;
         }
-        current = child;
         start = sep + 1;
     }
+}
+
+u32 CascBrowser::sortTree(TreeNode& node) {
+    u32 count = 0;
+    for (auto& child : node.children) {
+        if (child.is_file)
+            ++count;
+        else
+            count += sortTree(child);
+    }
+    node.total_files = count;
+
+    // Folders first, then files; alphabetical (case-insensitive) within each
+    // group.  Compared in place so huge listfile trees don't allocate per
+    // comparison.
+    std::sort(node.children.begin(), node.children.end(),
+              [](const TreeNode& a, const TreeNode& b) {
+                  if (a.is_file != b.is_file)
+                      return !a.is_file;
+                  const auto& x = a.name;
+                  const auto& y = b.name;
+                  const std::size_t n = std::min(x.size(), y.size());
+                  for (std::size_t i = 0; i < n; ++i) {
+                      const auto cx =
+                          std::tolower(static_cast<unsigned char>(x[i]));
+                      const auto cy =
+                          std::tolower(static_cast<unsigned char>(y[i]));
+                      if (cx != cy)
+                          return cx < cy;
+                  }
+                  return x.size() < y.size();
+              });
+    return count;
 }
 
 void CascBrowser::buildTree() {
@@ -250,6 +288,7 @@ void CascBrowser::buildTree() {
     root_.name = "/";
 
     const std::string filter = to_lower(std::string(search_buf_));
+    auto_expand_ = !filter.empty();
 
     // ── MPQ branch ────────────────────────────────────────────────────
     if (local_kind_ == LocalKind::Mpq) {
@@ -258,6 +297,7 @@ void CascBrowser::buildTree() {
                 continue;
             insertPathIntoTree(root_, path);
         }
+        sortTree(root_);
         return;
     }
 
@@ -270,8 +310,10 @@ void CascBrowser::buildTree() {
 
     // Insert D4 TEX entries under a virtual "Diablo IV Textures" folder.
     const auto& d4_entries = casc_service_.d4Entries();
-    if (d4_entries.empty())
+    if (d4_entries.empty()) {
+        sortTree(root_);
         return;
+    }
 
     TreeNode* d4_folder = nullptr;
     for (auto& c : root_.children) {
@@ -297,6 +339,8 @@ void CascBrowser::buildTree() {
         node.is_d4_tex = true;
         node.is_file = true;
     }
+
+    sortTree(root_);
 }
 
 // ============================================================================
@@ -306,10 +350,16 @@ void CascBrowser::buildTree() {
 std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
     std::vector<AppCommand> commands;
 
+    // `node.children` is pre-sorted by sortTree(): folders first, then files.
+    int index = 0;
     for (const auto& child : node.children) {
+        // Names are unique per kind, but a folder and a file can share one —
+        // scope the ImGui ID by index so their states never collide.
+        ImGui::PushID(index++);
         if (child.is_file) {
             constexpr ImGuiTreeNodeFlags kLeafFlags =
-                ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                ImGuiTreeNodeFlags_SpanAvailWidth;
             ImGui::TreeNodeEx(child.name.c_str(), kLeafFlags);
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
@@ -354,13 +404,23 @@ std::vector<AppCommand> CascBrowser::drawTree(const TreeNode& node) {
                     ImGui::SetTooltip("%s", child.full_path.c_str());
             }
         } else {
-            if (ImGui::TreeNode(child.name.c_str())) {
+            // While a filter is typed, keep every surviving folder open so the
+            // matches are visible without hand-expanding the hierarchy.
+            if (auto_expand_)
+                ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+
+            const bool open = ImGui::TreeNodeEx(child.name.c_str(),
+                                                ImGuiTreeNodeFlags_SpanAvailWidth);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%u)", child.total_files);
+            if (open) {
                 auto child_cmds = drawTree(child);
                 commands.insert(commands.end(), std::make_move_iterator(child_cmds.begin()),
                                 std::make_move_iterator(child_cmds.end()));
                 ImGui::TreePop();
             }
         }
+        ImGui::PopID();
     }
     return commands;
 }
