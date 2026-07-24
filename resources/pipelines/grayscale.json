@@ -1,19 +1,18 @@
 {
   "category": "Filter",
-  "multilingual": true,
   "i18n": {
-    "es": {
-      "name": "Escala de grises",
-      "ports": {
-        "Input": "Entrada",
-        "Output": "Salida"
-      }
-    },
     "de": {
       "name": "Graustufen",
       "ports": {
         "Input": "Eingang",
         "Output": "Ausgang"
+      }
+    },
+    "es": {
+      "name": "Escala de grises",
+      "ports": {
+        "Input": "Entrada",
+        "Output": "Salida"
       }
     },
     "fr": {
@@ -28,6 +27,20 @@
       "ports": {
         "Input": "Ingresso",
         "Output": "Uscita"
+      }
+    },
+    "ja": {
+      "name": "グレースケール",
+      "ports": {
+        "Input": "入力",
+        "Output": "出力"
+      }
+    },
+    "ko": {
+      "name": "그레이스케일",
+      "ports": {
+        "Input": "입력",
+        "Output": "출력"
       }
     },
     "pt-br": {
@@ -57,20 +70,6 @@
         "Input": "輸入",
         "Output": "輸出"
       }
-    },
-    "ja": {
-      "name": "グレースケール",
-      "ports": {
-        "Input": "入力",
-        "Output": "出力"
-      }
-    },
-    "ko": {
-      "name": "그레이스케일",
-      "ports": {
-        "Input": "입력",
-        "Output": "출력"
-      }
     }
   },
   "links": [
@@ -90,13 +89,53 @@
         "channel"
       ],
       "to": [
-        5,
-        "channel"
+        7,
+        "red"
       ]
     },
     {
       "from": [
-        5,
+        4,
+        "channel"
+      ],
+      "to": [
+        7,
+        "green"
+      ]
+    },
+    {
+      "from": [
+        4,
+        "channel"
+      ],
+      "to": [
+        7,
+        "blue"
+      ]
+    },
+    {
+      "from": [
+        6,
+        "channel"
+      ],
+      "to": [
+        7,
+        "alpha"
+      ]
+    },
+    {
+      "from": [
+        1,
+        "image"
+      ],
+      "to": [
+        6,
+        "image"
+      ]
+    },
+    {
+      "from": [
+        7,
         "image"
       ],
       "to": [
@@ -105,6 +144,7 @@
       ]
     }
   ],
+  "multilingual": true,
   "name": "Grayscale",
   "nodes": [
     {
@@ -124,8 +164,8 @@
         "name": "Output"
       },
       "pos": [
-        1060.0,
-        326.0
+        824.0,
+        301.0
       ],
       "type": "output.standard"
     },
@@ -135,19 +175,30 @@
         "method": 0
       },
       "pos": [
-        356.0,
-        214.0
+        312.0,
+        205.0
       ],
       "type": "op.luma"
     },
     {
-      "id": 5,
+      "id": 6,
+      "params": {
+        "channel": 0
+      },
+      "pos": [
+        312.0,
+        372.0
+      ],
+      "type": "op.extract_channel"
+    },
+    {
+      "id": 7,
       "params": {},
       "pos": [
-        683.0,
-        230.0
+        616.0,
+        292.0
       ],
-      "type": "op.prims"
+      "type": "op.merge_channels"
     }
   ],
   "type": "standard",
