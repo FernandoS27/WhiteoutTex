@@ -16,9 +16,12 @@
 #include <whiteout/textures/tex/tex.h>
 #include <whiteout/textures/tga/tga.h>
 #include <whiteout/textures/tiff/tiff.h>
+#include <whiteout/textures/txtr/txtr.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
+#include <fstream>
 #include <span>
 #include <string>
 
@@ -34,6 +37,76 @@ namespace {
 
 std::string get_extension_lower(const std::string& path) {
     return gui::to_lower(std::filesystem::path(path).extension().string());
+}
+
+// ============================================================================
+// Overwatch TXTR sidecar discovery
+// ============================================================================
+
+/// The 64-bit asset GUID an Overwatch file name ends with, or 0 when it carries
+/// none.  Extracted assets are named after the GUID CascLib prints — sixteen
+/// hex digits — so the stem is the whole identifier.
+u64 txtr_guid_from_stem(const std::string& path) {
+    const auto stem = gui::to_lower(std::filesystem::path(path).stem().string());
+    if (stem.size() != 16)
+        return 0;
+    u64 guid = 0;
+    for (char c : stem) {
+        if (c >= '0' && c <= '9')
+            guid = (guid << 4) | static_cast<u64>(c - '0');
+        else if (c >= 'a' && c <= 'f')
+            guid = (guid << 4) | static_cast<u64>(c - 'a' + 10);
+        else
+            return 0;
+    }
+    return guid;
+}
+
+/// Sixteen lowercase hex digits, the form an Overwatch asset file is named for.
+std::string txtr_hex16(u64 value) {
+    static constexpr char kDigits[] = "0123456789abcdef";
+    std::string out(16, '0');
+    for (int i = 15; i >= 0; --i, value >>= 4)
+        out[static_cast<std::size_t>(i)] = kDigits[value & 0xF];
+    return out;
+}
+
+/// The `04D` payload files sitting next to the TXTR header at @p headerPath.
+///
+/// A payload GUID is derived from the texture's, never stored, so the header
+/// has to be peeked at for the chain length before the names can be built.  A
+/// payload is looked for beside the header under both the extension the CASC
+/// browser gives it and no extension at all; anything not on disk is left out,
+/// which costs the texture its larger mips but not the load.
+std::vector<std::string> txtr_sidecar_payloads(const std::string& headerPath) {
+    namespace fs = std::filesystem;
+
+    const u64 guid = txtr_guid_from_stem(headerPath);
+    if (guid == 0)
+        return {};
+
+    std::array<u8, txtr::kInlineDataOffset> head{};
+    std::ifstream in(fs::path(headerPath), std::ios::binary);
+    if (!in)
+        return {};
+    in.read(reinterpret_cast<char*>(head.data()), static_cast<std::streamsize>(head.size()));
+    if (in.gcount() != static_cast<std::streamsize>(head.size()))
+        return {};
+
+    const fs::path dir = fs::path(headerPath).parent_path();
+    std::vector<std::string> paths;
+    for (const u64 payloadGuid : txtr::Parser::payloadGuids(head, guid)) {
+        const std::string name = txtr_hex16(payloadGuid);
+        for (const char* ext : {".txtr_payload", ""}) {
+            const fs::path candidate = dir / (name + ext);
+            std::error_code ec;
+            if (fs::exists(candidate, ec)) {
+                paths.push_back(candidate.string());
+                break;
+            }
+        }
+    }
+    return paths;
 }
 
 } // anonymous namespace
@@ -92,6 +165,22 @@ public:
         }
         if (!result)
             issues.push_back("Unknown D4 TEX parse error");
+        return result;
+    }
+
+    /// Load an Overwatch TXTR.  Forwards all arguments to txtr::Parser::parse().
+    ///
+    /// Unlike the D4 TEX path, an issue here is not automatically fatal: the
+    /// parser reports missing payloads and trailing bytes as warnings and still
+    /// returns the texture the supplied data does describe.
+    template <typename... Args>
+    std::optional<Texture> loadTxtr(Args&&... args) {
+        txtr::Parser parser;
+        auto result = parser.parse(std::forward<Args>(args)...);
+        if (parser.hasIssues())
+            issues.insert(issues.end(), parser.getIssues().begin(), parser.getIssues().end());
+        if (!result && !parser.hasIssues())
+            issues.push_back("Unknown TXTR parse error");
         return result;
     }
 
@@ -294,6 +383,10 @@ const char* TextureConverter::textureTypeName(TextureType type) {
         return "3D";
     case TextureType::TextureCube:
         return "Cube";
+    case TextureType::Texture2DArray:
+        return "2D Array";
+    case TextureType::TextureCubeArray:
+        return "Cube Array";
     }
     return "Unknown";
 }
@@ -365,6 +458,8 @@ std::optional<Texture> TextureConverter::load(const std::string& path, TextureFi
         return pImpl->loadFile<tga::Parser>(path, "TGA");
     case TextureFileFormat::TIFF:
         return pImpl->loadFile<tiff::Parser>(path, "TIFF");
+    case TextureFileFormat::TXTR:
+        return pImpl->loadTxtr(path, txtr_sidecar_payloads(path));
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -407,6 +502,8 @@ std::optional<Texture> TextureConverter::load(std::span<const u8> data, TextureF
         return pImpl->loadFromBuffer<tga::Parser>(data, "TGA");
     case TextureFileFormat::TIFF:
         return pImpl->loadFromBuffer<tiff::Parser>(data, "TIFF");
+    case TextureFileFormat::TXTR:
+        return pImpl->loadTxtr(data, std::span<const std::span<const u8>>{}, nullptr);
     default:
         pImpl->issues.push_back("Unsupported input format");
         return std::nullopt;
@@ -417,6 +514,22 @@ std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,
                                                    std::span<const u8> payload) {
     pImpl->clearIssues();
     return pImpl->loadTexD4(meta, payload);
+}
+
+std::optional<Texture> TextureConverter::loadTxtr(std::span<const u8> header,
+                                                  std::span<const std::vector<u8>> payloads) {
+    pImpl->clearIssues();
+    std::vector<std::span<const u8>> views;
+    views.reserve(payloads.size());
+    for (const auto& buffer : payloads)
+        views.emplace_back(buffer);
+    return pImpl->loadTxtr(header, std::span<const std::span<const u8>>(views), nullptr);
+}
+
+std::optional<Texture> TextureConverter::loadTxtr(const std::string& headerPath,
+                                                  const std::vector<std::string>& payloadPaths) {
+    pImpl->clearIssues();
+    return pImpl->loadTxtr(headerPath, payloadPaths, nullptr);
 }
 
 std::optional<Texture> TextureConverter::loadTexD4(std::span<const u8> meta,

@@ -471,7 +471,8 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                         const auto t = tex_state_.texture->type();
                         is_multi_layer = t == tex::TextureType::TextureCube ||
                                          t == tex::TextureType::Texture2DArray ||
-                                         t == tex::TextureType::TextureCubeArray;
+                                         t == tex::TextureType::TextureCubeArray ||
+                                         t == tex::TextureType::Texture3D;
                     }
                     save_dialog_.buildFilterOrder(save_prefs_, is_multi_layer);
                     // Build a default save path: preferred save dir + stem of the open
@@ -534,6 +535,9 @@ void App::dispatchCommands(std::vector<AppCommand>& commands) {
                     if (c.is_d4_tex) {
                         load_result =
                             texture_service_.loadD4FromMemory(c.name, c.data, c.payload, c.paylow);
+                    } else if (c.is_txtr) {
+                        load_result =
+                            texture_service_.loadTxtrFromMemory(c.name, c.data, c.payloads);
                     } else {
                         auto fmt = tex::TextureConverter::classifyPath(c.name);
                         load_result = texture_service_.loadFromMemory(c.name, c.data, fmt);

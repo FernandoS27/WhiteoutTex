@@ -97,7 +97,9 @@ struct LoadCascTextureCmd {
     std::vector<u8> data;
     std::vector<u8> payload;
     std::vector<u8> paylow;
+    std::vector<std::vector<u8>> payloads; ///< Overwatch TXTR `04D` payloads.
     bool is_d4_tex = false;
+    bool is_txtr = false;
 };
 
 /// Apply BC3N channel swap to the current texture.

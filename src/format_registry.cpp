@@ -19,6 +19,7 @@ constexpr std::string_view kExtPsd[] = {".psd"sv};
 constexpr std::string_view kExtTex[] = {".tex"sv};
 constexpr std::string_view kExtTga[] = {".tga"sv};
 constexpr std::string_view kExtTiff[] = {".tif"sv, ".tiff"sv};
+constexpr std::string_view kExtTxtr[] = {".txtr"sv};
 constexpr std::string_view kExtD2r[] = {".texture"sv};
 
 constexpr FmtCap kAll =
@@ -32,7 +33,8 @@ constexpr FmtCap kAll =
 //   * Write    → BLP,BMP,DDS,JPEG,PNG,PSD,TGA,TIFF,D2R  (SavePrefs::last_filter)
 // Per-format caps reproduce the exact (historically inconsistent) subsets:
 //   PSD has no batch/archive presence; TEX is read-only & not a batch output;
-//   TIFF/PSD are not archive-browsable.
+//   TIFF/PSD are not archive-browsable; TXTR is browse-and-read only (its pixel
+//   data is split across payload files a batch scan of loose headers can't find).
 constexpr FormatInfo kTable[] = {
     {TextureFileFormat::BLP, "BLP", "BLP (Blizzard Picture)", "blp", kExtBlp, kAll},
     {TextureFileFormat::BMP, "BMP", "BMP (Bitmap)", "bmp", kExtBmp, kAll},
@@ -46,6 +48,8 @@ constexpr FormatInfo kTable[] = {
     {TextureFileFormat::TGA, "TGA", "TGA (Targa)", "tga", kExtTga, kAll},
     {TextureFileFormat::TIFF, "TIFF", "TIFF (Tagged Image File Format)", "tif;tiff", kExtTiff,
      FmtCap::Read | FmtCap::Write | FmtCap::BatchIn | FmtCap::BatchOut},
+    {TextureFileFormat::TXTR, "TXTR", "TXTR (Overwatch)", "txtr", kExtTxtr,
+     FmtCap::Read | FmtCap::Archive},
     {TextureFileFormat::D2R, "D2R", "D2R (Diablo II Resurrected)", "texture", kExtD2r, kAll},
 };
 

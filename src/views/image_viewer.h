@@ -4,6 +4,7 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "common_types.h"
@@ -70,13 +71,23 @@ private:
     /// at the selected mip with the active channel filter.
     void rebuildPreview(SDL_Renderer* renderer);
 
-    /// Build a cross-layout unwrap of all 6 cube faces into unwrap_texture_.
+    /// Build the all-layers-at-once view into unwrap_texture_: a cross layout
+    /// for a cube map, a grid of Z slices for a volume.
     void buildUnwrapTexture(SDL_Renderer* renderer);
+
+    /// Number of Z slices the selected mip of a volume texture holds (1 when
+    /// the texture is not a volume).  Depth halves with every mip level, so
+    /// this is not the same as the base depth.
+    i32 sliceCountAtSelectedMip() const;
+
+    /// Read-only view of one Z slice of the selected mip.  For a non-volume
+    /// texture this is the whole mip of @p layer.
+    std::span<const u8> sliceData(u32 mip, u32 layer, i32 slice) const;
 
     // Display state
     std::optional<whiteout::textures::Texture> display_texture_;
     SDL_Texture* image_texture_ = nullptr;
-    SDL_Texture* unwrap_texture_ = nullptr; ///< Cross-layout cube unwrap (built on demand).
+    SDL_Texture* unwrap_texture_ = nullptr; ///< All-layers layout (built on demand).
     SDL_Renderer* renderer_ = nullptr;
     i32 image_width_ = 0;
     i32 image_height_ = 0;
@@ -85,13 +96,15 @@ private:
     bool show_unwrap_ = false;
     i32 selected_mip_ = 0;
 
-    // Cube / CubeArray / 2DArray selection
+    // Cube / CubeArray / 2DArray / 3D selection
     bool is_cube_ = false;
     bool is_cube_array_ = false;
     bool is_2d_array_ = false;
+    bool is_3d_ = false;            ///< Volume texture: Z slices act as layers.
     i32 array_size_ = 1;
     i32 selected_face_ = 0;         ///< 0=+X 1=-X 2=+Y 3=-Y 4=+Z 5=-Z
     i32 selected_array_index_ = 0;
+    i32 selected_slice_ = 0;        ///< Z slice of a volume texture.
 
     // Channel filter
     bool channel_r_ = true;

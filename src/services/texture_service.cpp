@@ -109,6 +109,20 @@ TextureLoadResult TextureService::loadD4FromMemory(const std::string& name,
     return r;
 }
 
+TextureLoadResult TextureService::loadTxtrFromMemory(const std::string& name,
+                                                     std::span<const u8> header,
+                                                     std::span<const std::vector<u8>> payloads) {
+    auto loaded = converter_.loadTxtr(header, payloads);
+    if (loaded)
+        return prepare(name, std::move(*loaded));
+
+    TextureLoadResult r;
+    r.error_message = "Failed to load CASC file: " + name;
+    if (converter_.hasIssues())
+        appendIssues(r.error_message, converter_.getIssues());
+    return r;
+}
+
 // ============================================================================
 // Preparation (kind guessing, BCn decompression)
 // ============================================================================

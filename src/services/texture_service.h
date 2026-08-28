@@ -66,6 +66,12 @@ public:
                                        std::span<const u8> payload,
                                        std::span<const u8> paylow = {});
 
+    /// Load an Overwatch TXTR from in-memory buffers (header + `04D` payloads).
+    /// Payloads may be empty or incomplete; the texture then carries only the
+    /// mips the supplied data covers.
+    TextureLoadResult loadTxtrFromMemory(const std::string& name, std::span<const u8> header,
+                                         std::span<const std::vector<u8>> payloads);
+
     /// Regenerate mipmaps on the texture (with BCn round-trip if needed).
     TextureOpResult regenerateMipmaps(whiteout::textures::Texture& texture, u32 mip_count);
 

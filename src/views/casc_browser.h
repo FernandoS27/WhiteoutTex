@@ -61,10 +61,21 @@ private:
     void openLocalStorage();
     void loadListfileFromExeDir();
     void buildTree();
+    /// Insert @p file_path into @p root, creating the nodes its segments name.
+    ///
+    /// Callers must supply paths in ascending order (both service file lists
+    /// are sorted).  That is what keeps the insert linear: siblings sharing a
+    /// prefix arrive contiguously, so a file leaf either continues the previous
+    /// path or is new, and never has to be searched for among the ones already
+    /// there.  Overwatch puts 390,000 files in a single folder, where searching
+    /// costs 2e11 string comparisons — hours, not seconds.
     void insertPathIntoTree(TreeNode& root, const std::string& file_path);
     /// Sort @p node recursively (folders first, then files, each
     /// case-insensitively by name) and return the subtree's file count.
     static u32 sortTree(TreeNode& node);
+    /// Draw one file row; a double click reads the file and appends a load
+    /// command to @p commands.
+    void drawFileNode(const TreeNode& child, std::vector<models::AppCommand>& commands);
     std::vector<models::AppCommand> drawTree(const TreeNode& node);
 
     // ── State ──────────────────────────────────────────────────────────
@@ -85,6 +96,11 @@ private:
 
     FolderState folder_state_; ///< For CASC folder dialog.
     FolderState file_state_;   ///< For MPQ file dialog (reuses the same type).
+
+    /// Folder whose async local open is in flight; empty when the pending
+    /// open (if any) is an online connect.  Pushed to the recent list once
+    /// the open lands successfully.
+    std::string pending_local_path_;
 
     // Display
     TreeNode root_;

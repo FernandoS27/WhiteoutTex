@@ -8,7 +8,8 @@
  * @brief Unified texture loading, saving, and format classification
  *
  * TextureConverter provides a single entry point for reading and writing
- * textures across all supported file formats (BLP, BMP, D2R, DDS, JPEG, PNG, PSD, TEX, TGA, TIFF).
+ * textures across all supported file formats (BLP, BMP, D2R, DDS, JPEG, PNG, PSD, TEX, TGA, TIFF,
+ * TXTR).
  * It also offers static utilities for format classification, display-name
  * lookup, and heuristic TextureKind guessing from file names and pixel
  * formats.
@@ -46,6 +47,7 @@ enum class TextureFileFormat : u32 {
     TEX,     ///< Blizzard proprietary texture (Diablo III/IV).
     TGA,     ///< Truevision TGA (uncompressed + RLE).
     TIFF,    ///< Tagged Image File Format (TIFF 6.0 subset).
+    TXTR,    ///< Overwatch texture (`004`/`0F1` header + `04D` payloads).
     Unknown, ///< Unrecognised extension.
 };
 
@@ -146,6 +148,23 @@ public:
     /// Load a Diablo IV TEX from in-memory buffers (meta + hi + low payload).
     std::optional<Texture> loadTexD4(std::span<const u8> meta, std::span<const u8> payload,
                                      std::span<const u8> paylow);
+
+    /// Load an Overwatch TXTR from in-memory buffers.
+    ///
+    /// The header carries the smallest mips inline; the larger ones live in
+    /// separate `04D` payload files.  Payloads may be supplied in any order and
+    /// the set may be incomplete — a short set yields the smaller texture the
+    /// available mips describe rather than a failure.
+    ///
+    /// @param header   The `004` / `0F1` header file.
+    /// @param payloads Payload files, in any order.  Empty entries are ignored.
+    std::optional<Texture> loadTxtr(std::span<const u8> header,
+                                    std::span<const std::vector<u8>> payloads);
+
+    /// Load an Overwatch TXTR from disk (header plus its payload files).
+    /// @p payloadPaths may be empty for a self-contained texture.
+    std::optional<Texture> loadTxtr(const std::string& headerPath,
+                                    const std::vector<std::string>& payloadPaths);
 
     // ── Saving ─────────────────────────────────────────────────────────
 

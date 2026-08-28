@@ -90,8 +90,16 @@ constexpr f32 kFaceComboW = 65.0f;
 /// Width of the array index combobox.
 constexpr f32 kArrayComboW = 90.0f;
 
+/// Width of the volume Z-slice combobox.
+constexpr f32 kSliceComboW = 110.0f;
+
 /// Gap between comboboxes and the channel buttons.
 constexpr f32 kComboGap = 8.0f;
+
+/// Largest edge, in pixels, an all-layers layout may reach.  A deep volume
+/// tiles into something no GPU will hold and no screen will show — beyond this
+/// the layout is skipped and the per-slice view stands.
+constexpr i32 kMaxLayoutEdge = 8192;
 
 } // anonymous namespace
 
@@ -115,15 +123,17 @@ ImageViewer::~ImageViewer() {
 void ImageViewer::setTexture(const tex::Texture& texture) {
     updateChannelInfo(texture);
 
-    // Detect cube / cube-array / 2D-array topology.
+    // Detect cube / cube-array / 2D-array / volume topology.
     const auto tex_type = texture.type();
     is_cube_ = (tex_type == tex::TextureType::TextureCube ||
                 tex_type == tex::TextureType::TextureCubeArray);
     is_cube_array_ = (tex_type == tex::TextureType::TextureCubeArray);
     is_2d_array_   = (tex_type == tex::TextureType::Texture2DArray);
+    is_3d_         = (tex_type == tex::TextureType::Texture3D);
     array_size_ = (is_cube_array_ || is_2d_array_) ? static_cast<i32>(texture.arraySize()) : 1;
     selected_face_ = 0;
     selected_array_index_ = 0;
+    selected_slice_ = 0;
     show_unwrap_ = false;
     if (unwrap_texture_) {
         SDL_DestroyTexture(unwrap_texture_);
@@ -205,16 +215,20 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     ImGui::SameLine(0.0f, 8.0f);
     ImGui::Text("%.0f%%", zoom_scale_ * 100.0f);
 
-    // ---- Cubemap unwrap toggle ----
-    if (is_cube_) {
+    // ---- All-layers-at-once toggle (cube cross / volume slice grid) ----
+    if (is_cube_ || is_3d_) {
         ImGui::SameLine(0.0f, 8.0f);
         const ImVec4 active_col{0.30f, 0.55f, 0.30f, 1.0f};
         if (show_unwrap_)
             ImGui::PushStyleColor(ImGuiCol_Button, active_col);
-        if (ImGui::Button(tr("viewer.unwrap"))) {
+        if (ImGui::Button(is_3d_ ? tr("viewer.all_slices") : tr("viewer.unwrap"))) {
             show_unwrap_ = !show_unwrap_;
-            if (show_unwrap_)
+            if (show_unwrap_) {
                 buildUnwrapTexture(renderer);
+                // Too large to lay out, or the upload failed — stay on the
+                // per-face / per-slice view rather than latching a dead button.
+                show_unwrap_ = unwrap_texture_ != nullptr;
+            }
             auto_fit_ = true;
             pan_offset_ = ImVec2{0.0f, 0.0f};
         }
@@ -250,10 +264,34 @@ void ImageViewer::drawToolbar(SDL_Renderer* renderer) {
     if (!show_unwrap_) {
         if (is_cube_)                       total_right_width += kFaceComboW  + kComboGap;
         if (is_cube_array_ || is_2d_array_) total_right_width += kArrayComboW + kComboGap;
+        if (is_3d_)                         total_right_width += kSliceComboW + kComboGap;
     }
 
     ImGui::SameLine(0.0f, 0.0f);
     ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - total_right_width);
+
+    // ---- Z-slice combobox (volume textures, hidden in slice-grid mode) ----
+    if (!show_unwrap_ && is_3d_) {
+        const i32 slices = sliceCountAtSelectedMip();
+        ImGui::SetNextItemWidth(kSliceComboW);
+        char preview[32];
+        std::snprintf(preview, sizeof(preview), tr("viewer.slice"), selected_slice_, slices);
+        if (ImGui::BeginCombo("##slice", preview)) {
+            for (i32 i = 0; i < slices; ++i) {
+                char item[32];
+                std::snprintf(item, sizeof(item), tr("viewer.slice"), i, slices);
+                const bool is_selected = (i == selected_slice_);
+                if (ImGui::Selectable(item, is_selected)) {
+                    selected_slice_ = i;
+                    rebuildPreview(renderer);
+                }
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(0.0f, kComboGap);
+    }
 
     // ---- Array index combobox (CubeArray or 2DArray, hidden in unwrap mode) ----
     if (!show_unwrap_ && (is_cube_array_ || is_2d_array_)) {
@@ -480,6 +518,29 @@ SDL_Texture* ImageViewer::createTextureFromRGBA8(SDL_Renderer* renderer, const u
     return texture;
 }
 
+i32 ImageViewer::sliceCountAtSelectedMip() const {
+    if (!is_3d_ || !display_texture_ || display_texture_->mipCount() == 0)
+        return 1;
+    const auto mip = std::min(static_cast<u32>(std::max(selected_mip_, 0)),
+                              display_texture_->mipCount() - 1);
+    return static_cast<i32>(std::max(display_texture_->mipLevel(mip).depth, 1u));
+}
+
+std::span<const u8> ImageViewer::sliceData(u32 mip, u32 layer, i32 slice) const {
+    auto data = display_texture_->mipData(mip, layer);
+    if (!is_3d_)
+        return data;
+
+    // A volume's mip is its Z slices back to back; the display copy is RGBA8,
+    // so a slice is exactly width * height * 4 bytes.
+    const auto& ml = display_texture_->mipLevel(mip, layer);
+    const std::size_t slice_bytes = static_cast<std::size_t>(ml.width) * ml.height * 4u;
+    const std::size_t offset = static_cast<std::size_t>(std::max(slice, 0)) * slice_bytes;
+    if (slice_bytes == 0 || offset + slice_bytes > data.size())
+        return data.first(std::min(slice_bytes, data.size()));
+    return data.subspan(offset, slice_bytes);
+}
+
 void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
     if (!display_texture_)
         return;
@@ -492,10 +553,14 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
         is_cube_     ? static_cast<u32>(selected_array_index_) * 6u + static_cast<u32>(selected_face_)
         : is_2d_array_ ? static_cast<u32>(selected_array_index_)
                        : 0u;
+    // Depth halves with every mip level, so the slice picked at a coarser mip
+    // may no longer exist at a finer one (and vice versa).
+    selected_slice_ = std::clamp(selected_slice_, 0, sliceCountAtSelectedMip() - 1);
+
     const auto& dml = display_texture_->mipLevel(mip_idx, layer_idx);
     image_width_ = static_cast<i32>(dml.width);
     image_height_ = static_cast<i32>(dml.height);
-    auto mip_data = display_texture_->mipData(mip_idx, layer_idx);
+    auto mip_data = sliceData(mip_idx, layer_idx, selected_slice_);
     if (channel_r_ && channel_g_ && channel_b_ && channel_a_) {
         image_texture_ =
             createTextureFromRGBA8(renderer, mip_data.data(), image_width_, image_height_);
@@ -512,7 +577,7 @@ void ImageViewer::rebuildPreview(SDL_Renderer* renderer) {
 }
 
 // ============================================================================
-// Cubemap unwrap
+// All-layers layouts (cube cross / volume slice grid)
 // ============================================================================
 
 void ImageViewer::buildUnwrapTexture(SDL_Renderer* renderer) {
@@ -524,6 +589,54 @@ void ImageViewer::buildUnwrapTexture(SDL_Renderer* renderer) {
     }
 
     const u32 mip = static_cast<u32>(selected_mip_);
+
+    // ---- Volume: every Z slice laid out as its own tile ----
+    if (is_3d_) {
+        const auto& vml = display_texture_->mipLevel(mip);
+        const i32 sw = static_cast<i32>(vml.width);
+        const i32 sh = static_cast<i32>(vml.height);
+        const i32 slices = sliceCountAtSelectedMip();
+
+        // As square a grid as the slice count allows, so a 16-slice LUT reads
+        // as 4x4 rather than a 16-tile strip nothing can fit on screen.
+        i32 cols = 1;
+        while (cols * cols < slices)
+            ++cols;
+        const i32 rows = (slices + cols - 1) / cols;
+
+        const i32 grid_w = sw * cols;
+        const i32 grid_h = sh * rows;
+        if (grid_w > kMaxLayoutEdge || grid_h > kMaxLayoutEdge)
+            return; // leaves unwrap_texture_ null; drawToolbar drops the toggle
+        std::vector<u8> grid(static_cast<size_t>(grid_w) * grid_h * 4, u8{0});
+
+        for (i32 z = 0; z < slices; ++z) {
+            auto slice_span = sliceData(mip, 0, z);
+
+            std::vector<u8> filtered;
+            const u8* src = slice_span.data();
+            if (!(channel_r_ && channel_g_ && channel_b_ && channel_a_)) {
+                filtered = TextureService::applyChannelFilter(
+                    src, sw, sh, channel_r_, channel_g_, channel_b_, channel_a_);
+                src = filtered.data();
+            }
+
+            const i32 dst_x = (z % cols) * sw;
+            const i32 dst_y = (z / cols) * sh;
+            for (i32 y = 0; y < sh; ++y) {
+                const u8* src_row = src + static_cast<ptrdiff_t>(y) * sw * 4;
+                u8* dst_row = grid.data() +
+                              (static_cast<ptrdiff_t>(dst_y + y) * grid_w + dst_x) * 4;
+                std::copy_n(src_row, static_cast<size_t>(sw) * 4, dst_row);
+            }
+        }
+
+        unwrap_w_ = grid_w;
+        unwrap_h_ = grid_h;
+        unwrap_texture_ = createTextureFromRGBA8(renderer, grid.data(), grid_w, grid_h);
+        return;
+    }
+
     const u32 base_layer = static_cast<u32>(selected_array_index_) * 6u;
 
     const auto& dml = display_texture_->mipLevel(mip, base_layer);
@@ -546,7 +659,9 @@ void ImageViewer::buildUnwrapTexture(SDL_Renderer* renderer) {
 
     const i32 cross_w = fw * 4;
     const i32 cross_h = fh * 3;
-    std::vector<u8> cross(static_cast<size_t>(cross_w * cross_h * 4), u8{0});
+    if (cross_w > kMaxLayoutEdge || cross_h > kMaxLayoutEdge)
+        return; // leaves unwrap_texture_ null; drawToolbar drops the toggle
+    std::vector<u8> cross(static_cast<size_t>(cross_w) * cross_h * 4, u8{0});
 
     for (i32 face = 0; face < 6; ++face) {
         const u32 layer = base_layer + static_cast<u32>(face);
